@@ -15,7 +15,7 @@ documentação do gerador é parte do trabalho.
 
 ```
 src/
-  shared/          auxiliares comuns a M1..M10
+  shared/          auxiliares comuns a M1..M12
     rng.py         fluxos de aleatoriedade derivados da semente
     tables.py      escrita de CSV e embaralhamento de linhas
     layout.py      onde cada arquivo mora dentro de data/
@@ -31,29 +31,38 @@ data/              saida CSV de todos os modulos (nao versionada)
 tests/             verificacao de determinismo e de formato
 ```
 
-A pasta `data/` espelha a dependencia dos modulos: o que depende so da semente fica
-no nivel da semente, o que depende tambem de sigma fica um nivel abaixo.
+A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
+semanas 3 e 4, tudo que deriva das semanas 1 e 2 e independente de sigma — e o
+pipeline tem dois ramos. M4, M5 e M7 aparecem nos dois.
 
 ```
 data/
   runs.csv                        indice das 330 execucoes
-  metrics.csv                     agregado final (M10)
-  seed-01/
-    operators.csv  keys.csv       M1, dependem so da semente
-    requests.csv                  M2, trafego legitimo
-    sigma-0.0/
-      requests.csv                M3, legitimo + ataque
-      outcomes.csv  log.csv       M4, M5
-      windows.csv                 M6
-      train.csv  holdout.csv      M7
-      predictions_rules.csv       M8
-      predictions_ml.csv          M9
+  metrics.csv                     agregado final (M12)
+  preparation/                    busca de hiperparametros, semente 902
+  seed-01/                        ---- ramo da semente, 30 execucoes ----
+    operators.csv  keys.csv       M1
+    requests.csv                  M2, quatro semanas, so legitimo
+    outcomes.csv  log.csv         M4, M5 — semanas 1 e 2
+    historical_profiles.csv       M6, da semana 1
+    windows.csv                   M7, da semana 2
+    thresholds.csv                M8, da semana 2
+    sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
+      requests.csv                M3, semanas 3 e 4, legitimo + ataque
+      compromised_sessions.csv    M3
+      outcomes.csv  log.csv       M4, M5 — semanas 3 e 4
+      windows.csv                 M7, semanas 3 e 4
+      train.csv  holdout.csv      M9
+      predictions_rules.csv       M10
+      predictions_ml.csv          M11
     sigma-0.1/ ... sigma-1.0/
   seed-02/ ... seed-30/
-  calibration/                    preparacoes, fora das 330
 ```
 
-Cada modulo M1..M10 e um pacote sob `src/`, com o fluxo principal em `__main__.py`
+O `seed-NN/log.csv` sendo unico por semente e a garantia fisica de que o atacante
+nao toca o aquecimento: nao ha lugar onde ele pudesse estar.
+
+Cada modulo M1..M12 e um pacote sob `src/`, com o fluxo principal em `__main__.py`
 e um arquivo por conceito. A fronteira entre modulos continua sendo o arquivo CSV,
 nao a chamada de funcao.
 
@@ -69,11 +78,17 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 | M3 | `attack` | seed, sigma, tabelas | `requests.csv` (+), `compromised_sessions.csv` |
 | M4 | `kms` | `requests.csv`, `keys.csv` | `outcomes.csv` |
 | M5 | `audit_logger` | requests, outcomes, label | `log.csv` |
-| M6 | `dataset` | `log.csv` | `windows.csv` |
-| M7 | `partition` | `windows.csv` | `train.csv`, `holdout.csv` |
-| M8 | `baseline` | train/holdout, limiares | `predictions_rules.csv` |
-| M9 | `models` | train/holdout | `predictions_ml.csv` |
-| M10 | `evaluation` | predictions | `metrics.csv` |
+| M6 | `historical_profiles` | `log.csv` (semana 1) | `historical_profiles.csv` |
+| M7 | `dataset` | `log.csv` (semanas 2 a 4), profiles | `windows.csv` |
+| M8 | `calibration` | `windows.csv` (semana 2) | `thresholds.csv` |
+| M9 | `partition` | `windows.csv` (semanas 3 e 4) | `train.csv`, `holdout.csv` |
+| M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv` |
+| M11 | `models` | `train.csv`, `holdout.csv`, config | `predictions_ml.csv` |
+| M12 | `evaluation` | predictions | `metrics.csv` |
+
+As quatro semanas simuladas têm papéis distintos: a semana 1 constrói o perfil
+histórico, a semana 2 calibra os limiares do baseline, e as semanas 3 e 4 são o
+período avaliado, o único em que o atacante age.
 
 Nomes de código e de arquivo em inglês; o texto da monografia é em português e traz uma
 tabela de correspondência entre os dois.
@@ -128,6 +143,6 @@ de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuç
 
 ## Estado
 
-Em construção. Nenhum módulo implementado ainda. A ordem de implementação começa por
-M1, M2, M4 e M5, sem atacante, para fechar o circuito e validar os formatos antes de
-qualquer coisa depender deles.
+Em construção. **M1 implementado**, M2 a M12 pendentes. A Meta 1 é M1, M2, M4 e M5 sem
+atacante, gerando as quatro semanas de uma execução limpa — é dela que sairão o perfil
+histórico da semana 1 e os limiares da semana 2.

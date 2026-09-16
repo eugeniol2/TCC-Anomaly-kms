@@ -8,24 +8,28 @@
 # Versoes fixadas: a reprodutibilidade das 330 execucoes depende delas.
 # Para recriar o ambiente byte a byte, usar requirements-lock.txt.
 
-# M1 populacao, M2 trafego, M3 ataque
+# M1 population, M2 traffic, M3 attack
 # Fluxos de aleatoriedade separados por subsistema (D-003) via
 # numpy.random.SeedSequence.spawn, derivados da mesma semente.
 numpy==2.4.6
 
-# M1 a M8 - leitura e escrita de CSV com cabecalho, manipulacao tabular
+# M1 a M12 - leitura e escrita de CSV com cabecalho, manipulacao tabular
 pandas==3.0.5
 
-# M10 avaliacao - Wilcoxon pareado (D-027)
+# M12 evaluation - Wilcoxon pareado (D-027)
 scipy==1.17.1
 
-# M7 particao  - GroupShuffleSplit / StratifiedGroupKFold, particao por sessao (D-018)
-# M9 modelos   - arvores e ensembles (D-026)
-# M10 avaliacao- matriz de confusao, F1, precisao, revocacao, especificidade (D-021, D-022)
-#                arvore de profundidade 1 da verificacao de trivialidade (D-028)
+# M9  partition  - GroupShuffleSplit / StratifiedGroupKFold, particao por sessao (D-018)
+# M11 models     - Random Forest, um dos dois modelos da comparacao (D-026, D-051)
+# M12 evaluation - matriz de confusao, F1, precisao, revocacao, especificidade (D-021, D-022)
+#                  arvore de profundidade 1 da verificacao de trivialidade (D-028, D-050)
 scikit-learn==1.9.1
 
-# M10 avaliacao - correcao de Holm sobre as 22 comparacoes (D-027),
+# M11 models - XGBoost, o outro modelo da comparacao principal (D-051).
+# Nomeado no objetivo geral da proposta, junto com o Random Forest.
+xgboost==3.2.0
+
+# M12 evaluation - correcao de Holm sobre as 22 comparacoes (D-027, D-051),
 # via statsmodels.stats.multitest.multipletests(method="holm")
 statsmodels==0.15.0
 

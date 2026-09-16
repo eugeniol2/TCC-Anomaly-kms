@@ -39,3 +39,37 @@ velocidade e discricao (D-004).
 
 TOTAL_RUNS = len(SEEDS) * len(SIGMAS)
 """330 execucoes."""
+
+HYPERPARAMETER_SEARCH_SEED = 902
+"""Semente da execucao preparatoria de hiperparametros, em sigma 0,5.
+
+Reservada, fora da faixa das replicas: a populacao que ajudou a escolher a
+configuracao nao pode reaparecer entre as 330 avaliadas, senao o desempenho do
+modelo naquela replica vem inflado.
+
+Os limiares do baseline nao usam semente reservada — saem da semana 2 do
+aquecimento da propria execucao, um conjunto por execucao (D-043).
+
+A faixa 9xx deixa espaco para preparacoes futuras sem risco de colisao, caso a
+escala das replicas seja revista para alem de 30 (D-047).
+"""
+
+EXCLUSION_CRITERION_SEED = 903
+"""Semente da execucao preparatoria que fixa o limiar X de exclusao por trivialidade.
+
+Roda em sigma 0,5. X e limiar aplicado as onze condicoes, e calibra-lo num extremo
+enviesa: em sigma baixo o atacante e ostensivo, a queda e naturalmente grande e X
+sairia alto demais; em sigma alto, o inverso. O meio e o unico ponto que nao
+desloca sistematicamente para um dos lados (D-052).
+
+Reservada e distinta da 902 de proposito. As duas preparatorias servem a
+propositos diferentes — uma escolhe configuracao de modelo, a outra fixa criterio
+de exclusao de condicao — e reaproveitar o holdout da 902 conflitaria com a
+D-045, que o reserva de qualquer papel na selecao.
+
+ORDEM: a 903 roda antes das 330, nao junto. Se acusar defeito do gerador, o achado
+precisa vir antes de gastar as execucoes, e o conserto invalidaria as ja feitas.
+"""
+
+RESERVED_SEEDS = (HYPERPARAMETER_SEARCH_SEED, EXCLUSION_CRITERION_SEED)
+"""As sementes das preparacoes. Nenhuma pertence a `SEEDS`."""
