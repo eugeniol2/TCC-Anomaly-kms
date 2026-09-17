@@ -79,9 +79,9 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 | M2 | `traffic` | seed, tabelas | `requests.csv` |
 | M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 4 e 5, legítimo + ataque), `compromised_sessions.csv` |
 | M4 | `kms` | fase, `requests.csv`, `keys.csv` | `outcomes.csv` |
-| M5 | `audit_logger` | fase, requests, outcomes, label | `log.csv` |
+| M5 | `audit_logger` | fase, requests, outcomes | `log.csv` |
 | M6 | `historical_profiles` | `log.csv` (semanas 1 e 2) | `historical_profiles.csv` |
-| M7 | `dataset` | fase, `log.csv`, profiles | `sessions.csv` |
+| M7 | `dataset` | fase, `log.csv`, profiles, `compromised_sessions.csv` (só em `evaluated`) | `sessions.csv` |
 | M8 | `calibration` | `sessions.csv` (semana 3) | `thresholds.csv` |
 | M9 | `partition` | `sessions.csv` (semanas 4 e 5) | `train.csv`, `holdout.csv` |
 | M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv` |
@@ -96,6 +96,12 @@ O M3 lê o `requests.csv` do M2 e escreve outro, mesclando a campanha às semana
 do tráfego legítimo — nunca acrescentando linhas ao arquivo do M2. Já `fase` não é
 arquivo: é o parâmetro obrigatório de M4, M5 e M7, que diz qual arquivo o módulo lê e
 em qual dos dois ramos escreve.
+
+O rótulo de sessão comprometida **não é coluna do `log.csv`**: ele viaja em
+`compromised_sessions.csv` e o M7 o junta só na fase `evaluated`. Um log de auditoria
+que carrega verdade de fundo deixa de ser um log, e coluna que não existe no arquivo
+não pode vazar. Por isso o `sessions.csv` do aquecimento não tem rótulo — ele alimenta
+só a calibração, que não usa rótulo.
 
 Nomes de código e de arquivo em inglês; o texto da monografia é em português e traz uma
 tabela de correspondência entre os dois.
