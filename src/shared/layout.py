@@ -21,14 +21,14 @@ sobre o periodo avaliado (D-049).
         outcomes.csv                  M4, semanas 1 a 3
         log.csv                       M5, semanas 1 a 3
         historical_profiles.csv       M6, das semanas 1 e 2
-        windows.csv                   M7, da semana 3
+        sessions.csv                  M7, da semana 3
         thresholds.csv                M8, da semana 3
         sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
           requests.csv                M3, semanas 4 e 5, legitimo + ataque
           compromised_sessions.csv    M3
           outcomes.csv                M4, semanas 4 e 5
           log.csv                     M5, semanas 4 e 5
-          windows.csv                 M7, semanas 4 e 5
+          sessions.csv                M7, semanas 4 e 5
           train.csv, holdout.csv      M9
           predictions_rules.csv       M10
           predictions_ml.csv          M11

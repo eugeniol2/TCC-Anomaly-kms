@@ -47,13 +47,13 @@ data/
     requests.csv                  M2, cinco semanas, so legitimo
     outcomes.csv  log.csv         M4, M5 — semanas 1 a 3
     historical_profiles.csv       M6, das semanas 1 e 2
-    windows.csv                   M7, da semana 3
+    sessions.csv                  M7, da semana 3
     thresholds.csv                M8, da semana 3
     sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
       requests.csv                M3, semanas 4 e 5, legitimo + ataque
       compromised_sessions.csv    M3
       outcomes.csv  log.csv       M4, M5 — semanas 4 e 5
-      windows.csv                 M7, semanas 4 e 5
+      sessions.csv                M7, semanas 4 e 5
       train.csv  holdout.csv      M9
       predictions_rules.csv       M10
       predictions_ml.csv          M11
@@ -81,9 +81,9 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 | M4 | `kms` | fase, `requests.csv`, `keys.csv` | `outcomes.csv` |
 | M5 | `audit_logger` | fase, requests, outcomes, label | `log.csv` |
 | M6 | `historical_profiles` | `log.csv` (semanas 1 e 2) | `historical_profiles.csv` |
-| M7 | `dataset` | fase, `log.csv`, profiles | `windows.csv` |
-| M8 | `calibration` | `windows.csv` (semana 3) | `thresholds.csv` |
-| M9 | `partition` | `windows.csv` (semanas 4 e 5) | `train.csv`, `holdout.csv` |
+| M7 | `dataset` | fase, `log.csv`, profiles | `sessions.csv` |
+| M8 | `calibration` | `sessions.csv` (semana 3) | `thresholds.csv` |
+| M9 | `partition` | `sessions.csv` (semanas 4 e 5) | `train.csv`, `holdout.csv` |
 | M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv` |
 | M11 | `models` | `train.csv`, `holdout.csv`, config | `predictions_ml.csv` |
 | M12 | `evaluation` | predictions | `metrics.csv` |
