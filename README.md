@@ -32,26 +32,28 @@ tests/             verificacao de determinismo e de formato
 ```
 
 A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
-semanas 3 e 4, tudo que deriva das semanas 1 e 2 e independente de sigma — e o
+semanas 4 e 5, tudo que deriva das semanas 1 a 3 e independente de sigma — e o
 pipeline tem dois ramos. M4, M5 e M7 aparecem nos dois.
 
 ```
 data/
   runs.csv                        indice das 330 execucoes
   metrics.csv                     agregado final (M12)
-  preparation/                    busca de hiperparametros, semente 902
+  preparation/
+    seed-902/                     busca de hiperparametros
+    seed-903/                     limiar X de exclusao por trivialidade
   seed-01/                        ---- ramo da semente, 30 execucoes ----
     operators.csv  keys.csv       M1
-    requests.csv                  M2, quatro semanas, so legitimo
-    outcomes.csv  log.csv         M4, M5 — semanas 1 e 2
-    historical_profiles.csv       M6, da semana 1
-    windows.csv                   M7, da semana 2
-    thresholds.csv                M8, da semana 2
+    requests.csv                  M2, cinco semanas, so legitimo
+    outcomes.csv  log.csv         M4, M5 — semanas 1 a 3
+    historical_profiles.csv       M6, das semanas 1 e 2
+    windows.csv                   M7, da semana 3
+    thresholds.csv                M8, da semana 3
     sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
-      requests.csv                M3, semanas 3 e 4, legitimo + ataque
+      requests.csv                M3, semanas 4 e 5, legitimo + ataque
       compromised_sessions.csv    M3
-      outcomes.csv  log.csv       M4, M5 — semanas 3 e 4
-      windows.csv                 M7, semanas 3 e 4
+      outcomes.csv  log.csv       M4, M5 — semanas 4 e 5
+      windows.csv                 M7, semanas 4 e 5
       train.csv  holdout.csv      M9
       predictions_rules.csv       M10
       predictions_ml.csv          M11
@@ -75,20 +77,25 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 |---|---|---|---|
 | M1 | `population` | seed | `operators.csv`, `keys.csv` |
 | M2 | `traffic` | seed, tabelas | `requests.csv` |
-| M3 | `attack` | seed, sigma, tabelas | `requests.csv` (+), `compromised_sessions.csv` |
-| M4 | `kms` | `requests.csv`, `keys.csv` | `outcomes.csv` |
-| M5 | `audit_logger` | requests, outcomes, label | `log.csv` |
-| M6 | `historical_profiles` | `log.csv` (semana 1) | `historical_profiles.csv` |
-| M7 | `dataset` | `log.csv` (semanas 2 a 4), profiles | `windows.csv` |
-| M8 | `calibration` | `windows.csv` (semana 2) | `thresholds.csv` |
-| M9 | `partition` | `windows.csv` (semanas 3 e 4) | `train.csv`, `holdout.csv` |
+| M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 4 e 5, legítimo + ataque), `compromised_sessions.csv` |
+| M4 | `kms` | fase, `requests.csv`, `keys.csv` | `outcomes.csv` |
+| M5 | `audit_logger` | fase, requests, outcomes, label | `log.csv` |
+| M6 | `historical_profiles` | `log.csv` (semanas 1 e 2) | `historical_profiles.csv` |
+| M7 | `dataset` | fase, `log.csv`, profiles | `windows.csv` |
+| M8 | `calibration` | `windows.csv` (semana 3) | `thresholds.csv` |
+| M9 | `partition` | `windows.csv` (semanas 4 e 5) | `train.csv`, `holdout.csv` |
 | M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv` |
 | M11 | `models` | `train.csv`, `holdout.csv`, config | `predictions_ml.csv` |
 | M12 | `evaluation` | predictions | `metrics.csv` |
 
-As quatro semanas simuladas têm papéis distintos: a semana 1 constrói o perfil
-histórico, a semana 2 calibra os limiares do baseline, e as semanas 3 e 4 são o
+As cinco semanas simuladas têm papéis distintos: as semanas 1 e 2 constroem o perfil
+histórico, a semana 3 calibra os limiares do baseline, e as semanas 4 e 5 são o
 período avaliado, o único em que o atacante age.
+
+O M3 lê o `requests.csv` do M2 e escreve outro, mesclando a campanha às semanas 4 e 5
+do tráfego legítimo — nunca acrescentando linhas ao arquivo do M2. Já `fase` não é
+arquivo: é o parâmetro obrigatório de M4, M5 e M7, que diz qual arquivo o módulo lê e
+em qual dos dois ramos escreve.
 
 Nomes de código e de arquivo em inglês; o texto da monografia é em português e traz uma
 tabela de correspondência entre os dois.
@@ -144,5 +151,5 @@ de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuç
 ## Estado
 
 Em construção. **M1 implementado**, M2 a M12 pendentes. A Meta 1 é M1, M2, M4 e M5 sem
-atacante, gerando as quatro semanas de uma execução limpa — é dela que sairão o perfil
-histórico da semana 1 e os limiares da semana 2.
+atacante, gerando as cinco semanas de uma execução limpa — é dela que sairão o perfil
+histórico das semanas 1 e 2 e os limiares da semana 3.

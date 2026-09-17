@@ -47,7 +47,7 @@ Reservada, fora da faixa das replicas: a populacao que ajudou a escolher a
 configuracao nao pode reaparecer entre as 330 avaliadas, senao o desempenho do
 modelo naquela replica vem inflado.
 
-Os limiares do baseline nao usam semente reservada — saem da semana 2 do
+Os limiares do baseline nao usam semente reservada — saem da semana 3 do
 aquecimento da propria execucao, um conjunto por execucao (D-043).
 
 A faixa 9xx deixa espaco para preparacoes futuras sem risco de colisao, caso a
