@@ -15,6 +15,7 @@ import pandas as pd
 
 from src.globals.layout import DEFAULT_ROOT, seed_directory
 from src.globals.tables import write_csv
+from src.population import keys, operators
 from src.traffic.build import build_traffic
 from src.traffic.specification import (
     DEFAULT_DISTINCT_KEYS_RANGE,
@@ -78,8 +79,16 @@ def population_command(seed: int, root: Path) -> str:
     return f"python -m src.population --seed {seed}{elsewhere}"
 
 
-def read_population(directory: Path, remedy: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """As duas tabelas do M1, com erro claro quando elas nao existem."""
+def read_population(
+    directory: Path, suggested_command: str
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """As duas tabelas do M1, com erro claro quando elas nao existem.
+
+    Recebe o comando pronto em vez de monta-lo: para monta-lo precisaria da
+    semente e da raiz, que sao assunto da linha de comando. Assim esta funcao
+    sabe **o que dizer** sem saber **como calcular**, e continua sendo sobre ler
+    dois arquivos.
+    """
     operators_path = directory / "operators.csv"
     keys_path = directory / "keys.csv"
 
@@ -87,7 +96,8 @@ def read_population(directory: Path, remedy: str) -> tuple[pd.DataFrame, pd.Data
 
     if is_missing:
         raise FileNotFoundError(
-            f"faltam as tabelas do M1 em {directory}\n       rode antes:  {remedy}"
+            f"faltam as tabelas do M1 em {directory}"
+            f"\n       rode antes:  {suggested_command}"
         )
 
     return pd.read_csv(operators_path), pd.read_csv(keys_path)
@@ -111,10 +121,15 @@ def main() -> None:
     specification = traffic_specification_from(args)
 
     destination = seed_directory(args.out, args.seed)
-    remedy = population_command(args.seed, args.out)
-    operators, keys = read_population(destination, remedy)
+    suggested_command = population_command(args.seed, args.out)
 
+
+    operators, keys = read_population(destination, suggested_command)
     requests = build_traffic(args.seed, operators, keys, specification)
+
+    print("requests")
+    print(requests.describe().T)
+    print()
 
     write_csv(requests, destination / "requests.csv")
     report(destination, requests)

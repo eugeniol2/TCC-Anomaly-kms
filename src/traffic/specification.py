@@ -10,13 +10,18 @@ from dataclasses import dataclass
 from datetime import date
 
 FIRST_DAY = date(2026, 1, 5)
-"""Segunda-feira em que o periodo simulado comeca.
+"""
+## Por que existe um `FIRST_DAY`
 
-Ancora fixa, para que o calendario seja deterministico e as cinco semanas caiam
-em dias da semana conhecidos. Comecar numa segunda faz cada semana simulada
-coincidir com uma semana civil, o que importa porque dois dos tres regimes so
-abrem sessao em dia util: semana desalinhada daria a uma delas quatro dias uteis
-e a outra seis.
+**Pergunta.** Por que precisamos de um valor chamado *first day*?
+
+A data em si é arbitrária: 05/01/2026 não tem razão nenhuma, poderia ser qualquer outra.
+Ser segunda-feira é praticidade — alinha cada semana simulada com uma semana civil, o que
+deixa o log conferível a olho e a semana descritível no texto.
+
+E não é a data do relógio. Com `date.today()`, a mesma semente daria timestamps
+diferentes em dias diferentes, o teste de referência falharia toda vez e a reprodução
+byte a byte deixaria de valer.
 """
 
 WEEK_COUNT = 5
