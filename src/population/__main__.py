@@ -19,8 +19,8 @@ from src.population.specification import (
     DEFAULT_SCOPES,
     KeyRepositorySpecification,
 )
-from src.shared.layout import DEFAULT_ROOT, seed_directory
-from src.shared.tables import write_csv
+from src.globals.layout import DEFAULT_ROOT, seed_directory
+from src.globals.tables import write_csv
 
 
 class Arguments(argparse.Namespace):

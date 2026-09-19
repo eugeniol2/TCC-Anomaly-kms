@@ -15,7 +15,7 @@ documentação do gerador é parte do trabalho.
 
 ```
 src/
-  shared/          auxiliares comuns a M1..M12
+  globals/         auxiliares comuns a M1..M12
     rng.py         fluxos de aleatoriedade derivados da semente
     tables.py      escrita de CSV e embaralhamento de linhas
     layout.py      onde cada arquivo mora dentro de data/

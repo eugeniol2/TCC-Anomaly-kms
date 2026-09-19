@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.shared.experiment import RESERVED_SEEDS, SEEDS, SIGMAS, TOTAL_RUNS
+from src.globals.experiment import RESERVED_SEEDS, SEEDS, SIGMAS, TOTAL_RUNS
 
 
 @pytest.mark.parametrize("seed", RESERVED_SEEDS)

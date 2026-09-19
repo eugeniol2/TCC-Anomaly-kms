@@ -21,8 +21,8 @@ from src.population.build import Population, build_population
 from src.population.operators import holders_by_scope
 from src.population.profiles import PROFILES, Profile
 from src.population.specification import KeyRepositorySpecification
-from src.shared.experiment import SEEDS
-from src.shared.tables import MULTIVALUE_SEPARATOR
+from src.globals.experiment import SEEDS
+from src.globals.tables import MULTIVALUE_SEPARATOR
 
 SPECIFICATION = KeyRepositorySpecification()
 

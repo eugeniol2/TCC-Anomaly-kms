@@ -8,7 +8,7 @@ import pandas as pd
 from numpy.random import Generator
 
 from src.population.profiles import PROFILES, total_scope_assignments
-from src.shared.tables import MULTIVALUE_SEPARATOR
+from src.globals.tables import MULTIVALUE_SEPARATOR
 
 DEFAULT_COVERAGE_ATTEMPTS = 20
 
