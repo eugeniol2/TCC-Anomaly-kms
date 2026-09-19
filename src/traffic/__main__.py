@@ -66,7 +66,19 @@ def traffic_specification_from(args: Arguments) -> TrafficSpecification:
     )
 
 
-def read_population(directory: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+def population_command(seed: int, root: Path) -> str:
+    """O comando que falta rodar, com os mesmos argumentos desta execucao.
+
+    Repetir o `--out` importa: sem ele o M1 escreveria na raiz padrao e o M2
+    continuaria sem encontrar as tabelas onde procura.
+    """
+    is_default_root = root == DEFAULT_ROOT
+    elsewhere = "" if is_default_root else f" --out {root}"
+
+    return f"python -m src.population --seed {seed}{elsewhere}"
+
+
+def read_population(directory: Path, remedy: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """As duas tabelas do M1, com erro claro quando elas nao existem."""
     operators_path = directory / "operators.csv"
     keys_path = directory / "keys.csv"
@@ -75,8 +87,7 @@ def read_population(directory: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     if is_missing:
         raise FileNotFoundError(
-            f"rode o M1 desta semente primeiro: python -m src.population "
-            f"--seed <semente>. Faltam tabelas em {directory}"
+            f"faltam as tabelas do M1 em {directory}\n       rode antes:  {remedy}"
         )
 
     return pd.read_csv(operators_path), pd.read_csv(keys_path)
@@ -100,7 +111,8 @@ def main() -> None:
     specification = traffic_specification_from(args)
 
     destination = seed_directory(args.out, args.seed)
-    operators, keys = read_population(destination)
+    remedy = population_command(args.seed, args.out)
+    operators, keys = read_population(destination, remedy)
 
     requests = build_traffic(args.seed, operators, keys, specification)
 
@@ -109,4 +121,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FileNotFoundError as missing:
+        raise SystemExit(f"erro: {missing}")
