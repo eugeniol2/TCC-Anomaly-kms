@@ -27,6 +27,16 @@ src/
     profiles.py    perfis comportamentais da populacao
     operators.py   construcao de operators.csv
     keys.py        construcao de keys.csv
+  traffic/         M2, o trafego legitimo das cinco semanas
+    __main__.py    linha de comando e fluxo principal
+    specification.py  ritmo, alvo e taxas de falha
+    operators.py   leitura de operators.csv
+    repository.py  leitura de keys.csv: alcance de cada operador
+    calendar.py    quando cada operador abre sessao
+    sessions.py    o que acontece dentro de uma sessao
+    operations.py  a mistura de operacoes por perfil
+    targets.py     que chave cada requisicao endereca
+    build.py       composicao
 data/              saida CSV de todos os modulos (nao versionada)
 tests/             verificacao de determinismo e de formato
 ```
@@ -122,11 +132,15 @@ congelamento completo, para recriar o ambiente exatamente.
 ## Execução
 
 Cada módulo roda sozinho pela linha de comando e recebe a semente como parâmetro
-explícito:
+explícito. Na ordem do pipeline:
 
 ```
-python -m src.population --seed 42
+python -m src.population --seed 7
+python -m src.traffic    --seed 7
 ```
+
+O M2 lê as tabelas que o M1 escreveu naquela semente, então a ordem importa — ele
+falha com mensagem clara se elas não existirem.
 
 ## Testes
 
@@ -134,15 +148,22 @@ python -m src.population --seed 42
 python -m pytest
 ```
 
-Cobrem determinismo e as invariantes de que os modulos seguintes dependem:
-toda chave tem proprietario que detem seu escopo, todo escopo tem detentor,
-identificadores de chave nunca sequenciais. As invariantes rodam nas 30
-sementes da grade, nao numa so.
+Cobrem determinismo e as invariantes de que os modulos seguintes dependem.
+
+Do M1: toda chave tem proprietario que detem seu escopo, todo escopo tem
+detentor, identificadores de chave nunca sequenciais.
+
+Do M2: nenhuma coluna carrega o desfecho, a origem de rede e sempre uma das
+habituais, os dois caminhos de falha legitima ocorrem, e o ritmo de cada regime
+respeita o que foi fixado. As invariantes rodam nas 30 sementes da grade, nao
+numa so — falha especifica de semente e o que passa despercebido.
 
 O `test_reference_output_has_not_changed` e detector de mudanca, nao teste de
 correcao: falha sempre que o gerador mudar, inclusive de proposito. Quando
 falhar, confirme se a mudanca era intencional, registre a decisao e atualize o
-valor de referencia.
+valor de referencia. O do M1 compara o CSV inteiro; o do M2 compara um resumo
+SHA-256, porque o arquivo tem 48 mil linhas e versiona-lo pesaria mais que o
+codigo.
 
 ## Reprodutibilidade
 
@@ -156,6 +177,11 @@ de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuç
 
 ## Estado
 
-Em construção. **M1 implementado**, M2 a M12 pendentes. A Meta 1 é M1, M2, M4 e M5 sem
-atacante, gerando as cinco semanas de uma execução limpa — é dela que sairão o perfil
+Em construção. **M1 e M2 implementados**, M3 a M12 pendentes. A Meta 1 é M1, M2, M4 e M5
+sem atacante, gerando as cinco semanas de uma execução limpa — é dela que sairão o perfil
 histórico das semanas 1 e 2 e os limiares da semana 3.
+
+O M2 produz cerca de 48 mil requisições em 2,5 mil sessões por semente. Os três itens que
+o `CLAUDE.md` manda conferir antes do M3 estão cobertos por teste: o serviço automatizado
+abre lote nas quatro horas fixas, o administrador tem ritmo mais disperso que o usuário
+esporádico, e os dois caminhos de falha legítima ocorrem nas 30 sementes.

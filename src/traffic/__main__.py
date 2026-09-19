@@ -1,0 +1,112 @@
+"""Linha de comando do M2: le as tabelas do M1, escreve `requests.csv`.
+
+    python -m src.traffic --seed 42
+
+Precisa que o M1 daquela semente ja tenha rodado: o trafego e dirigido pelos
+escopos de `operators.csv` e pelas chaves de `keys.csv`.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+import pandas as pd
+
+from src.globals.layout import DEFAULT_ROOT, seed_directory
+from src.globals.tables import write_csv
+from src.traffic.build import build_traffic
+from src.traffic.specification import (
+    DEFAULT_DISTINCT_KEYS_RANGE,
+    DEFAULT_MISTYPED_RATE,
+    DEFAULT_STALE_SCOPE_RATE,
+    FIRST_DAY,
+    WEEK_COUNT,
+    TrafficSpecification,
+)
+
+
+class Arguments(argparse.Namespace):
+    """Atributos que a linha de comando produz.
+
+    O argparse monta o Namespace em tempo de execucao, entao sem estas
+    anotacoes a IDE nao sabe que `seed` e inteiro nem que `out` e caminho.
+
+    Cada atributo precisa ter um `add_argument` correspondente em `parse_args`:
+    a sincronia entre as duas listas e manual.
+    """
+
+    seed: int
+    out: Path
+    weeks: int
+    stale_scope_rate: float
+    mistyped_rate: float
+
+
+def parse_args() -> Arguments:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--seed", type=int, required=True, help="semente do experimento")
+    parser.add_argument(
+        "--out", type=Path, default=DEFAULT_ROOT, help="raiz da pasta de dados"
+    )
+    parser.add_argument("--weeks", type=int, default=WEEK_COUNT)
+    parser.add_argument("--stale-scope-rate", type=float, default=DEFAULT_STALE_SCOPE_RATE)
+    parser.add_argument("--mistyped-rate", type=float, default=DEFAULT_MISTYPED_RATE)
+    return parser.parse_args(namespace=Arguments())
+
+
+def traffic_specification_from(args: Arguments) -> TrafficSpecification:
+    """Reune os parametros do trafego numa unica estrutura."""
+    return TrafficSpecification(
+        first_day=FIRST_DAY,
+        week_count=args.weeks,
+        stale_scope_rate=args.stale_scope_rate,
+        mistyped_rate=args.mistyped_rate,
+        distinct_keys_range=DEFAULT_DISTINCT_KEYS_RANGE,
+    )
+
+
+def read_population(directory: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """As duas tabelas do M1, com erro claro quando elas nao existem."""
+    operators_path = directory / "operators.csv"
+    keys_path = directory / "keys.csv"
+
+    is_missing = not operators_path.exists() or not keys_path.exists()
+
+    if is_missing:
+        raise FileNotFoundError(
+            f"rode o M1 desta semente primeiro: python -m src.population "
+            f"--seed <semente>. Faltam tabelas em {directory}"
+        )
+
+    return pd.read_csv(operators_path), pd.read_csv(keys_path)
+
+
+def report(destination: Path, requests: pd.DataFrame) -> None:
+    """Resumo da geracao, para conferencia imediata na linha de comando."""
+    sessions = requests["session_id"].nunique()
+    operators = requests["operator_id"].nunique()
+    first = requests["timestamp"].iloc[0][:10]
+    last = requests["timestamp"].iloc[-1][:10]
+
+    print(f"{destination}")
+    print(f"  requests.csv   {len(requests)} requisicoes em {sessions} sessoes")
+    print(f"                 {operators} operadores ativos")
+    print(f"                 de {first} a {last}")
+
+
+def main() -> None:
+    args = parse_args()
+    specification = traffic_specification_from(args)
+
+    destination = seed_directory(args.out, args.seed)
+    operators, keys = read_population(destination)
+
+    requests = build_traffic(args.seed, operators, keys, specification)
+
+    write_csv(requests, destination / "requests.csv")
+    report(destination, requests)
+
+
+if __name__ == "__main__":
+    main()

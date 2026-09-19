@@ -1,0 +1,80 @@
+"""Leitura de `keys.csv`: o que o M2 precisa saber sobre as chaves.
+
+Montado uma vez por execucao e consultado em toda sessao. Nada aqui olha a
+coluna `owner`: a atividade legitima e dirigida por **escopo**, nunca por
+propriedade (D-042). Cerca de 5,6 % dos operadores nao possuem chave alguma, e
+dirigir por propriedade os deixaria mudos no log.
+"""
+
+from __future__ import annotations
+
+from typing import NamedTuple
+
+import pandas as pd
+
+from src.traffic.operators import Operator
+
+
+class OperatorKeys(NamedTuple):
+    """As tres visoes do repositorio, do ponto de vista de um operador."""
+
+    in_reach: tuple[str, ...]
+    """Chaves dos escopos que ele detem. Alvo normal das requisicoes."""
+
+    out_of_reach: tuple[str, ...]
+    """Chaves que existem e estao fora dos escopos dele.
+
+    Alvo da referencia a escopo obsoleto, que o M4 nega por politica (D-056).
+    """
+
+    existing: frozenset[str]
+    """Todo identificador do repositorio.
+
+    Serve para forjar identificador inexistente sem colidir com chave real.
+    Compartilhado entre todos os operadores; e o repositorio inteiro.
+    """
+
+
+def keys_by_scope(keys: pd.DataFrame) -> dict[str, list[str]]:
+    """Indice inverso da tabela: de cada escopo para as chaves que ele contem.
+
+    Ordenado para nao herdar o embaralhamento de linhas do M1. O alcance de um
+    operador passa a depender so de quais chaves estao no escopo, e nao da
+    ordem em que foram gravadas.
+    """
+    grouped: dict[str, list[str]] = {}
+
+    for row in keys.itertuples():
+        grouped.setdefault(row.scope, []).append(row.key_id)
+
+    return {scope: sorted(identifiers) for scope, identifiers in grouped.items()}
+
+
+def reach_of(operator: Operator, by_scope: dict[str, list[str]]) -> tuple[str, ...]:
+    """As chaves que um operador alcanca, reunindo os escopos que ele detem."""
+    reachable: list[str] = []
+
+    for scope in operator.scopes:
+        reachable.extend(by_scope.get(scope, []))
+
+    return tuple(sorted(reachable))
+
+
+def build_repository(
+    keys: pd.DataFrame, operators: list[Operator]
+) -> dict[str, OperatorKeys]:
+    """As visoes de cada operador, montadas de uma vez."""
+    by_scope = keys_by_scope(keys)
+    existing = frozenset(keys["key_id"])
+
+    repository: dict[str, OperatorKeys] = {}
+
+    for operator in operators:
+        in_reach = reach_of(operator, by_scope)
+        repository[operator.operator_id] = OperatorKeys(
+            in_reach=in_reach,
+            out_of_reach=tuple(sorted(existing - set(in_reach))),
+            existing=existing,
+        )
+
+    return repository
