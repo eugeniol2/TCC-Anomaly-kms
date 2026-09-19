@@ -1,4 +1,4 @@
-"""Composicao do M2: das duas tabelas estaticas ao trafego das cinco semanas.
+"""Composicao do M2: das duas tabelas estaticas ao trafego das sete semanas.
 
 Mora separado da linha de comando para que o teste exercite exatamente o que a
 execucao real exercita, e nao uma copia da sequencia de chamadas.
@@ -105,7 +105,7 @@ def build_traffic(
     keys_table: pd.DataFrame,
     specification: TrafficSpecification,
 ) -> pd.DataFrame:
-    """Das duas tabelas do M1 as requisicoes legitimas das cinco semanas.
+    """Das duas tabelas do M1 as requisicoes legitimas das sete semanas.
 
     Emite tentativas, nunca desfechos (D-013). Nenhuma coluna diz se a
     requisicao vai ser autorizada: isso e do M4, e e o que faz o rotulo ser

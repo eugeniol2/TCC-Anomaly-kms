@@ -24,12 +24,21 @@ diferentes em dias diferentes, o teste de referência falharia toda vez e a repr
 byte a byte deixaria de valer.
 """
 
-WEEK_COUNT = 5
-"""Semanas simuladas (D-053).
+WEEK_COUNT = 7
+"""Semanas simuladas (D-069, que substituiu as cinco da D-053).
 
-1 e 2 constroem o perfil historico, 3 calibra os limiares, 4 e 5 sao o periodo
-avaliado. O M2 gera as cinco de uma vez, so com trafego legitimo; o M3 e que
-mescla a campanha nas duas ultimas.
+1 e 2 constroem o perfil historico, 3 calibra os limiares, **4 a 7 sao o periodo
+avaliado**. O M2 gera as sete de uma vez, so com trafego legitimo; o M3 e que
+mescla a campanha nas quatro ultimas.
+
+O periodo avaliado passou de duas para quatro semanas porque cada sessao
+comprometida e **uma** positiva (D-061), e so um administrador e comprometido
+por semente (D-036): com duas semanas, o holdout ficava com cerca de doze
+positivas, contagem absoluta na faixa da armadilha de Athapaththu et al.
+Dobrar o periodo dobra as positivas sem tocar no modelo de ameaca.
+
+Para o M2 isto e so um numero: ele nao conhece os papeis das semanas, gera
+`week_count * 7` dias iguais e deixa a divisao para os modulos seguintes.
 """
 
 DAYS_PER_WEEK = 7
@@ -42,7 +51,7 @@ PRINCIPAL_ADDRESS_SHARE = 0.80
 Num operador de quatro enderecos isto poe o quarto em torno de 0,64 %. Nas duas
 semanas de perfil um usuario esporadico abre cerca de 15 sessoes, entao esse
 endereco tem por volta de 91 % de chance de **nao aparecer no aquecimento** — e
-de produzir origem inedita legitima nas semanas 4 e 5.
+de produzir origem inedita legitima nas semanas 4 a 7.
 
 E o que a D-040 encomendou: origem nova sem regra de excecao no gerador, so
 pela distribuicao.

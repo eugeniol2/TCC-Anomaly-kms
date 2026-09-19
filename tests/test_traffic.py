@@ -184,7 +184,7 @@ def test_every_session_has_one_operator_and_one_origin(seed: int) -> None:
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_traffic_covers_exactly_the_five_weeks(seed: int) -> None:
+def test_traffic_covers_exactly_the_simulated_period(seed: int) -> None:
     moments = pd.to_datetime(traffic(seed)["timestamp"])
     first = datetime.combine(SPECIFICATION.first_day, datetime.min.time())
     limit = first + timedelta(days=SPECIFICATION.day_count + 1)

@@ -3,7 +3,7 @@
 A hierarquia espelha a dependencia. O que depende so da semente fica no nivel da
 semente; o que depende tambem de sigma fica um nivel abaixo.
 
-Como o atacante age apenas nas semanas 4 e 5 (D-048, D-053), tudo que deriva das
+Como o atacante age apenas nas semanas 4 a 7 (D-048, D-069), tudo que deriva das
 semanas 1 a 3 e independente de sigma. O pipeline tem portanto **dois ramos**, e
 M4, M5 e M7 aparecem nos dois: rodam 30 vezes sobre o aquecimento e 330 vezes
 sobre o periodo avaliado (D-049).
@@ -17,18 +17,18 @@ sobre o periodo avaliado (D-049).
       seed-01/                        ---- ramo da semente, 30 execucoes ----
         operators.csv                 M1
         keys.csv                      M1
-        requests.csv                  M2, cinco semanas, so trafego legitimo
+        requests.csv                  M2, sete semanas, so trafego legitimo
         outcomes.csv                  M4, semanas 1 a 3
         log.csv                       M5, semanas 1 a 3
         historical_profiles.csv       M6, das semanas 1 e 2
         sessions.csv                  M7, da semana 3
         thresholds.csv                M8, da semana 3
         sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
-          requests.csv                M3, semanas 4 e 5, legitimo + ataque
+          requests.csv                M3, semanas 4 a 7, legitimo + ataque
           compromised_sessions.csv    M3
-          outcomes.csv                M4, semanas 4 e 5
-          log.csv                     M5, semanas 4 e 5
-          sessions.csv                M7, semanas 4 e 5
+          outcomes.csv                M4, semanas 4 a 7
+          log.csv                     M5, semanas 4 a 7
+          sessions.csv                M7, semanas 4 a 7
           train.csv, holdout.csv      M9
           predictions_rules.csv       M10
           predictions_ml.csv          M11
@@ -66,7 +66,7 @@ def seed_directory(root: Path, seed: int) -> Path:
     """Ramo da semente: o aquecimento e tudo que dele deriva.
 
     Semanas 1 a 3, independentes de sigma porque o atacante nao age nelas. Aqui
-    moram a populacao, o trafego legitimo das cinco semanas, o log do
+    moram a populacao, o trafego legitimo das sete semanas, o log do
     aquecimento, os perfis historicos e os limiares.
     """
     return root / f"seed-{seed:02d}"

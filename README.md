@@ -27,7 +27,7 @@ src/
     profiles.py    perfis comportamentais da populacao
     operators.py   construcao de operators.csv
     keys.py        construcao de keys.csv
-  traffic/         M2, o trafego legitimo das cinco semanas
+  traffic/         M2, o trafego legitimo das sete semanas
     __main__.py    linha de comando e fluxo principal
     specification.py  ritmo, alvo e taxas de falha
     operators.py   leitura de operators.csv
@@ -42,7 +42,7 @@ tests/             verificacao de determinismo e de formato
 ```
 
 A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
-semanas 4 e 5, tudo que deriva das semanas 1 a 3 e independente de sigma — e o
+semanas 4 a 7, tudo que deriva das semanas 1 a 3 e independente de sigma — e o
 pipeline tem dois ramos. M4, M5 e M7 aparecem nos dois.
 
 ```
@@ -54,16 +54,16 @@ data/
     seed-903/                     limiar X de exclusao por trivialidade
   seed-01/                        ---- ramo da semente, 30 execucoes ----
     operators.csv  keys.csv       M1
-    requests.csv                  M2, cinco semanas, so legitimo
+    requests.csv                  M2, sete semanas, so legitimo
     outcomes.csv  log.csv         M4, M5 — semanas 1 a 3
     historical_profiles.csv       M6, das semanas 1 e 2
     sessions.csv                  M7, da semana 3
     thresholds.csv                M8, da semana 3
     sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
-      requests.csv                M3, semanas 4 e 5, legitimo + ataque
+      requests.csv                M3, semanas 4 a 7, legitimo + ataque
       compromised_sessions.csv    M3
-      outcomes.csv  log.csv       M4, M5 — semanas 4 e 5
-      sessions.csv                M7, semanas 4 e 5
+      outcomes.csv  log.csv       M4, M5 — semanas 4 a 7
+      sessions.csv                M7, semanas 4 a 7
       train.csv  holdout.csv      M9
       predictions_rules.csv       M10
       predictions_ml.csv          M11
@@ -87,22 +87,22 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 |---|---|---|---|
 | M1 | `population` | seed | `operators.csv`, `keys.csv` |
 | M2 | `traffic` | seed, tabelas | `requests.csv` |
-| M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 4 e 5, legítimo + ataque), `compromised_sessions.csv` |
+| M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 4 a 7, legítimo + ataque), `compromised_sessions.csv` |
 | M4 | `kms` | fase, `requests.csv`, `keys.csv` | `outcomes.csv` |
 | M5 | `audit_logger` | fase, requests, outcomes | `log.csv` |
 | M6 | `historical_profiles` | `log.csv` (semanas 1 e 2) | `historical_profiles.csv` |
 | M7 | `dataset` | fase, `log.csv`, profiles, `compromised_sessions.csv` (só em `evaluated`) | `sessions.csv` |
 | M8 | `calibration` | `sessions.csv` (semana 3) | `thresholds.csv` |
-| M9 | `partition` | `sessions.csv` (semanas 4 e 5) | `train.csv`, `holdout.csv` |
+| M9 | `partition` | `sessions.csv` (semanas 4 a 7) | `train.csv`, `holdout.csv` |
 | M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv` |
 | M11 | `models` | `train.csv`, `holdout.csv`, config | `predictions_ml.csv` |
 | M12 | `evaluation` | predictions | `metrics.csv` |
 
-As cinco semanas simuladas têm papéis distintos: as semanas 1 e 2 constroem o perfil
-histórico, a semana 3 calibra os limiares do baseline, e as semanas 4 e 5 são o
+As sete semanas simuladas têm papéis distintos: as semanas 1 e 2 constroem o perfil
+histórico, a semana 3 calibra os limiares do baseline, e as semanas 4 a 7 são o
 período avaliado, o único em que o atacante age.
 
-O M3 lê o `requests.csv` do M2 e escreve outro, mesclando a campanha às semanas 4 e 5
+O M3 lê o `requests.csv` do M2 e escreve outro, mesclando a campanha às semanas 4 a 7
 do tráfego legítimo — nunca acrescentando linhas ao arquivo do M2. Já `fase` não é
 arquivo: é o parâmetro obrigatório de M4, M5 e M7, que diz qual arquivo o módulo lê e
 em qual dos dois ramos escreve.
@@ -162,7 +162,7 @@ O `test_reference_output_has_not_changed` e detector de mudanca, nao teste de
 correcao: falha sempre que o gerador mudar, inclusive de proposito. Quando
 falhar, confirme se a mudanca era intencional, registre a decisao e atualize o
 valor de referencia. O do M1 compara o CSV inteiro; o do M2 compara um resumo
-SHA-256, porque o arquivo tem 48 mil linhas e versiona-lo pesaria mais que o
+SHA-256, porque o arquivo tem 67 mil linhas e versiona-lo pesaria mais que o
 codigo.
 
 ## Reprodutibilidade
@@ -178,10 +178,10 @@ de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuç
 ## Estado
 
 Em construção. **M1 e M2 implementados**, M3 a M12 pendentes. A Meta 1 é M1, M2, M4 e M5
-sem atacante, gerando as cinco semanas de uma execução limpa — é dela que sairão o perfil
+sem atacante, gerando as sete semanas de uma execução limpa — é dela que sairão o perfil
 histórico das semanas 1 e 2 e os limiares da semana 3.
 
-O M2 produz cerca de 48 mil requisições em 2,5 mil sessões por semente. Os três itens que
+O M2 produz cerca de 67 mil requisições em 3,3 mil sessões por semente. Os três itens que
 o `CLAUDE.md` manda conferir antes do M3 estão cobertos por teste: o serviço automatizado
 abre lote nas quatro horas fixas, o administrador tem ritmo mais disperso que o usuário
 esporádico, e os dois caminhos de falha legítima ocorrem nas 30 sementes.
