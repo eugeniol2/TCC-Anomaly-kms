@@ -30,6 +30,7 @@ src/
   traffic/         M2, o trafego legitimo das sete semanas
     __main__.py    linha de comando e fluxo principal
     parameters.py  todos os numeros que governam o M2
+    regimes.py     a forma dos tres regimes, preenchida por parameters.py
     operators.py   leitura de operators.csv
     repository.py  leitura de keys.csv: alcance de cada operador
     calendar.py    quando cada operador abre sessao

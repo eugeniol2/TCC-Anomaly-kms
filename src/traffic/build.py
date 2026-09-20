@@ -16,7 +16,8 @@ from src.traffic.calendar import session_starts
 from src.traffic.operators import Operator, read_operators
 from src.traffic.repository import OperatorKeys, build_repository
 from src.traffic.sessions import PlannedSession, session_rows
-from src.traffic.parameters import REGIMES, TrafficSpecification
+from src.traffic.parameters import TrafficSpecification
+from src.traffic.regimes import REGIMES
 
 COLUMNS = (
     "event_id",

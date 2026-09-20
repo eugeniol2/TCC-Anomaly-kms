@@ -36,10 +36,9 @@ from src.traffic.parameters import (
     BUSINESS_WEEKDAYS,
     IDENTIFIER_DIGITS,
     IDENTIFIER_PREFIX,
-    REGIMES,
-    ScheduledRhythm,
     TrafficSpecification,
 )
+from src.traffic.regimes import REGIMES, ScheduledRhythm
 
 SPECIFICATION = TrafficSpecification()
 REPOSITORY_SPECIFICATION = KeyRepositorySpecification()

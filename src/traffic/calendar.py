@@ -12,13 +12,8 @@ from datetime import date, datetime, time, timedelta
 
 from numpy.random import Generator
 
-from src.traffic.parameters import (
-    BUSINESS_WEEKDAYS,
-    ArrivalRhythm,
-    Regime,
-    ScheduledRhythm,
-    TrafficSpecification,
-)
+from src.traffic.parameters import BUSINESS_WEEKDAYS, TrafficSpecification
+from src.traffic.regimes import ArrivalRhythm, Regime, ScheduledRhythm
 
 
 def simulated_days(specification: TrafficSpecification) -> list[date]:
