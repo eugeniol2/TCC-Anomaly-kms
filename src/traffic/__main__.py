@@ -1,6 +1,6 @@
 """Linha de comando do M2: le as tabelas do M1, escreve `requests.csv`.
 
-    python -m src.traffic --seed 42
+    python -m src.traffic --seed 1
 
 Precisa que o M1 daquela semente ja tenha rodado: o trafego e dirigido pelos
 escopos de `operators.csv` e pelas chaves de `keys.csv`.
@@ -67,11 +67,7 @@ def traffic_specification_from(args: Arguments) -> TrafficSpecification:
 
 
 def population_command(seed: int, root: Path) -> str:
-    """O comando que falta rodar, com os mesmos argumentos desta execucao.
-
-    Repetir o `--out` importa: sem ele o M1 escreveria na raiz padrao e o M2
-    continuaria sem encontrar as tabelas onde procura.
-    """
+    """ Comando que o M2 sugere ao usuario para gerar a populacao do M1, caso falte."""
     is_default_root = root == DEFAULT_ROOT
     elsewhere = "" if is_default_root else f" --out {root}"
 
@@ -81,13 +77,7 @@ def population_command(seed: int, root: Path) -> str:
 def read_population(
     directory: Path, suggested_command: str
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """As duas tabelas do M1, com erro claro quando elas nao existem.
-
-    Recebe o comando pronto em vez de monta-lo: para monta-lo precisaria da
-    semente e da raiz, que sao assunto da linha de comando. Assim esta funcao
-    sabe **o que dizer** sem saber **como calcular**, e continua sendo sobre ler
-    dois arquivos.
-    """
+    """Le as tabelas da respectiva seed: `operators.csv` e `keys.csv`."""
     operators_path = directory / "operators.csv"
     keys_path = directory / "keys.csv"
 
@@ -124,6 +114,7 @@ def main() -> None:
 
 
     operators, keys = read_population(destination, suggested_command)
+    
     requests = build_traffic(args.seed, operators, keys, specification)
 
     print("requests")

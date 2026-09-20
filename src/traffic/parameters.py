@@ -28,7 +28,7 @@ BUSINESS_WEEKDAYS = frozenset({0, 1, 2, 3, 4})   # dias em que pessoa abre sessa
 PRIMARY_ADDRESS_SHARE = 0.80     # chance de a sessao vir do endereco principal
 
 # ── Formato do identificador de chave ──────────────────── D-009, D-056
-
+# Usado para criar chaves inexistentes e para gerar erros de digitação.
 IDENTIFIER_SPACE = 2**48         # quantos identificadores o formato comporta
 IDENTIFIER_PREFIX = "k_"         # o que vem antes dos digitos
 IDENTIFIER_DIGITS = 12           # digitos hexadecimais; espelho do M1
@@ -36,7 +36,7 @@ IDENTIFIER_DIGITS = 12           # digitos hexadecimais; espelho do M1
 # ── Servico automatizado: lote periodico ───────────────── D-058
 
 BATCH_HOURS = (2, 8, 14, 20)     # horas do lote, todos os dias
-BATCH_JITTER_MINUTES = 10        # desvio em torno da hora cheia
+BATCH_JITTER_MINUTES = 10        # desvio em torno da hora cheia, random de 10 minutos.
 BATCH_REQUESTS_RANGE = (20, 40)  # requisicoes por sessao, sorteado na faixa
 BATCH_REQUEST_INTERVAL = 2.0     # segundos entre requisicoes, media do exponencial
 
