@@ -16,7 +16,7 @@ from numpy.random import Generator
 from src.traffic.operations import draw_operations
 from src.traffic.operators import Operator
 from src.traffic.repository import OperatorKeys
-from src.traffic.parameters import PRINCIPAL_ADDRESS_SHARE, TrafficSpecification
+from src.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
 from src.traffic.regimes import REGIMES, Regime
 from src.traffic.targets import session_targets
 
@@ -37,7 +37,7 @@ def address_weights(quantity: int) -> np.ndarray:
     e produzir origem inedita legitima no periodo avaliado (D-040).
     """
     positions = np.arange(quantity)
-    weights = PRINCIPAL_ADDRESS_SHARE * (1 - PRINCIPAL_ADDRESS_SHARE) ** positions
+    weights = PRIMARY_ADDRESS_SHARE * (1 - PRIMARY_ADDRESS_SHARE) ** positions
 
     return weights / weights.sum()
 

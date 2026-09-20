@@ -25,7 +25,7 @@ BUSINESS_WEEKDAYS = frozenset({0, 1, 2, 3, 4})   # dias em que pessoa abre sessa
 
 # ── Origem de rede ─────────────────────────────────────── D-040, D-058
 
-PRINCIPAL_ADDRESS_SHARE = 0.80   # chance de a sessao vir do endereco principal
+PRIMARY_ADDRESS_SHARE = 0.80     # chance de a sessao vir do endereco principal
 
 # ── Formato do identificador de chave ──────────────────── D-009, D-056
 
