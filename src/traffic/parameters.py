@@ -45,12 +45,12 @@ SPORADIC_CLOSES_AT = 18
 SPORADIC_REQUESTS_RANGE = (6, 20)
 SPORADIC_REQUEST_INTERVAL = 45.0
 
-# ── Administrador: custodia ocasional ──────────────────── D-058
+# ── Administrador: custodia ocasional ──────────────────── D-058, D-071
 
 CUSTODY_SESSIONS_PER_BUSINESS_DAY = 2.0
 CUSTODY_OPENS_AT = 9
 CUSTODY_CLOSES_AT = 19
-CUSTODY_DISPERSION = 2           # Pascal; ausente seria Poisson. SEM ENTRADA
+CUSTODY_DISPERSION = 2           # n da Pascal; var/media 1,94, ausente seria 1,0
 CUSTODY_REQUESTS_RANGE = (8, 25)
 CUSTODY_REQUEST_INTERVAL = 90.0
 
