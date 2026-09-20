@@ -29,10 +29,10 @@ import pytest
 from src.globals.experiment import SEEDS
 from src.globals.tables import MULTIVALUE_SEPARATOR
 from src.population.build import Population, build_population
-from src.population.specification import KeyRepositorySpecification
+from src.population.parameters import KeyRepositorySpecification
 from src.traffic.build import COLUMNS, build_traffic
 from src.traffic.operations import OPERATIONS
-from src.traffic.specification import (
+from src.traffic.parameters import (
     BUSINESS_WEEKDAYS,
     IDENTIFIER_DIGITS,
     IDENTIFIER_PREFIX,
@@ -326,7 +326,7 @@ def test_deviation_rates_stay_near_the_configured_ones(seed: int) -> None:
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_absent_identifier_matches_the_repository_format(seed: int) -> None:
-    """Guarda a constante duplicada em `traffic.specification`.
+    """Guarda a constante duplicada em `traffic.parameters`.
 
     A fronteira entre modulos e o arquivo, entao o M2 nao importa o formato do
     M1: ele o repete. Se o M1 mudar o formato do identificador, este teste

@@ -15,9 +15,8 @@ import pandas as pd
 
 from src.globals.layout import DEFAULT_ROOT, seed_directory
 from src.globals.tables import write_csv
-from src.population import keys, operators
 from src.traffic.build import build_traffic
-from src.traffic.specification import (
+from src.traffic.parameters import (
     DEFAULT_DISTINCT_KEYS_RANGE,
     DEFAULT_MISTYPED_RATE,
     DEFAULT_STALE_SCOPE_RATE,

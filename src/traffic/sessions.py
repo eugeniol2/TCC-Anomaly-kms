@@ -16,7 +16,7 @@ from numpy.random import Generator
 from src.traffic.operations import draw_operations
 from src.traffic.operators import Operator
 from src.traffic.repository import OperatorKeys
-from src.traffic.specification import (
+from src.traffic.parameters import (
     PRINCIPAL_ADDRESS_SHARE,
     REGIMES,
     Regime,

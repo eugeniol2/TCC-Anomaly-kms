@@ -12,7 +12,7 @@ from datetime import date, datetime, time, timedelta
 
 from numpy.random import Generator
 
-from src.traffic.specification import (
+from src.traffic.parameters import (
     BUSINESS_WEEKDAYS,
     ArrivalRhythm,
     Regime,

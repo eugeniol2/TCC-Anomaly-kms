@@ -15,7 +15,7 @@ from __future__ import annotations
 from numpy.random import Generator
 
 from src.traffic.repository import OperatorKeys
-from src.traffic.specification import (
+from src.traffic.parameters import (
     IDENTIFIER_DIGITS,
     IDENTIFIER_PREFIX,
     IDENTIFIER_SPACE,

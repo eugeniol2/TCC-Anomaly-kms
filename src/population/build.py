@@ -13,7 +13,7 @@ import pandas as pd
 from src.population.keys import build_keys, disable_random_sample, split_keys_by_scope
 from src.population.operators import build_operators_covering_pool, holders_by_scope
 from src.population.scopes import scope_pool
-from src.population.specification import KeyRepositorySpecification
+from src.population.parameters import KeyRepositorySpecification
 from src.globals.rng import POPULATION, stream
 from src.globals.tables import shuffle_rows
 

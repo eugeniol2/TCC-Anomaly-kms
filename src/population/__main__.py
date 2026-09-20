@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.population.build import build_population
-from src.population.specification import (
+from src.population.parameters import (
     DEFAULT_CONCENTRATION,
     DEFAULT_DISABLED_RATE,
     DEFAULT_KEYS,

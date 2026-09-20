@@ -22,14 +22,14 @@ src/
     experiment.py  a grade: sementes 1 a 30, sigma de 0,0 a 1,0
   population/      M1, um arquivo por conceito
     __main__.py    linha de comando e fluxo principal
-    specification.py  parametros do repositorio de chaves
+    parameters.py  todos os numeros que governam o M1
     scopes.py      escopos, compartilhados por operadores e chaves
     profiles.py    perfis comportamentais da populacao
     operators.py   construcao de operators.csv
     keys.py        construcao de keys.csv
   traffic/         M2, o trafego legitimo das sete semanas
     __main__.py    linha de comando e fluxo principal
-    specification.py  ritmo, alvo e taxas de falha
+    parameters.py  todos os numeros que governam o M2
     operators.py   leitura de operators.csv
     repository.py  leitura de keys.csv: alcance de cada operador
     calendar.py    quando cada operador abre sessao

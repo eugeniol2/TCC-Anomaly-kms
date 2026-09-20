@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from numpy.random import Generator
 
-from src.population.specification import KeyRepositorySpecification
+from src.population.parameters import KeyRepositorySpecification
 
 
 def largest_remainder(weights: np.ndarray, total: int) -> np.ndarray:
