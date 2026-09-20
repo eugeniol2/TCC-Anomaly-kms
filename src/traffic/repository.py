@@ -63,14 +63,14 @@ def reach_of(operator: Operator, by_scope: dict[str, list[str]]) -> tuple[str, .
 def build_repository(
     keys: pd.DataFrame, operators: list[Operator]
 ) -> dict[str, OperatorKeys]:
-    """As visoes de cada operador, montadas de uma vez."""
-    by_scope = keys_by_scope(keys)
-    existing = frozenset(keys["key_id"])
+    """ o que cada operador alcança, o que não alcança, e o que existe """
+    by_scope = keys_by_scope(keys)  # separa as chaves por escopo
+    existing = frozenset(keys["key_id"]) # conjunto de todas as chaves existentes, para forjar identificadores inexistentes sem colisao
 
-    repository: dict[str, OperatorKeys] = {}
+    repository: dict[str, OperatorKeys] = {} # dicionario que mapeia cada operador para suas chaves in_reach, out_of_reach e existing
 
     for operator in operators:
-        in_reach = reach_of(operator, by_scope)
+        in_reach = reach_of(operator, by_scope) # chaves que o operador pode acessar
         repository[operator.operator_id] = OperatorKeys(
             in_reach=in_reach,
             out_of_reach=tuple(sorted(existing - set(in_reach))),

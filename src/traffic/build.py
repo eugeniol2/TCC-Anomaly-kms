@@ -114,9 +114,8 @@ def build_traffic(
     """
     rng = stream(seed, TRAFFIC)
 
-    operators = read_operators(operators_table)
-    repository = build_repository(keys_table, operators)
-
+    operators = read_operators(operators_table) # Leitura de `operators.csv` e conversao para `Operator`.
+    repository = build_repository(keys_table, operators) # Leitura de `keys.csv` e organizacao de chaves por operador.
     planned = plan_sessions(rng, operators, specification)
     rows = request_rows(rng, planned, repository, specification)
 
