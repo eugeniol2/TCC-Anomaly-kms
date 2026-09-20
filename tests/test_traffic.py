@@ -344,7 +344,7 @@ def test_absent_identifier_matches_the_repository_format(seed: int) -> None:
     assert all(int(key[len(IDENTIFIER_PREFIX) :], 16) >= 0 for key in forged)
 
 
-# Ritmo: o que o `CLAUDE.md` manda conferir antes de passar ao M3.
+# Ritmo: o que as convencoes do projeto mandam conferir antes de passar ao M3.
 
 
 @pytest.mark.parametrize("seed", SEEDS)

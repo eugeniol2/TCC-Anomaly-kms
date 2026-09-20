@@ -183,6 +183,6 @@ sem atacante, gerando as sete semanas de uma execução limpa — é dela que sa
 histórico das semanas 1 e 2 e os limiares da semana 3.
 
 O M2 produz cerca de 67 mil requisições em 3,3 mil sessões por semente. Os três itens que
-o `CLAUDE.md` manda conferir antes do M3 estão cobertos por teste: o serviço automatizado
-abre lote nas quatro horas fixas, o administrador tem ritmo mais disperso que o usuário
-esporádico, e os dois caminhos de falha legítima ocorrem nas 30 sementes.
+as convenções do projeto mandam conferir antes do M3 estão cobertos por teste: o serviço
+automatizado abre lote nas quatro horas fixas, o administrador tem ritmo mais disperso que
+o usuário esporádico, e os dois caminhos de falha legítima ocorrem nas 30 sementes.
