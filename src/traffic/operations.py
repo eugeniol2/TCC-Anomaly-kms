@@ -16,14 +16,31 @@ from __future__ import annotations
 import numpy as np
 from numpy.random import Generator
 
+from src.traffic.parameters import (
+    ADMIN_OPERATION_MIX,
+    SERVICE_OPERATION_MIX,
+    USER_OPERATION_MIX,
+)
+
 OPERATIONS = ("Decrypt", "Encrypt", "DescribeKey", "ExportKeyMaterial")
 
+
+def in_operation_order(mix: dict[str, float]) -> tuple[float, ...]:
+    """As fracoes na ordem de `OPERATIONS`, que e a ordem que o sorteio espera.
+
+    Os valores sao declarados por nome de operacao em `parameters.py`, e nao
+    por posicao. Reordenar `OPERATIONS` deixa de reatribuir porcentagens, e
+    operacao ausente de uma mistura falha aqui em vez de passar batido.
+    """
+    return tuple(mix[operation] for operation in OPERATIONS)
+
+
 OPERATION_MIX: dict[str, tuple[float, ...]] = {
-    "legitimate_user": (0.55, 0.25, 0.12, 0.08),
-    "automated_service": (0.45, 0.35, 0.10, 0.10),
-    "administrator": (0.35, 0.15, 0.30, 0.20),
+    "legitimate_user": in_operation_order(USER_OPERATION_MIX),
+    "automated_service": in_operation_order(SERVICE_OPERATION_MIX),
+    "administrator": in_operation_order(ADMIN_OPERATION_MIX),
 }
-"""Fracao das requisicoes de um operador daquele perfil, na ordem de `OPERATIONS`.
+"""A mistura de cada perfil, ja na ordem do sorteio.
 
 O administrador concentra mais em `DescribeKey` e `ExportKeyMaterial` porque
 custodia envolve inspecionar e recuperar material. E o unico perfil que o

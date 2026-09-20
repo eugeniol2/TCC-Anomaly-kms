@@ -57,6 +57,31 @@ CUSTODY_DISPERSION = 2           # n da Pascal; var/media 1,94, ausente seria 1,
 CUSTODY_REQUESTS_RANGE = (8, 25)
 CUSTODY_REQUEST_INTERVAL = 90.0
 
+# ── Mistura de operacoes por perfil ────────────────────── D-055
+
+# Fracao das requisicoes de um operador daquele perfil. Nenhuma celula e zero:
+# operacao privativa marcaria o perfil por construcao. O atacante sorteia da
+# linha do administrador que personifica, entao a mistura nao o denuncia.
+
+USER_OPERATION_MIX = {
+    "Decrypt": 0.55,
+    "Encrypt": 0.25,
+    "DescribeKey": 0.12,
+    "ExportKeyMaterial": 0.08,
+}
+SERVICE_OPERATION_MIX = {
+    "Decrypt": 0.45,
+    "Encrypt": 0.35,
+    "DescribeKey": 0.10,
+    "ExportKeyMaterial": 0.10,
+}
+ADMIN_OPERATION_MIX = {
+    "Decrypt": 0.35,
+    "Encrypt": 0.15,
+    "DescribeKey": 0.30,
+    "ExportKeyMaterial": 0.20,
+}
+
 # ── Falhas em trafego legitimo ─────────────────────────── D-056
 
 DEFAULT_STALE_SCOPE_RATE = 0.005   # escopo obsoleto; provisorio ate calibracao
