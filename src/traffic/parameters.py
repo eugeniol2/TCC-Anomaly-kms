@@ -18,44 +18,44 @@ from datetime import date
 
 # ── Calendario ─────────────────────────────────────────── D-067, D-069
 
-FIRST_DAY = date(2026, 1, 5)     # segunda-feira; fixa, nunca `date.today()`
-WEEK_COUNT = 7                   # 2 de perfil + 1 de calibracao + 4 avaliadas
-DAYS_PER_WEEK = 7
-BUSINESS_WEEKDAYS = frozenset({0, 1, 2, 3, 4})   # segunda a sexta
+FIRST_DAY = date(2026, 1, 5)     # primeiro dia simulado; fixo, nunca `date.today()`
+WEEK_COUNT = 7                   # 2 de perfil historico + 1 de calibracao + 4 avaliadas
+DAYS_PER_WEEK = 7                # fato de calendario, nao decisao: sem entrada
+BUSINESS_WEEKDAYS = frozenset({0, 1, 2, 3, 4})   # dias em que pessoa abre sessao
 
 # ── Origem de rede ─────────────────────────────────────── D-040, D-058
 
-PRINCIPAL_ADDRESS_SHARE = 0.80   # geometrica truncada; as demais decaem 1 - p
+PRINCIPAL_ADDRESS_SHARE = 0.80   # chance de a sessao vir do endereco principal
 
 # ── Formato do identificador de chave ──────────────────── D-009, D-056
 
-IDENTIFIER_SPACE = 2**48         # espelhado do M1; um teste guarda a copia
-IDENTIFIER_PREFIX = "k_"
-IDENTIFIER_DIGITS = 12
+IDENTIFIER_SPACE = 2**48         # quantos identificadores o formato comporta
+IDENTIFIER_PREFIX = "k_"         # o que vem antes dos digitos
+IDENTIFIER_DIGITS = 12           # digitos hexadecimais; espelho do M1
 
 # ── Servico automatizado: lote periodico ───────────────── D-058
 
-BATCH_HOURS = (2, 8, 14, 20)     # todos os dias, inclusive fim de semana
+BATCH_HOURS = (2, 8, 14, 20)     # horas do lote, todos os dias
 BATCH_JITTER_MINUTES = 10        # desvio em torno da hora cheia
-BATCH_REQUESTS_RANGE = (20, 40)
-BATCH_REQUEST_INTERVAL = 2.0     # segundos, media do exponencial
+BATCH_REQUESTS_RANGE = (20, 40)  # requisicoes por sessao, sorteado na faixa
+BATCH_REQUEST_INTERVAL = 2.0     # segundos entre requisicoes, media do exponencial
 
 # ── Usuario legitimo: esporadico ───────────────────────── D-058
 
 SPORADIC_SESSIONS_PER_BUSINESS_DAY = 1.5   # Poisson: variancia igual a media
-SPORADIC_OPENS_AT = 8
-SPORADIC_CLOSES_AT = 18
-SPORADIC_REQUESTS_RANGE = (6, 20)
-SPORADIC_REQUEST_INTERVAL = 45.0
+SPORADIC_OPENS_AT = 8                      # hora em que a janela de inicio abre
+SPORADIC_CLOSES_AT = 18                    # e em que fecha
+SPORADIC_REQUESTS_RANGE = (6, 20)          # requisicoes por sessao
+SPORADIC_REQUEST_INTERVAL = 45.0           # segundos entre requisicoes
 
 # ── Administrador: custodia ocasional ──────────────────── D-058, D-071
 
-CUSTODY_SESSIONS_PER_BUSINESS_DAY = 2.0
-CUSTODY_OPENS_AT = 9
-CUSTODY_CLOSES_AT = 19
-CUSTODY_DISPERSION = 2           # n da Pascal; var/media 1,94, ausente seria 1,0
-CUSTODY_REQUESTS_RANGE = (8, 25)
-CUSTODY_REQUEST_INTERVAL = 90.0
+CUSTODY_SESSIONS_PER_BUSINESS_DAY = 2.0   # media; a Pascal abaixo e que dispersa
+CUSTODY_OPENS_AT = 9                      # hora em que a janela de inicio abre
+CUSTODY_CLOSES_AT = 19                    # e em que fecha
+CUSTODY_DISPERSION = 2                    # n da Pascal; var/media 1,94
+CUSTODY_REQUESTS_RANGE = (8, 25)          # requisicoes por sessao
+CUSTODY_REQUEST_INTERVAL = 90.0           # segundos entre requisicoes
 
 # ── Mistura de operacoes por perfil ────────────────────── D-055
 
@@ -63,19 +63,19 @@ CUSTODY_REQUEST_INTERVAL = 90.0
 # operacao privativa marcaria o perfil por construcao. O atacante sorteia da
 # linha do administrador que personifica, entao a mistura nao o denuncia.
 
-USER_OPERATION_MIX = {
+USER_OPERATION_MIX = {           # quem so consome dado: decifra na maior parte
     "Decrypt": 0.55,
     "Encrypt": 0.25,
     "DescribeKey": 0.12,
     "ExportKeyMaterial": 0.08,
 }
-SERVICE_OPERATION_MIX = {
+SERVICE_OPERATION_MIX = {        # aplicacao em lote: decifra e cifra em volume
     "Decrypt": 0.45,
     "Encrypt": 0.35,
     "DescribeKey": 0.10,
     "ExportKeyMaterial": 0.10,
 }
-ADMIN_OPERATION_MIX = {
+ADMIN_OPERATION_MIX = {          # custodia: inspeciona e recupera material
     "Decrypt": 0.35,
     "Encrypt": 0.15,
     "DescribeKey": 0.30,
@@ -84,12 +84,12 @@ ADMIN_OPERATION_MIX = {
 
 # ── Falhas em trafego legitimo ─────────────────────────── D-056
 
-DEFAULT_STALE_SCOPE_RATE = 0.005   # escopo obsoleto; provisorio ate calibracao
-DEFAULT_MISTYPED_RATE = 0.003      # identificador errado; idem
+DEFAULT_STALE_SCOPE_RATE = 0.005   # fracao que aponta para escopo obsoleto
+DEFAULT_MISTYPED_RATE = 0.003      # fracao com identificador digitado errado
 
 # ── Amplitude da sessao ────────────────────────────────── D-058
 
-DEFAULT_DISTINCT_KEYS_RANGE = (3, 12)   # limitado pelo alcance e pelo tamanho
+DEFAULT_DISTINCT_KEYS_RANGE = (3, 12)   # chaves distintas por sessao, se couberem
 
 
 # ── Como os valores acima se encaixam ──────────────────────────────────
