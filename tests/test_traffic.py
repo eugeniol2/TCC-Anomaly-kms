@@ -276,7 +276,7 @@ def test_distinct_keys_per_session_stay_within_the_range(seed: int) -> None:
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_both_legitimate_failure_paths_occur(seed: int) -> None:
-    """Escopo obsoleto e identificador digitado errado existem no trafego limpo.
+    """Escopo obsoleto e identificador inexistente existem no trafego limpo.
 
     Se nenhum deles ocorresse, `denied > 0` e `unknown > 0` passariam a
     significar atacante, que e o separador trivial que a D-028 procura.
@@ -317,7 +317,7 @@ def test_deviation_rates_stay_near_the_configured_ones(seed: int) -> None:
         for operator, key in zip(requests["operator_id"], requests["key_id"])
     ) / len(requests)
 
-    assert SPECIFICATION.mistyped_rate * 0.5 < unknown < SPECIFICATION.mistyped_rate * 2
+    assert SPECIFICATION.absent_identifier_rate * 0.5 < unknown < SPECIFICATION.absent_identifier_rate * 2
     assert (
         SPECIFICATION.stale_scope_rate * 0.5 < stale < SPECIFICATION.stale_scope_rate * 2
     )

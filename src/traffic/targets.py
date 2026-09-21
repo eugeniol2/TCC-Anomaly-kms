@@ -80,7 +80,7 @@ def apply_deviations(
     specification: TrafficSpecification,
 ) -> list[str]:
     """Substitui algumas requisicoes pelos dois desvios da D-056."""
-    deviation_ceiling = specification.stale_scope_rate + specification.mistyped_rate
+    deviation_ceiling = specification.stale_scope_rate + specification.absent_identifier_rate
     has_unreachable = len(keys.out_of_reach) > 0
     draws = rng.random(len(targets))
 
@@ -88,11 +88,11 @@ def apply_deviations(
 
     for target, draw in zip(targets, draws):
         is_stale_scope = has_unreachable and draw < specification.stale_scope_rate
-        is_mistyped = not is_stale_scope and draw < deviation_ceiling
+        is_absent_identifier = not is_stale_scope and draw < deviation_ceiling
 
         if is_stale_scope:
             deviated.append(keys.out_of_reach[int(rng.integers(len(keys.out_of_reach)))])
-        elif is_mistyped:
+        elif is_absent_identifier:
             deviated.append(draw_absent_identifier(rng, keys.existing))
         else:
             deviated.append(target)

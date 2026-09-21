@@ -28,7 +28,7 @@ BUSINESS_WEEKDAYS = frozenset({0, 1, 2, 3, 4})   # dias em que pessoa abre sessa
 PRIMARY_ADDRESS_SHARE = 0.80     # chance de a sessao vir do endereco principal
 
 # ── Formato do identificador de chave ──────────────────── D-009, D-056
-# Usado para criar chaves inexistentes e para gerar erros de digitação.
+# Usado para forjar identificador que nao existe no repositorio.
 IDENTIFIER_SPACE = 2**48         # quantos identificadores o formato comporta
 IDENTIFIER_PREFIX = "k_"         # o que vem antes dos digitos
 IDENTIFIER_DIGITS = 12           # digitos hexadecimais; espelho do M1
@@ -85,7 +85,7 @@ ADMIN_OPERATION_MIX = {          # custodia: inspeciona e recupera material
 # ── Falhas em trafego legitimo ─────────────────────────── D-056
 
 DEFAULT_STALE_SCOPE_RATE = 0.005   # fracao que aponta para escopo obsoleto
-DEFAULT_MISTYPED_RATE = 0.003      # fracao com identificador digitado errado
+DEFAULT_ABSENT_IDENTIFIER_RATE = 0.003   # fracao que pede identificador inexistente
 
 # ── Amplitude da sessao ────────────────────────────────── D-058
 
@@ -106,7 +106,7 @@ class TrafficSpecification:
     first_day: date = FIRST_DAY
     week_count: int = WEEK_COUNT
     stale_scope_rate: float = DEFAULT_STALE_SCOPE_RATE
-    mistyped_rate: float = DEFAULT_MISTYPED_RATE
+    absent_identifier_rate: float = DEFAULT_ABSENT_IDENTIFIER_RATE
     distinct_keys_range: tuple[int, int] = DEFAULT_DISTINCT_KEYS_RANGE
 
     @property

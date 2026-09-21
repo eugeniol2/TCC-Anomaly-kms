@@ -18,7 +18,7 @@ from src.globals.tables import write_csv
 from src.traffic.build import build_traffic
 from src.traffic.parameters import (
     DEFAULT_DISTINCT_KEYS_RANGE,
-    DEFAULT_MISTYPED_RATE,
+    DEFAULT_ABSENT_IDENTIFIER_RATE,
     DEFAULT_STALE_SCOPE_RATE,
     FIRST_DAY,
     WEEK_COUNT,
@@ -40,7 +40,7 @@ class Arguments(argparse.Namespace):
     out: Path
     weeks: int
     stale_scope_rate: float
-    mistyped_rate: float
+    absent_identifier_rate: float
 
 
 def parse_args() -> Arguments:
@@ -51,7 +51,7 @@ def parse_args() -> Arguments:
     )
     parser.add_argument("--weeks", type=int, default=WEEK_COUNT)
     parser.add_argument("--stale-scope-rate", type=float, default=DEFAULT_STALE_SCOPE_RATE)
-    parser.add_argument("--mistyped-rate", type=float, default=DEFAULT_MISTYPED_RATE)
+    parser.add_argument("--absent-identifier-rate", type=float, default=DEFAULT_ABSENT_IDENTIFIER_RATE)
     return parser.parse_args(namespace=Arguments())
 
 
@@ -61,7 +61,7 @@ def traffic_specification_from(args: Arguments) -> TrafficSpecification:
         first_day=FIRST_DAY,
         week_count=args.weeks,
         stale_scope_rate=args.stale_scope_rate,
-        mistyped_rate=args.mistyped_rate,
+        absent_identifier_rate=args.absent_identifier_rate,
         distinct_keys_range=DEFAULT_DISTINCT_KEYS_RANGE,
     )
 

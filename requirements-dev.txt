@@ -1,0 +1,9 @@
+# Dependencias de desenvolvimento, fora do lock da reprodutibilidade.
+#
+# O requirements.txt e o requirements-lock.txt fixam o que o pipeline usa
+# para gerar os dados. O que esta aqui nao participa da geracao: se este
+# arquivo mudar, nenhum CSV muda.
+#
+#     pip install -r requirements-dev.txt
+
+streamlit==1.64.0
