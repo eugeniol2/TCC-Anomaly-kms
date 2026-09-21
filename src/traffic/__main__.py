@@ -107,15 +107,15 @@ def report(destination: Path, requests: pd.DataFrame) -> None:
 
 def main() -> None:
     args = parse_args()
-    specification = traffic_specification_from(args)
+    specification = traffic_specification_from(args) # cria uma estrutura com todos os parametros do trafego
 
-    destination = seed_directory(args.out, args.seed)
-    suggested_command = population_command(args.seed, args.out)
+    destination = seed_directory(args.out, args.seed) # cria o caminho da pasta de destino a partir da raiz e da semente
+    suggested_command = population_command(args.seed, args.out) # cria o comando que o M2 sugere ao usuario para gerar a populacao do M1, caso falte
 
 
-    operators, keys = read_population(destination, suggested_command)
+    operators, keys = read_population(destination, suggested_command) # le as tabelas da respectiva seed: `operators.csv` e `keys.csv`, ou sugere o comando para gerar a populacao do M1, caso falte
     
-    requests = build_traffic(args.seed, operators, keys, specification)
+    requests = build_traffic(args.seed, operators, keys, specification) # cria a tabela de requisicoes a partir da semente, das tabelas do M1 e da especificacao do trafego
 
     print("requests")
     print(requests.describe().T)

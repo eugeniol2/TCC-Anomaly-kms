@@ -116,7 +116,7 @@ def build_traffic(
 
     operators = read_operators(operators_table) # Leitura de `operators.csv` e conversao para `Operator`.
     repository = build_repository(keys_table, operators) # Leitura de `keys.csv` e organizacao de chaves por operador.
-    planned = plan_sessions(rng, operators, specification)
-    rows = request_rows(rng, planned, repository, specification)
+    planned = plan_sessions(rng, operators, specification) # Planejamento de todas as sessoes de todos os operadores, numeradas em ordem cronologica.
+    rows = request_rows(rng, planned, repository, specification) # As requisicoes de todas as sessoes, na ordem em que foram planejadas.
 
-    return with_event_ids(chronological(pd.DataFrame(rows)))
+    return with_event_ids(chronological(pd.DataFrame(rows))) # Ordena o arquivo no tempo, que e como um log de auditoria se le.

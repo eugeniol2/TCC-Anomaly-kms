@@ -42,7 +42,7 @@ def split_keys_by_scope(
     if floor_exceeds_total:
         raise ValueError(f"piso de {floor} por escopo nao cabe em {total} chaves")
 
-    weights = rng.dirichlet(np.full(len(pool), specification.concentration))
+    weights = rng.dirichlet(np.full(len(pool), specification.concentration)) # gera uma distribuicao de Dirichlet para determinar a proporcao de chaves por escopo
     extra = largest_remainder(weights, total - reserved)
 
     return {scope: floor + int(count) for scope, count in zip(pool, extra)}

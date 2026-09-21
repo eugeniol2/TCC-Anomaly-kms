@@ -82,11 +82,11 @@ def report(destination: Path, operators: pd.DataFrame, keys: pd.DataFrame) -> No
 
 def main() -> None:
     args = parse_args()
-    specification = key_repository_specification_from(args)
+    specification = key_repository_specification_from(args) # cria uma estrutura com todos os parametros do repositorio de chaves
 
-    population = build_population(args.seed, specification)
+    population = build_population(args.seed, specification) # cria as duas tabelas estaticas (population, keys) a partir da semente e da especificacao do repositorio de chaves
 
-    destination = seed_directory(args.out, args.seed)
+    destination = seed_directory(args.out, args.seed) # cria o caminho da pasta de destino a partir da raiz e da semente
     write_csv(population.operators, destination / "operators.csv")
     write_csv(population.keys, destination / "keys.csv")
 
