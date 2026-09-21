@@ -16,11 +16,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-# ── Calendario ─────────────────────────────────────────── D-067, D-069
+from src.globals.phases import DAYS_PER_WEEK, FIRST_DAY, WEEK_COUNT
 
-FIRST_DAY = date(2026, 1, 5)     # primeiro dia simulado; fixo, nunca `date.today()`
-WEEK_COUNT = 7                   # 2 de perfil historico + 1 de calibracao + 4 avaliadas
-DAYS_PER_WEEK = 7                # fato de calendario, nao decisao: sem entrada
+# ── Calendario ─────────────────────────────────────────── D-067, D-069
+#
+# O ancora e a duracao moram em `globals/phases.py`, e nao aqui, porque nao
+# sao do M2: o M4 em diante precisa deles para saber de que fatia de tempo
+# esta tratando, e importar do vizinho quebraria a fronteira entre modulos.
+# Reexportados para quem ja os pedia daqui.
+
 BUSINESS_WEEKDAYS = frozenset({0, 1, 2, 3, 4})   # dias em que pessoa abre sessao
 
 # ── Origem de rede ─────────────────────────────────────── D-040, D-058
