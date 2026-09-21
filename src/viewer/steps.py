@@ -27,10 +27,63 @@ from src.traffic.parameters import TrafficSpecification
 from src.traffic.repository import build_repository, keys_by_scope, reach_of
 
 
+@dataclass(frozen=True)
+class Fase:
+    """Uma das tres fases da arquitetura, implementada ou nao."""
+
+    nome: str
+    modulos: str
+    execucoes: str
+    descricao: str
+    implementada: bool
+
+
+FASES = (
+    Fase(
+        nome="Fase 1 · Preparação dos dados",
+        modulos="M1 · M2",
+        execucoes="30 execuções, uma por semente",
+        descricao=(
+            "Constrói o mundo estático — quem existe e o que existe — e gera as "
+            "sete semanas de tráfego legítimo. Nada aqui depende de σ, porque o "
+            "atacante ainda não entrou."
+        ),
+        implementada=True,
+    ),
+    Fase(
+        nome="Fase 2 · Aquecimento e calibração",
+        modulos="M4 · M5 · M6 · M7 · M8",
+        execucoes="30 execuções, uma por semente",
+        descricao=(
+            "Extrai de tráfego limpo as duas referências contra as quais tudo "
+            "será medido: o perfil histórico, das semanas 1 e 2, e os limiares do "
+            "baseline, da semana 3. As duas ficam congeladas daqui em diante."
+        ),
+        implementada=False,
+    ),
+    Fase(
+        nome="Fase 3 · Ataque, treino e comparação",
+        modulos="M3 · M4 · M5 · M7 · M9 · M10 · M11 · M12",
+        execucoes="330 execuções, 11 condições de σ por semente",
+        descricao=(
+            "Injeta a campanha nas semanas 4 a 7, monta o dataset avaliado, "
+            "particiona por sessão e compara o baseline de regras contra os dois "
+            "modelos supervisionados. É a única fase que depende de σ, e por isso "
+            "a única que roda 330 vezes."
+        ),
+        implementada=False,
+    ),
+)
+"""As tres fases da arquitetura, na ordem de execucao."""
+
+FASE_1 = FASES[0].nome
+
+
 @dataclass
 class Step:
     """Um passo do pipeline, com o que ele recebeu e o que devolveu."""
 
+    fase: str
     modulo: str
     funcao: str
     explicacao: str
@@ -57,6 +110,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
 
     pool = scope_pool(specification.scope_count)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M1",
         funcao="scope_pool",
         explicacao="Cria os nomes dos escopos. Nao sorteia nada — e so uma lista.",
@@ -67,6 +121,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
 
     operators = build_operators_covering_pool(rng, pool)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M1",
         funcao="build_operators_covering_pool",
         explicacao=(
@@ -81,6 +136,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
 
     scope_holders = holders_by_scope(operators)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M1",
         funcao="holders_by_scope",
         explicacao="Indice inverso: de cada escopo para quem o detem.",
@@ -94,6 +150,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
 
     scope_sizes = split_keys_by_scope(rng, pool, specification)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M1",
         funcao="split_keys_by_scope",
         explicacao=(
@@ -114,6 +171,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
 
     keys_in_scope_order = build_keys(rng, scope_sizes, scope_holders)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M1",
         funcao="build_keys",
         explicacao=(
@@ -132,6 +190,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
     )
     desabilitadas = int((keys_with_status["status"] == "disabled").sum())
     passos.append(Step(
+        fase=FASE_1,
         modulo="M1",
         funcao="disable_random_sample",
         explicacao=(
@@ -146,6 +205,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
 
     keys = shuffle_rows(rng, keys_with_status)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M1",
         funcao="shuffle_rows",
         explicacao=(
@@ -174,6 +234,7 @@ def traffic_steps(
 
     operators = read_operators(operators_table)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M2",
         funcao="read_operators",
         explicacao=(
@@ -189,6 +250,7 @@ def traffic_steps(
 
     por_escopo = keys_by_scope(keys_table)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M2",
         funcao="keys_by_scope",
         explicacao=(
@@ -207,6 +269,7 @@ def traffic_steps(
     foco = next(o for o in operators if o.operator_id == operador_foco)
     alcance = reach_of(foco, por_escopo)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M2",
         funcao="reach_of",
         explicacao=(
@@ -234,6 +297,7 @@ def traffic_steps(
 
     repositorio = build_repository(keys_table, operators)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M2",
         funcao="build_repository",
         explicacao=(
@@ -256,6 +320,7 @@ def traffic_steps(
     planejadas = plan_sessions(rng, operators, specification)
     do_foco = [s for s in planejadas if s.operator.operator_id == operador_foco]
     passos.append(Step(
+        fase=FASE_1,
         modulo="M2",
         funcao="plan_sessions",
         explicacao=(
@@ -282,6 +347,7 @@ def traffic_steps(
 
     linhas = request_rows(rng, planejadas, repositorio, specification)
     passos.append(Step(
+        fase=FASE_1,
         modulo="M2",
         funcao="request_rows",
         explicacao=(
@@ -301,6 +367,7 @@ def traffic_steps(
 
     requests = with_event_ids(chronological(pd.DataFrame(linhas)))
     passos.append(Step(
+        fase=FASE_1,
         modulo="M2",
         funcao="chronological + with_event_ids",
         explicacao=(

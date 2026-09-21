@@ -26,7 +26,13 @@ import streamlit as st
 from src.population.build import build_population
 from src.population.parameters import KeyRepositorySpecification
 from src.traffic.parameters import TrafficSpecification
-from src.viewer.steps import Step, population_steps, traffic_steps
+from src.viewer.steps import (
+    FASES,
+    Fase,
+    Step,
+    population_steps,
+    traffic_steps,
+)
 
 TITULO = "Como os dados sao gerados, passo a passo"
 
@@ -54,7 +60,7 @@ def passos_do_m2(seed: int, foco: str) -> list[Step]:
 def mostrar(passo: Step, numero: int) -> None:
     """Um passo na tela: o que entrou, o que a funcao faz, o que saiu."""
     st.subheader(f"{numero}. `{passo.funcao}`", divider="gray")
-    st.caption(f"{passo.modulo}  ·  {passo.legenda}")
+    st.caption(f"{passo.fase}  ·  **{passo.modulo}**  ·  {passo.legenda}")
 
     st.markdown(passo.explicacao)
 
@@ -99,9 +105,27 @@ def estatisticas(passo: Step) -> None:
         )
 
 
+def escolher_fase() -> Fase:
+    """Seletor das tres fases da arquitetura, no topo da barra lateral.
+
+    A fase vem primeiro porque ela decide o que a tela mostra: as duas
+    pendentes nao tem passo nenhum, so a descricao do que farao.
+    """
+    st.sidebar.title("Fase")
+
+    rotulos = [
+        fase.nome if fase.implementada else f"{fase.nome}  (pendente)"
+        for fase in FASES
+    ]
+    escolhido = st.sidebar.radio("Fase", rotulos, index=0, label_visibility="collapsed")
+
+    return FASES[rotulos.index(escolhido)]
+
+
 def barra_lateral() -> tuple[int, str]:
     """Semente e operador em foco. Mudar qualquer um reinicia a contagem."""
-    st.sidebar.title("Controles")
+    st.sidebar.divider()
+    st.sidebar.subheader("Controles")
 
     seed = st.sidebar.number_input("Semente", min_value=1, max_value=30, value=1)
 
@@ -147,6 +171,7 @@ def controle_de_passos(passos: list[Step]) -> tuple[int, bool]:
 
     atual = st.session_state.atual
     st.sidebar.progress(atual / total, text=f"passo {atual} de {total}")
+    st.sidebar.caption(passos[atual - 1].fase)
 
     empilhar = st.sidebar.toggle(
         "Manter os anteriores na tela", value=False,
@@ -158,9 +183,30 @@ def controle_de_passos(passos: list[Step]) -> tuple[int, bool]:
     return atual, empilhar
 
 
+def fase_pendente(fase: Fase) -> None:
+    """O que a fase fara, para quem a seleciona antes de ela existir."""
+    st.header(fase.nome)
+    st.caption(f"`{fase.modulos}`  ·  {fase.execucoes}")
+
+    st.info("Esta fase ainda nao foi implementada.", icon=":material/schedule:")
+    st.markdown(fase.descricao)
+
+    st.divider()
+    st.caption(
+        "O que existe hoje e a Fase 1, que produz o `requests.csv` das sete "
+        "semanas. E dele que esta fase partira."
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title=TITULO, layout="wide")
     st.title(TITULO)
+
+    fase = escolher_fase()
+
+    if not fase.implementada:
+        fase_pendente(fase)
+        return
 
     seed, foco = barra_lateral()
 
