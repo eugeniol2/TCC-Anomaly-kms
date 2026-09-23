@@ -31,10 +31,15 @@ SIGMAS = tuple(step / 10 for step in range(11))
 
 Em 0,0 o atacante e ostensivo em todas as cinco dimensoes comportamentais: taxa
 de requisicoes elevada, varredura ampla de chaves, horario atipico, origem de
-rede nao habitual e falhas de autorizacao frequentes. Em 1,0 cada dimensao se
-aproxima estatisticamente do operador que ele personifica. O objetivo da
-campanha e invariante em toda a faixa; o que sigma regula e o compromisso entre
-velocidade e discricao (D-004).
+rede nao habitual e falhas de autorizacao frequentes. Em 1,0 cada dimensao vale
+**exatamente** o que o M2 usaria para o operador personificado, e a sessao
+comprometida passa a sair da mesma distribuicao que uma legitima (D-082).
+
+O que **nao** e invariante e o objetivo da campanha. O que sigma preserva e o
+numero de sessoes, fixo em 58 nas onze condicoes (D-081); o atacante furtivo
+simplesmente consegue menos. O inverso — objetivo fixo e sessoes variaveis —
+faria a proporcao de anomalias mudar junto com sigma, e a comparacao entre
+condicoes confundiria furtividade com desbalanceamento.
 """
 
 TOTAL_RUNS = len(SEEDS) * len(SIGMAS)

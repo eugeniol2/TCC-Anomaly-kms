@@ -53,23 +53,28 @@ def choose_source_address(rng: Generator, addresses: tuple[str, ...]) -> str:
     return addresses[int(chosen)]
 
 
-def draw_request_count(rng: Generator, regime: Regime) -> int:
-    """Quantas requisicoes a sessao emite, pela faixa do regime."""
-    lowest, highest = regime.requests_range
+def draw_request_count(rng: Generator, requests_range: tuple[int, int]) -> int:
+    """Quantas requisicoes a sessao emite, dentro da faixa recebida.
+
+    Recebe a faixa, e nao o regime inteiro, porque o M3 chama esta mesma
+    funcao com uma faixa interpolada por sigma. Em sigma 1 a faixa recebida e
+    a do regime, e as duas chamadas passam a ser indistinguiveis (D-082).
+    """
+    lowest, highest = requests_range
 
     return int(rng.integers(lowest, highest + 1))
 
 
 def request_instants(
-    rng: Generator, start: datetime, quantity: int, regime: Regime
+    rng: Generator, start: datetime, quantity: int, seconds_between: float
 ) -> list[datetime]:
     """Os instantes das requisicoes, a partir da abertura da sessao.
 
-    Intervalo exponencial, com media do regime. E dele que sai a duracao da
+    Intervalo exponencial, com a media recebida. E dele que sai a duracao da
     sessao, e portanto a taxa de requisicoes — uma das cinco dimensoes que
-    sigma interpola no M3.
+    sigma interpola no M3, que reaproveita esta funcao com outra media.
     """
-    gaps = rng.exponential(regime.seconds_between_requests, size=quantity - 1)
+    gaps = rng.exponential(seconds_between, size=quantity - 1)
     offsets = np.concatenate(([0.0], np.cumsum(gaps)))
 
     return [start + timedelta(seconds=float(offset)) for offset in offsets]
@@ -90,9 +95,11 @@ def session_rows(
     regime = REGIMES[operator.regime]
 
     source_address = choose_source_address(rng, operator.usual_ips)
-    quantity = draw_request_count(rng, regime)
+    quantity = draw_request_count(rng, regime.requests_range)
 
-    instants = request_instants(rng, planned.start, quantity, regime)
+    instants = request_instants(
+        rng, planned.start, quantity, regime.seconds_between_requests
+    )
     operations = draw_operations(rng, operator.profile, quantity)
     targets = session_targets(rng, keys, quantity, specification)
 
