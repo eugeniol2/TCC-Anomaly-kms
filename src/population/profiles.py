@@ -2,6 +2,13 @@
 escopos cada operador detem, quantas origens de rede habituais usa e sob que
 regime exerce a recuperacao de material (D-035).
 
+Os tres nomes descrevem **papel**, nunca legitimidade. O primeiro chamou-se
+`legitimate_user` ate 23/09 e foi renomeado para `end_user` (D-092): o nome
+antigo sugeria "nao e o atacante", e nao e isso que ele diz. **Os tres perfis
+sao legitimos** — o atacante nao tem perfil proprio, ele age sob a credencial
+de um `administrator` real. Quem diz se a sessao e maliciosa e a coluna
+`compromised` do `sessions.csv`, e so ela.
+
 A operacao de recuperacao de material e exercida por todos os perfis legitimos.
 Se fosse privativa de parte deles, o proprio exercicio da operacao funcionaria
 como marcador de perfil e os operadores incapazes de exportar formariam uma
@@ -27,7 +34,7 @@ class Profile:
 
 PROFILES = (
     Profile(
-        name="legitimate_user",
+        name="end_user",
         id_prefix="user",
         operators=30,
         scopes_each=1,

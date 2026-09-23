@@ -36,7 +36,7 @@ def in_operation_order(mix: dict[str, float]) -> tuple[float, ...]:
 
 
 OPERATION_MIX: dict[str, tuple[float, ...]] = {
-    "legitimate_user": in_operation_order(USER_OPERATION_MIX),
+    "end_user": in_operation_order(USER_OPERATION_MIX),
     "automated_service": in_operation_order(SERVICE_OPERATION_MIX),
     "administrator": in_operation_order(ADMIN_OPERATION_MIX),
 }
