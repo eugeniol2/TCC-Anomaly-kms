@@ -15,7 +15,22 @@ from typing import Any
 
 import pandas as pd
 
-from src.globals.rng import POPULATION, TRAFFIC, stream
+from src.attack.build import build_attack, draw_compromised_admin
+from src.attack.parameters import AttackSpecification
+from src.attack.stealth import stealth_of
+from src.audit_logger.build import build_log
+from src.calibration.build import build_thresholds, calibration_period
+from src.dataset.build import build_dataset, per_session, with_rate_attributes
+from src.globals.phases import EVALUATED, WARMUP
+from src.globals.rng import ATTACK, POPULATION, TRAFFIC, stream
+from src.historical_profiles.build import (
+    profile_of,
+    profile_period,
+    session_openings,
+)
+from src.kms.build import build_outcomes, requests_of_phase
+from src.kms.policy import read_repository
+from src.traffic.regimes import REGIMES
 from src.globals.tables import shuffle_rows
 from src.population.keys import build_keys, disable_random_sample, split_keys_by_scope
 from src.population.operators import build_operators_covering_pool, holders_by_scope
@@ -34,8 +49,16 @@ class Fase:
     nome: str
     modulos: str
     execucoes: str
+    objetivo: str
     descricao: str
     implementada: bool
+    pendencia: str = ""
+    """O que ainda falta na fase, quando ela esta so parcialmente implementada.
+
+    A fase 3 e o caso: a campanha e o conjunto avaliado existem, mas nada que
+    os consome. Marca-la como nao implementada esconderia metade do que ja
+    roda; marca-la como pronta mentiria sobre a outra metade.
+    """
 
 
 FASES = (
@@ -43,6 +66,10 @@ FASES = (
         nome="Fase 1 · Preparação dos dados",
         modulos="M1 · M2",
         execucoes="30 execuções, uma por semente",
+        objetivo=(
+            "Produzir o mundo estático e as sete semanas de tráfego legítimo, "
+            "antes de qualquer atacante existir."
+        ),
         descricao=(
             "Constrói o mundo estático — quem existe e o que existe — e gera as "
             "sete semanas de tráfego legítimo. Nada aqui depende de σ, porque o "
@@ -54,29 +81,49 @@ FASES = (
         nome="Fase 2 · Aquecimento e calibração",
         modulos="M4 · M5 · M6 · M7 · M8",
         execucoes="30 execuções, uma por semente",
+        objetivo=(
+            "Extrair de tráfego **limpo** as duas referências contra as quais "
+            "tudo será medido depois: o **perfil histórico** de cada operador, "
+            "das semanas 1 e 2, e os **limiares do baseline**, da semana 3. "
+            "Nenhuma das duas pode ver o atacante — se visse, o baseline "
+            "nasceria calibrado contra o comportamento que deveria detectar."
+        ),
         descricao=(
             "Extrai de tráfego limpo as duas referências contra as quais tudo "
             "será medido: o perfil histórico, das semanas 1 e 2, e os limiares do "
             "baseline, da semana 3. As duas ficam congeladas daqui em diante."
         ),
-        implementada=False,
+        implementada=True,
     ),
     Fase(
         nome="Fase 3 · Ataque, treino e comparação",
         modulos="M3 · M4 · M5 · M7 · M9 · M10 · M11 · M12",
         execucoes="330 execuções, 11 condições de σ por semente",
+        objetivo=(
+            "Injetar a campanha de ataque, montar o conjunto rotulado e "
+            "comparar o baseline de regras contra os dois modelos "
+            "supervisionados — que é a pergunta de pesquisa do trabalho."
+        ),
         descricao=(
             "Injeta a campanha nas semanas 4 a 7, monta o dataset avaliado, "
             "particiona por sessão e compara o baseline de regras contra os dois "
             "modelos supervisionados. É a única fase que depende de σ, e por isso "
             "a única que roda 330 vezes."
         ),
-        implementada=False,
+        implementada=True,
+        pendencia=(
+            "Os passos abaixo param no `sessions.csv` rotulado, que é a **entrada** "
+            "dos modelos. O que falta é tudo que o consome: a partição (M9), o "
+            "baseline de regras (M10), os dois modelos (M11) e a avaliação (M12). "
+            "Nenhum F1 foi calculado."
+        ),
     ),
 )
 """As tres fases da arquitetura, na ordem de execucao."""
 
 FASE_1 = FASES[0].nome
+FASE_2 = FASES[1].nome
+FASE_3 = FASES[2].nome
 
 
 @dataclass
@@ -383,6 +430,407 @@ def traffic_steps(
         completa=requests,
         legenda=(f"requests.csv, {len(requests)} linhas; abaixo, 20 do "
                  f"{operador_foco}"),
+    ))
+
+    return passos
+
+
+def warmup_steps(
+    seed: int,
+    operators: pd.DataFrame,
+    keys: pd.DataFrame,
+    requests: pd.DataFrame,
+    foco: str,
+) -> list[Step]:
+    """Refaz a fase 2 — M4, M5, M6, M7 e M8 — guardando cada intermediario.
+
+    Nenhum destes modulos sorteia nada: os cinco sao deterministicos por
+    construcao. Nao ha `stream` aqui, e e por isso que o M4 recebe a semente
+    apenas para escolher a pasta.
+    """
+    passos: list[Step] = []
+
+    repositorio = read_repository(keys, operators)
+    do_foco = sorted(repositorio.scopes_of[foco])
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M4",
+        funcao="read_repository",
+        explicacao=(
+            "Monta os tres indices contra os quais cada requisicao sera julgada: "
+            "o escopo de cada chave, o conjunto de chaves desabilitadas e os "
+            "escopos de cada operador. **Tudo sai das duas tabelas do M1** — e o "
+            "que faz o desfecho ser derivado da politica em vez de inventado."
+        ),
+        entrada={"keys": len(keys), "operators": len(operators)},
+        saida=pd.DataFrame([
+            {"indice": "scope_of", "tamanho": len(repositorio.scope_of)},
+            {"indice": "disabled", "tamanho": len(repositorio.disabled)},
+            {"indice": "scopes_of", "tamanho": len(repositorio.scopes_of)},
+        ]),
+        legenda=f"{foco} detem os escopos {', '.join(do_foco)}",
+    ))
+
+    da_fase = requests_of_phase(requests, WARMUP)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M4",
+        funcao="requests_of_phase",
+        explicacao=(
+            "Recorta as semanas 1 a 3. O `requests.csv` tem as sete, e as quatro "
+            "ultimas pertencem ao ramo de sigma — o aquecimento e anterior ao "
+            "ataque e tem de ficar limpo (D-048)."
+        ),
+        entrada={"requests": len(requests), "fase": WARMUP},
+        saida=da_fase.head(10),
+        completa=da_fase,
+        legenda=f"{len(da_fase)} de {len(requests)} requisicoes",
+    ))
+
+    outcomes = build_outcomes(requests, keys, operators, WARMUP)
+    contagem = outcomes["outcome"].value_counts().rename_axis("outcome")
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M4",
+        funcao="build_outcomes",
+        explicacao=(
+            "O KMS julga cada requisicao, **nesta ordem**: identificador que nao "
+            "existe, depois fora de escopo, depois chave desabilitada, depois "
+            "sucesso (D-077). Autorizacao antes de estado: quem nao detem o "
+            "escopo recebe negacao, e nao a informacao de que a chave existe.\n\n"
+            "Duas colunas so, `event_id` e `outcome` — o diagnostico de qual "
+            "regra disparou ficaria no arquivo e o M5 teria de lembrar de "
+            "descarta-lo (D-078)."
+        ),
+        entrada={"requisicoes": len(da_fase)},
+        saida=contagem.reset_index(name="eventos"),
+        completa=outcomes,
+        legenda=f"{len(outcomes)} desfechos, os quatro tipos presentes",
+    ))
+
+    log = build_log(requests, outcomes, WARMUP)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M5",
+        funcao="build_log",
+        explicacao=(
+            "Casa tentativa com desfecho por `event_id` e fecha as **oito "
+            "colunas** do log (D-064). O `key_id` e o **requisitado**, nao o "
+            "resolvido, para que identificador inexistente seja observavel.\n\n"
+            "Nao ha escopo, perfil nem proprietario aqui: qualquer um deles "
+            "deixaria o modelo reconstruir a fronteira de autorizacao e aprender "
+            "a politica em vez do comportamento. E nao ha rotulo — ele viaja em "
+            "outro arquivo (D-063)."
+        ),
+        entrada={"requests": len(da_fase), "outcomes": len(outcomes)},
+        saida=log[log["operator_id"] == foco].head(12),
+        completa=log,
+        legenda=f"log.csv, {len(log)} eventos; abaixo, 12 do {foco}",
+    ))
+
+    do_perfil = profile_period(log)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M6",
+        funcao="profile_period",
+        explicacao=(
+            "Recorta as semanas **1 e 2**. A semana 3 fica de fora de proposito: "
+            "ela calibra os limiares, e calcular a janela horaria sobre os mesmos "
+            "dados que fixam o limiar acoplaria as duas coisas (D-054)."
+        ),
+        entrada={"log": len(log)},
+        saida=do_perfil.head(8),
+        completa=do_perfil,
+        legenda=f"{len(do_perfil)} de {len(log)} eventos",
+    ))
+
+    aberturas = session_openings(do_perfil)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M6",
+        funcao="session_openings",
+        explicacao=(
+            "Uma linha por sessao: quem abriu, quando e de onde. O instante e o "
+            "do **primeiro evento**, e a origem e a dele — origem e uma so por "
+            "sessao desde o M2."
+        ),
+        entrada={"eventos": len(do_perfil)},
+        saida=aberturas[aberturas["operator_id"] == foco],
+        completa=aberturas,
+        legenda=f"{len(aberturas)} sessoes no perfil; abaixo, as do {foco}",
+    ))
+
+    perfis = profile_of(aberturas)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M6",
+        funcao="profile_of",
+        explicacao=(
+            "A janela vai do **menor ao maior** horario observado, sem percentil "
+            "e sem descarte (D-073). O corte de 95 % foi abandonado porque nao e "
+            "entregavel nesta escala: com mediana de 16 sessoes por perfil, 5 % "
+            "da 0,8 sessao, e o arredondamento manda descartar zero.\n\n"
+            "`observed_ips` **nao** e `usual_ips`. Aquela e a lista que o M1 "
+            "sorteou; esta e o subconjunto que apareceu no log — e a diferenca "
+            "entre as duas e o que produz origem inedita legitima depois (D-040)."
+        ),
+        entrada={"sessoes": len(aberturas)},
+        saida=perfis[perfis["operator_id"] == foco],
+        completa=perfis,
+        legenda=f"historical_profiles.csv, {len(perfis)} operadores",
+    ))
+
+    brutas = per_session(log)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M7",
+        funcao="per_session",
+        explicacao=(
+            "Agrupa o log por sessao e conta o que e contavel: eventos, chaves "
+            "distintas, falhas e negacoes. Ainda sao grandezas brutas — nenhuma "
+            "delas e atributo ainda."
+        ),
+        entrada={"eventos": len(log)},
+        saida=brutas[brutas["operator_id"] == foco].head(8),
+        completa=brutas,
+        legenda=f"{len(brutas)} sessoes no aquecimento",
+    ))
+
+    com_taxas = with_rate_attributes(brutas)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M7",
+        funcao="with_rate_attributes",
+        explicacao=(
+            "Contagem vira taxa. Com sessoes de 6 a 40 eventos, contagem bruta "
+            "confunde sessao longa com sessao intensa.\n\n"
+            "`distinct_keys` e a excecao deliberada (D-080): a razao "
+            "`chaves / eventos` tem teto em 1,0 e a regra correspondente nascia "
+            "morta. O companheiro dela e o `events`, que esta na lista ao lado."
+        ),
+        entrada={"sessoes": len(brutas)},
+        saida=com_taxas[com_taxas["operator_id"] == foco].head(8),
+        completa=com_taxas,
+        legenda="duracao, taxa e as duas razoes de falha",
+    ))
+
+    sessoes = build_dataset(log, perfis, WARMUP)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M7",
+        funcao="build_dataset",
+        explicacao=(
+            "Os dois atributos binarios, lidos contra o perfil **daquele "
+            "operador** e nunca contra um limiar global. Uma sessao das semanas "
+            "1 e 2 nunca e atipica — a janela e o minimo e o maximo delas "
+            "proprias —, entao o que dispara aqui vem so da semana 3.\n\n"
+            "**Sem coluna de rotulo.** O conjunto do aquecimento alimenta so o "
+            "M8, e calibracao por percentil nao usa rotulo: se a coluna nao "
+            "existe, ninguem a usa por engano (D-063)."
+        ),
+        entrada={"log": len(log), "perfis": len(perfis)},
+        saida=sessoes[sessoes["operator_id"] == foco].head(8),
+        completa=sessoes,
+        legenda=f"sessions.csv, {len(sessoes)} sessoes x 8 atributos",
+    ))
+
+    semana_3 = calibration_period(sessoes)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M8",
+        funcao="calibration_period",
+        explicacao=(
+            "So a semana 3. Ela e limpa e anterior ao ataque, e e por isso que "
+            "os limiares podem ser os mesmos nas 11 condicoes de sigma (D-043)."
+        ),
+        entrada={"sessoes": len(sessoes)},
+        saida=semana_3.head(8),
+        completa=semana_3,
+        legenda=f"{len(semana_3)} de {len(sessoes)} sessoes",
+    ))
+
+    limiares = build_thresholds(sessoes)
+    passos.append(Step(
+        fase=FASE_2,
+        modulo="M8",
+        funcao="build_thresholds",
+        explicacao=(
+            "Percentil 99 de cada grandeza, sobre a semana 3. **Seis regras, nao "
+            "oito**: `atypical_hour` e `novel_source` ja vem binarias do M7 e "
+            "disparam quando valem 1 — percentil sobre uma coluna de zeros e uns "
+            "daria 0 ou 1 e nao significaria nada.\n\n"
+            "O baseline **nao recebe treino**: chega ao periodo avaliado com "
+            "estes numeros congelados, e nunca ve um rotulo (D-033)."
+        ),
+        entrada={"sessoes da semana 3": len(semana_3)},
+        saida=limiares,
+        legenda="thresholds.csv, um conjunto por semente",
+    ))
+
+    return passos
+
+
+def attack_steps(
+    seed: int,
+    sigma: float,
+    operators: pd.DataFrame,
+    keys: pd.DataFrame,
+    requests: pd.DataFrame,
+    perfis: pd.DataFrame,
+) -> list[Step]:
+    """Refaz a fase 3 ate onde ela existe: M3, M4, M5 e M7 sobre sigma.
+
+    O operador em foco aqui e sempre o administrador comprometido: acompanhar
+    outro nao mostraria nada que a fase 2 ja nao tenha mostrado.
+    """
+    rng = stream(seed, ATTACK)
+    passos: list[Step] = []
+
+    lidos = read_operators(operators)
+    alvo = draw_compromised_admin(rng, lidos)
+    passos.append(Step(
+        fase=FASE_3,
+        modulo="M3",
+        funcao="draw_compromised_admin",
+        explicacao=(
+            "**Primeiro sorteio do fluxo de ataque**, antes de qualquer coisa "
+            "que dependa de sigma. E o que garante que as 11 condicoes da mesma "
+            "semente compartilhem o alvo, isolando o efeito de sigma (D-011).\n\n"
+            "O atacante nao tem identidade propria: age sob a credencial deste "
+            "administrador, o que elimina deteccao por controle de acesso e "
+            "deixa o comportamento como unico sinal."
+        ),
+        entrada={"administradores": 8},
+        saida=operators[operators["operator_id"] == alvo.operator_id],
+        legenda=f"comprometido nesta semente: {alvo.operator_id}",
+    ))
+
+    trafego = TrafficSpecification()
+    legitimo = REGIMES[alvo.regime]
+    furtividade = stealth_of(sigma, legitimo, trafego, AttackSpecification())
+    passos.append(Step(
+        fase=FASE_3,
+        modulo="M3",
+        funcao="stealth_of",
+        explicacao=(
+            f"Interpola as cinco dimensoes entre o ostensivo e o furtivo, em "
+            f"sigma **{sigma}**. A coluna da direita e o que o **M2 usaria** "
+            "para este administrador — ela nao foi escolhida, foi importada.\n\n"
+            "Em sigma 1 as duas colunas coincidem e o M3 chama as mesmas funcoes "
+            "do M2: a sessao comprometida sai da mesma distribuicao que uma "
+            "legitima, e nenhum mecanismo pode separa-las. E o piso declarado "
+            "da varredura (D-082)."
+        ),
+        entrada={"sigma": sigma, "regime": alvo.regime},
+        saida=pd.DataFrame([
+            {"dimensao": "segundos entre requisicoes",
+             "neste sigma": str(round(furtividade.seconds_between_requests, 2)),
+             "no legitimo": str(legitimo.seconds_between_requests)},
+            {"dimensao": "requisicoes por sessao",
+             "neste sigma": str(furtividade.requests_range),
+             "no legitimo": str(legitimo.requests_range)},
+            {"dimensao": "chaves distintas",
+             "neste sigma": str(furtividade.distinct_keys_range),
+             "no legitimo": str(trafego.distinct_keys_range)},
+            {"dimensao": "chance de hora atipica",
+             "neste sigma": f"{furtividade.atypical_hour_chance:.0%}",
+             "no legitimo": "0%"},
+            {"dimensao": "chance de origem inedita",
+             "neste sigma": f"{furtividade.novel_address_chance:.0%}",
+             "no legitimo": "0%"},
+            {"dimensao": "fracao fora de escopo",
+             "neste sigma": f"{furtividade.stale_scope_rate:.2%}",
+             "no legitimo": f"{trafego.stale_scope_rate:.2%}"},
+        ]),
+        legenda=f"sigma {sigma}: 0 e ostensivo, 1 e indistinguivel",
+    ))
+
+    campanha = build_attack(
+        seed, sigma, operators, keys, requests, trafego, AttackSpecification()
+    )
+    marcadas = set(campanha.compromised["session_id"])
+    do_atacante = campanha.requests[campanha.requests["session_id"].isin(marcadas)]
+    passos.append(Step(
+        fase=FASE_3,
+        modulo="M3",
+        funcao="build_attack",
+        explicacao=(
+            "Mescla **58 sessoes comprometidas** as semanas 4 a 7 do trafego "
+            "legitimo. O numero e o mesmo nas 11 condicoes (D-081): o que sigma "
+            "move e o comportamento dentro delas, nunca quantas sao — se movesse "
+            "as duas coisas, a proporcao de anomalias mudaria junto e a "
+            "comparacao entre condicoes confundiria furtividade com "
+            "desbalanceamento.\n\n"
+            "Sessoes e eventos sao **renumerados em ordem cronologica** (D-083). "
+            "Sem isso as comprometidas ficariam no fim da faixa numerica e o "
+            "identificador anunciaria o rotulo."
+        ),
+        entrada={"legitimo": len(requests), "sigma": sigma},
+        saida=do_atacante.head(12),
+        completa=campanha.requests,
+        legenda=(f"{len(campanha.requests)} requisicoes; abaixo, 12 das "
+                 f"{len(marcadas)} sessoes do atacante"),
+    ))
+
+    passos.append(Step(
+        fase=FASE_3,
+        modulo="M3",
+        funcao="compromised_sessions",
+        explicacao=(
+            "O rotulo, **fora do log** (D-063). Uma coluna so: presenca na lista "
+            "e o rotulo, e quem e o administrador ja esta no `run.csv`.\n\n"
+            "Repare nos numeros: eles estao espalhados entre as sessoes "
+            "legitimas, nao agrupados no fim. E o que a renumeracao do passo "
+            "anterior garante."
+        ),
+        entrada={"sessoes da campanha": len(marcadas)},
+        saida=campanha.compromised.head(12),
+        completa=campanha.compromised,
+        legenda=f"compromised_sessions.csv, {len(campanha.compromised)} linhas",
+    ))
+
+    outcomes = build_outcomes(campanha.requests, keys, operators, EVALUATED)
+    log = build_log(campanha.requests, outcomes, EVALUATED)
+    do_atacante_log = log[log["session_id"].isin(marcadas)]
+    passos.append(Step(
+        fase=FASE_3,
+        modulo="M4 · M5",
+        funcao="build_outcomes + build_log",
+        explicacao=(
+            "**As mesmas funcoes da fase 2**, agora sobre as semanas 4 a 7. O "
+            "KMS nao sabe que ha atacante: ele avalia a politica da chave, e as "
+            "requisicoes do atacante sao negadas pelas mesmas regras que negam "
+            "as legitimas.\n\n"
+            "E isso que faz o rotulo ser **derivado da politica** em vez de "
+            "inventado pelo gerador — o argumento central do trabalho."
+        ),
+        entrada={"requisicoes": len(campanha.requests)},
+        saida=do_atacante_log["outcome"].value_counts().rename_axis(
+            "outcome").reset_index(name="eventos do atacante"),
+        completa=log,
+        legenda=f"log.csv, {len(log)} eventos",
+    ))
+
+    sessoes = build_dataset(log, perfis, EVALUATED, campanha.compromised)
+    positivas = int(sessoes["compromised"].sum())
+    passos.append(Step(
+        fase=FASE_3,
+        modulo="M7",
+        funcao="build_dataset",
+        explicacao=(
+            "O conjunto que os modelos vao classificar. Mesmo codigo da fase 2, "
+            "mais a juncao do rotulo — que so acontece aqui.\n\n"
+            "Cada sessao comprometida e **uma** positiva (D-061). A proporcao "
+            "abaixo e contada no dado, nao herdada do parametro do gerador, "
+            "como o metodo exige.\n\n"
+            "**E aqui que o pipeline para hoje.** O que falta e a particao, o "
+            "baseline, os modelos e a avaliacao."
+        ),
+        entrada={"log": len(log), "rotulos": len(campanha.compromised)},
+        saida=sessoes[sessoes["compromised"] == 1].head(10),
+        completa=sessoes,
+        legenda=(f"sessions.csv, {len(sessoes)} sessoes, {positivas} positivas "
+                 f"({positivas / len(sessoes):.2%}); abaixo, 10 comprometidas"),
     ))
 
     return passos
