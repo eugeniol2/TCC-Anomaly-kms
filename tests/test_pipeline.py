@@ -1,0 +1,232 @@
+"""Testes do orquestrador: a ordem de execução, agora como código.
+
+O risco que este arquivo guarda não é o de o orquestrador quebrar — ele é uma
+lista de chamadas e quebraria ruidosamente. É o de ele **divergir dos módulos**
+que orquestra: alguém muda a composição de um módulo, o `__main__` dele
+acompanha, e a linha correspondente aqui fica para trás produzindo um arquivo
+diferente com o mesmo nome.
+
+Por isso o teste central compara, arquivo por arquivo, o que o orquestrador
+escreve contra o que os módulos escreveriam chamados um a um. Se os dois
+caminhos divergirem, o pipeline passa a ter duas ordens e nenhuma é a
+verdadeira.
+
+Tudo roda em `tmp_path`: nenhum teste escreve em `data/`.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+from src.attack.build import build_attack
+from src.audit_logger.build import build_log
+from src.calibration.build import build_thresholds
+from src.dataset.build import build_dataset
+from src.globals.experiment import SIGMAS
+from src.globals.layout import RUNS_INDEX, run_directory, seed_directory
+from src.globals.phases import EVALUATED, WARMUP
+from src.historical_profiles.build import build_profiles
+from src.kms.build import build_outcomes
+from src.pipeline.build import (
+    Specifications,
+    run_seed_branch,
+    run_sigma_branch,
+    run_sweep,
+    write_runs_index,
+)
+from src.population.build import build_population
+from src.traffic.build import build_traffic
+
+SPECIFICATIONS = Specifications()
+
+SEED = 3
+SAMPLE_SIGMAS = (0.0, 0.5, 1.0)
+
+SEED_FILES = (
+    "operators.csv",
+    "keys.csv",
+    "requests.csv",
+    "outcomes.csv",
+    "log.csv",
+    "historical_profiles.csv",
+    "sessions.csv",
+    "thresholds.csv",
+)
+
+SIGMA_FILES = (
+    "requests.csv",
+    "compromised_sessions.csv",
+    "run.csv",
+    "outcomes.csv",
+    "log.csv",
+    "sessions.csv",
+)
+
+
+def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
+    """O que sai de chamar cada módulo na mão, sem passar pelo orquestrador.
+
+    É deliberadamente uma segunda implementação da ordem. Duas implementações
+    que precisam concordar são caras de manter, e é exatamente isso que as
+    torna um teste: manter as duas em dia custa menos que descobrir tarde que
+    o orquestrador produz outro arquivo.
+    """
+    population = build_population(seed, SPECIFICATIONS.repository)
+    requests = build_traffic(
+        seed, population.operators, population.keys, SPECIFICATIONS.traffic
+    )
+
+    warmup_outcomes = build_outcomes(
+        requests, population.keys, population.operators, WARMUP
+    )
+    warmup_log = build_log(requests, warmup_outcomes, WARMUP)
+    profiles = build_profiles(warmup_log)
+    warmup_sessions = build_dataset(warmup_log, profiles, WARMUP)
+
+    campaign = build_attack(
+        seed, sigma, population.operators, population.keys, requests,
+        SPECIFICATIONS.traffic, SPECIFICATIONS.attack,
+    )
+    evaluated_outcomes = build_outcomes(
+        campaign.requests, population.keys, population.operators, EVALUATED
+    )
+    evaluated_log = build_log(campaign.requests, evaluated_outcomes, EVALUATED)
+
+    return {
+        "operators.csv": population.operators,
+        "keys.csv": population.keys,
+        "requests.csv": requests,
+        "outcomes.csv": warmup_outcomes,
+        "log.csv": warmup_log,
+        "historical_profiles.csv": profiles,
+        "sessions.csv": warmup_sessions,
+        "thresholds.csv": build_thresholds(warmup_sessions),
+        "sigma/requests.csv": campaign.requests,
+        "sigma/compromised_sessions.csv": campaign.compromised,
+        "sigma/run.csv": campaign.run,
+        "sigma/outcomes.csv": evaluated_outcomes,
+        "sigma/log.csv": evaluated_log,
+        "sigma/sessions.csv": build_dataset(
+            evaluated_log, profiles, EVALUATED, campaign.compromised
+        ),
+    }
+
+
+def test_the_orchestrator_writes_what_the_modules_would_write(tmp_path: Path) -> None:
+    """A ordem codificada aqui é a mesma que os módulos executam sozinhos."""
+    sigma = 0.5
+
+    branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
+    run_sigma_branch(SEED, sigma, tmp_path, branch, SPECIFICATIONS)
+
+    expected = modules_one_by_one(SEED, sigma)
+
+    for name in SEED_FILES:
+        written = pd.read_csv(seed_directory(tmp_path, SEED) / name)
+        assert written.equals(
+            pd.read_csv(_as_csv(expected[name], tmp_path, name))
+        ), name
+
+    for name in SIGMA_FILES:
+        written = pd.read_csv(run_directory(tmp_path, SEED, sigma) / name)
+        assert written.equals(
+            pd.read_csv(_as_csv(expected[f"sigma/{name}"], tmp_path, f"s_{name}"))
+        ), name
+
+
+def _as_csv(frame: pd.DataFrame, directory: Path, name: str) -> Path:
+    """Escreve e relê, para comparar depois da mesma travessia de CSV.
+
+    Comparar o quadro em memória contra o arquivo lido acusaria diferença de
+    tipo — um inteiro que volta como float, uma data que volta como texto — em
+    vez de diferença de conteúdo, que é o que interessa.
+    """
+    path = directory / f"esperado_{name}"
+    frame.to_csv(path, index=False, lineterminator="\n")
+
+    return path
+
+
+def test_every_expected_file_is_written(tmp_path: Path) -> None:
+    """Nenhuma etapa deixa de escrever a sua saída."""
+    branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
+    run_sigma_branch(SEED, 0.5, tmp_path, branch, SPECIFICATIONS)
+
+    for name in SEED_FILES:
+        assert (seed_directory(tmp_path, SEED) / name).exists(), name
+
+    for name in SIGMA_FILES:
+        assert (run_directory(tmp_path, SEED, 0.5) / name).exists(), name
+
+
+@pytest.mark.parametrize("sigma", SAMPLE_SIGMAS)
+def test_the_warmup_is_identical_across_conditions(
+    tmp_path: Path, sigma: float
+) -> None:
+    """O aquecimento é computado uma vez e compartilhado pelas onze condições.
+
+    Se cada condição o recomputasse, bastaria um sorteio consumido em ordem
+    diferente para os perfis divergirem entre condições da mesma semente, e o
+    pareamento que a D-002 assume quebraria sem erro e sem aviso.
+    """
+    branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
+    before = (seed_directory(tmp_path, SEED) / "thresholds.csv").read_bytes()
+
+    run_sigma_branch(SEED, sigma, tmp_path, branch, SPECIFICATIONS)
+    after = (seed_directory(tmp_path, SEED) / "thresholds.csv").read_bytes()
+
+    assert before == after
+
+
+def test_a_sweep_pairs_the_conditions(tmp_path: Path) -> None:
+    """As onze condições de uma semente compartilham o administrador alvo.
+
+    É a D-011 conferida do lado do orquestrador: não basta o M3 sortear igual,
+    a varredura precisa entregar o mesmo ramo da semente às onze.
+    """
+    rows = run_sweep(SEED, SIGMAS, tmp_path, SPECIFICATIONS)
+    index = pd.concat(rows, ignore_index=True)
+
+    assert len(index) == len(SIGMAS)
+    assert index["compromised_admin"].nunique() == 1
+    assert sorted(index["sigma"]) == sorted(SIGMAS)
+
+
+def test_the_runs_index_is_written_sorted_and_complete(tmp_path: Path) -> None:
+    """D-085: o índice nasce completo, escrito por quem percorre a grade."""
+    rows = run_sweep(SEED, SAMPLE_SIGMAS, tmp_path, SPECIFICATIONS)
+    rows.extend(run_sweep(SEED + 1, SAMPLE_SIGMAS, tmp_path, SPECIFICATIONS))
+
+    index = write_runs_index(rows, tmp_path)
+
+    assert (tmp_path / RUNS_INDEX).exists()
+    assert len(index) == 2 * len(SAMPLE_SIGMAS)
+    assert list(index.columns) == ["seed", "sigma", "compromised_admin"]
+    assert index.equals(index.sort_values(["seed", "sigma"], ignore_index=True))
+
+
+def test_running_twice_produces_the_same_bytes(tmp_path: Path) -> None:
+    """Determinismo de ponta a ponta, do orquestrador e não de um módulo só.
+
+    Apagar `data/` inteiro e reexecutar é a forma de conferir determinismo, e
+    este teste é essa conferência feita em duas pastas.
+    """
+    first = tmp_path / "primeira"
+    second = tmp_path / "segunda"
+
+    for root in (first, second):
+        branch = run_seed_branch(SEED, root, SPECIFICATIONS)
+        run_sigma_branch(SEED, 0.5, root, branch, SPECIFICATIONS)
+
+    for name in SEED_FILES:
+        assert (seed_directory(first, SEED) / name).read_bytes() == (
+            seed_directory(second, SEED) / name
+        ).read_bytes(), name
+
+    for name in SIGMA_FILES:
+        assert (run_directory(first, SEED, 0.5) / name).read_bytes() == (
+            run_directory(second, SEED, 0.5) / name
+        ).read_bytes(), name

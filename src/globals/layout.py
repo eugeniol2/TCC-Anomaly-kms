@@ -75,9 +75,9 @@ def seed_directory(root: Path, seed: int) -> Path:
 def run_directory(root: Path, seed: int, sigma: float) -> Path:
     """Ramo de sigma: o periodo avaliado de uma execucao.
 
-    Semanas 4 e 5, onde a campanha transcorre. Um decimal em sigma basta para os
-    11 valores da grade, e mantem a ordem alfabetica igual a ordem numerica:
-    sigma-0.0 ate sigma-1.0.
+    Semanas 4 a 7, onde a campanha transcorre (D-069). Um decimal em sigma
+    basta para os 11 valores da grade, e mantem a ordem alfabetica igual a
+    ordem numerica: sigma-0.0 ate sigma-1.0.
     """
     return seed_directory(root, seed) / f"sigma-{sigma:.1f}"
 
