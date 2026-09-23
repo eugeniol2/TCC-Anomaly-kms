@@ -18,7 +18,7 @@ o atacante variaria aquele comportamento e nada mediria a diferenca.
 | `failures_per_event` | falhas de autorizacao |
 | `denials_per_event` | falhas, o sinal de enumeracao |
 | `atypical_hour` | horario |
-| `novel_source` | origem de rede |
+| `new_source_ip` | origem de rede |
 
 **O rotulo entra so na fase avaliada** (D-063). No aquecimento o
 `sessions.csv` nao tem coluna de rotulo nenhuma: ele alimenta so o M8, e
@@ -66,7 +66,7 @@ ATTRIBUTES = (
     "failures_per_event",
     "denials_per_event",
     "atypical_hour",
-    "novel_source",
+    "new_source_ip",
 )
 """Os oito atributos, e nada alem deles.
 
@@ -171,7 +171,7 @@ def with_history_attributes(
 
     return sessions.assign(
         atypical_hour=(~is_inside).astype(int),
-        novel_source=(~pd.Series(is_known, index=sessions.index)).astype(int),
+        new_source_ip=(~pd.Series(is_known, index=sessions.index)).astype(int),
     )
 
 

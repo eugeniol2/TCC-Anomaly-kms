@@ -186,7 +186,7 @@ def test_observed_addresses_are_a_subset_of_the_generated_ones(seed: int) -> Non
 
 
 def test_some_generated_address_is_missing_from_some_profile() -> None:
-    """Se todo endereco aparecesse, `novel_source` nasceria morto.
+    """Se todo endereco aparecesse, `new_source_ip` nasceria morto.
 
     A D-040 encomendou o decaimento geometrico justamente para que o quarto
     endereco tenha ~91 % de chance de faltar no aquecimento.
@@ -250,7 +250,7 @@ def test_no_session_of_the_profile_weeks_is_atypical(seed: int) -> None:
 
     assert len(inside) > 0
     assert (inside["atypical_hour"] == 0).all()
-    assert (inside["novel_source"] == 0).all()
+    assert (inside["new_source_ip"] == 0).all()
 
 
 @pytest.mark.parametrize("seed", SAMPLE_SEEDS)

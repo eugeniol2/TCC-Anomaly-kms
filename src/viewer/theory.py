@@ -189,7 +189,7 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
             "escolhe uma delas por uma **geométrica truncada**: a principal leva "
             f"{principal:.0%}, e cada endereço seguinte leva {principal:.0%} do "
             "que sobrou.\n\n"
-            "A razão não é realismo pelo realismo. O atributo `novel_source` "
+            "A razão não é realismo pelo realismo. O atributo `new_source_ip` "
             "pergunta se a origem da sessão **apareceu no perfil das semanas 1 "
             "e 2**. Se todos os endereços de um operador aparecessem sempre, "
             "nenhuma sessão legítima teria origem inédita no período avaliado — "

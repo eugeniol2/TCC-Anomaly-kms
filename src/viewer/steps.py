@@ -656,7 +656,7 @@ def warmup_steps(
         funcao="build_thresholds",
         explicacao=(
             "Percentil 99 de cada grandeza, sobre a semana 3. **Seis regras, nao "
-            "oito**: `atypical_hour` e `novel_source` ja vem binarias do M7 e "
+            "oito**: `atypical_hour` e `new_source_ip` ja vem binarias do M7 e "
             "disparam quando valem 1 — percentil sobre uma coluna de zeros e uns "
             "daria 0 ou 1 e nao significaria nada.\n\n"
             "O baseline **nao recebe treino**: chega ao periodo avaliado com "

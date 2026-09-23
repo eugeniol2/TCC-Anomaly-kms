@@ -26,7 +26,7 @@ THRESHOLD_ATTRIBUTES = (
 )
 """As seis regras de grandeza (D-080).
 
-Os outros dois atributos dos oito — `atypical_hour` e `novel_source` — sao
+Os outros dois atributos dos oito — `atypical_hour` e `new_source_ip` — sao
 **regras de historico** e nao tem limiar: eles ja sao binarios e disparam quando
 valem 1. Calibrar percentil sobre uma coluna de zeros e uns daria 0 ou 1 e nao
 significaria nada.

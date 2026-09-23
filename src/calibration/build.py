@@ -18,7 +18,7 @@ nao teria.
 tem coluna de rotulo (D-063). A cegueira e estrutural, nao disciplina.
 
 **O limiar e global, nao por operador.** As duas regras que comparam contra o
-historico de cada operador — `atypical_hour` e `novel_source` — ja vem prontas
+historico de cada operador — `atypical_hour` e `new_source_ip` — ja vem prontas
 do M7, lidas contra o perfil das semanas 1 e 2. As seis daqui sao de grandeza
 absoluta e saem do percentil sobre todas as sessoes da semana juntas.
 """
