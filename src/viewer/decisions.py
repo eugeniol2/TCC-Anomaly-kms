@@ -132,12 +132,12 @@ def variaveis_do_m1(
 def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
     """O ritmo de cada regime e os dois desvios que produzem falha legítima."""
     lote = REGIMES["periodic_batch"]
-    esporadico = REGIMES["sporadic"]
+    rotina = REGIMES["routine"]
     custodia = REGIMES["occasional_custody"]
 
     return (
         Variavel("profile → regime",
-                 "end_user → sporadic; "
+                 "end_user → routine; "
                  "automated_service → periodic_batch; "
                  "administrator → occasional_custody",
                  "O regime é derivado do perfil, um para um. O M2 consulta o "
@@ -154,12 +154,12 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
         Variavel("BATCH_JITTER_MINUTES", lote.rhythm.jitter_minutes,
                  "Desvio em torno da hora cheia do automated_service.",
                  "D-058"),
-        Variavel("SPORADIC_SESSIONS_PER_BUSINESS_DAY",
-                 esporadico.rhythm.sessions_per_business_day,
+        Variavel("ROUTINE_SESSIONS_PER_BUSINESS_DAY",
+                 rotina.rhythm.sessions_per_business_day,
                  "Sessões por dia útil do end_user, em média. Poisson.",
                  "D-058",
                  teoria_da_poisson(
-                     esporadico.rhythm.sessions_per_business_day)),
+                     rotina.rhythm.sessions_per_business_day)),
         Variavel("CUSTODY_SESSIONS_PER_BUSINESS_DAY",
                  custodia.rhythm.sessions_per_business_day,
                  "Sessões por dia útil do administrator, em média.", "D-058"),
@@ -171,22 +171,22 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                      custodia.rhythm.dispersion)),
         Variavel("janelas de horário",
                  f"automated_service: qualquer hora; end_user: "
-                 f"{esporadico.rhythm.opens_at}–{esporadico.rhythm.closes_at} h; "
+                 f"{rotina.rhythm.opens_at}–{rotina.rhythm.closes_at} h; "
                  f"administrator: "
                  f"{custodia.rhythm.opens_at}–{custodia.rhythm.closes_at} h",
                  "Em que faixa do dia cada regime abre sessão.", "D-058"),
         Variavel("requisições por sessão",
-                 f"end_user: {esporadico.requests_range}; "
+                 f"end_user: {rotina.requests_range}; "
                  f"automated_service: {lote.requests_range}; "
                  f"administrator: {custodia.requests_range}",
                  "Faixa de requisições que cada sessão emite, sorteada.", "D-058"),
         Variavel("segundos entre requisições",
-                 f"end_user: {esporadico.seconds_between_requests}; "
+                 f"end_user: {rotina.seconds_between_requests}; "
                  f"automated_service: {lote.seconds_between_requests}; "
                  f"administrator: {custodia.seconds_between_requests}",
                  "Média do intervalo exponencial dentro da sessão.", "D-067",
                  teoria_da_exponencial({
-                     "end_user": esporadico.seconds_between_requests,
+                     "end_user": rotina.seconds_between_requests,
                      "automated_service": lote.seconds_between_requests,
                      "administrator": custodia.seconds_between_requests,
                  })),

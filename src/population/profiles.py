@@ -39,7 +39,7 @@ PROFILES = (
         operators=30,
         scopes_each=1,
         addresses_range=(2, 4),
-        regime="sporadic",
+        regime="routine",
     ),
     Profile(
         name="automated_service",

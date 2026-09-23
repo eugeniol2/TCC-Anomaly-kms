@@ -381,7 +381,7 @@ def test_people_only_open_sessions_on_business_days(seed: int) -> None:
     regime_of = regime_by_operator(population(seed).operators)
     regime = opening["operator_id"].map(regime_of)
 
-    for name in ("sporadic", "occasional_custody"):
+    for name in ("routine", "occasional_custody"):
         weekdays = set(opening[regime == name]["moment"].dt.weekday)
 
         assert weekdays <= BUSINESS_WEEKDAYS
@@ -402,7 +402,7 @@ def test_people_open_sessions_inside_their_working_window(seed: int) -> None:
     regime_of = regime_by_operator(population(seed).operators)
     regime = opening["operator_id"].map(regime_of)
 
-    for name in ("sporadic", "occasional_custody"):
+    for name in ("routine", "occasional_custody"):
         rhythm = REGIMES[name].rhythm
         hours = opening[regime == name]["moment"].dt.hour
 
@@ -411,7 +411,7 @@ def test_people_open_sessions_inside_their_working_window(seed: int) -> None:
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_administrator_rhythm_is_more_irregular_than_the_sporadic_one(seed: int) -> None:
+def test_administrator_rhythm_is_more_irregular_than_the_routine_one(seed: int) -> None:
     """Administrador apresenta ritmo irregular, padrao humano.
 
     E o segundo item da lista de conferencia. A binomial negativa produz
@@ -425,9 +425,9 @@ def test_administrator_rhythm_is_more_irregular_than_the_sporadic_one(seed: int)
 
     dispersions = {}
 
-    for name in ("sporadic", "occasional_custody"):
+    for name in ("routine", "occasional_custody"):
         subset = opening[opening["regime"] == name]
         per_day = subset.groupby(["operator_id", "day"]).size()
         dispersions[name] = per_day.var() / per_day.mean()
 
-    assert dispersions["occasional_custody"] > dispersions["sporadic"]
+    assert dispersions["occasional_custody"] > dispersions["routine"]

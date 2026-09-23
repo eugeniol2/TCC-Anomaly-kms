@@ -23,11 +23,11 @@ from src.traffic.parameters import (
     CUSTODY_REQUESTS_RANGE,
     CUSTODY_REQUEST_INTERVAL,
     CUSTODY_SESSIONS_PER_BUSINESS_DAY,
-    SPORADIC_CLOSES_AT,
-    SPORADIC_OPENS_AT,
-    SPORADIC_REQUESTS_RANGE,
-    SPORADIC_REQUEST_INTERVAL,
-    SPORADIC_SESSIONS_PER_BUSINESS_DAY,
+    ROUTINE_CLOSES_AT,
+    ROUTINE_OPENS_AT,
+    ROUTINE_REQUESTS_RANGE,
+    ROUTINE_REQUEST_INTERVAL,
+    ROUTINE_SESSIONS_PER_BUSINESS_DAY,
 )
 
 
@@ -68,12 +68,12 @@ REGIMES: dict[str, Regime] = {
         requests_range=BATCH_REQUESTS_RANGE,
         seconds_between_requests=BATCH_REQUEST_INTERVAL,
     ),
-    "sporadic": Regime(
+    "routine": Regime(
         rhythm=ArrivalRhythm(
-            SPORADIC_SESSIONS_PER_BUSINESS_DAY, SPORADIC_OPENS_AT, SPORADIC_CLOSES_AT
+            ROUTINE_SESSIONS_PER_BUSINESS_DAY, ROUTINE_OPENS_AT, ROUTINE_CLOSES_AT
         ),
-        requests_range=SPORADIC_REQUESTS_RANGE,
-        seconds_between_requests=SPORADIC_REQUEST_INTERVAL,
+        requests_range=ROUTINE_REQUESTS_RANGE,
+        seconds_between_requests=ROUTINE_REQUEST_INTERVAL,
     ),
     "occasional_custody": Regime(
         rhythm=ArrivalRhythm(

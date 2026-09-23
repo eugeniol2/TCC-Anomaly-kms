@@ -44,13 +44,13 @@ BATCH_JITTER_MINUTES = 10        # desvio em torno da hora cheia, random de 10 m
 BATCH_REQUESTS_RANGE = (20, 40)  # requisicoes por sessao, sorteado na faixa
 BATCH_REQUEST_INTERVAL = 2.0     # segundos entre requisicoes, media do exponencial
 
-# ── Usuario legitimo: esporadico ───────────────────────── D-058
+# ── Usuario legitimo: rotina ───────────────────────── D-058
 
-SPORADIC_SESSIONS_PER_BUSINESS_DAY = 1.5   # Poisson: variancia igual a media
-SPORADIC_OPENS_AT = 8                      # hora em que a janela de inicio abre
-SPORADIC_CLOSES_AT = 18                    # e em que fecha
-SPORADIC_REQUESTS_RANGE = (6, 20)          # requisicoes por sessao
-SPORADIC_REQUEST_INTERVAL = 45.0           # segundos entre requisicoes
+ROUTINE_SESSIONS_PER_BUSINESS_DAY = 1.5   # Poisson: variancia igual a media
+ROUTINE_OPENS_AT = 8                      # hora em que a janela de inicio abre
+ROUTINE_CLOSES_AT = 18                    # e em que fecha
+ROUTINE_REQUESTS_RANGE = (6, 20)          # requisicoes por sessao
+ROUTINE_REQUEST_INTERVAL = 45.0           # segundos entre requisicoes
 
 # ── Administrador: custodia ocasional ──────────────────── D-058, D-071
 
