@@ -153,8 +153,8 @@ python -m pytest
 
 Cobrem determinismo e as invariantes de que os modulos seguintes dependem.
 
-Do M1: toda chave tem proprietario que detem seu escopo, todo escopo tem
-detentor, identificadores de chave nunca sequenciais.
+Do M1: todo escopo tem detentor, a chave nao tem dono, identificadores de
+chave nunca sequenciais.
 
 Do M2: nenhuma coluna carrega o desfecho, a origem de rede e sempre uma das
 habituais, os dois caminhos de falha legitima ocorrem, e o ritmo de cada regime
