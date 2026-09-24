@@ -53,14 +53,14 @@ IDENTIFIER_SPACE = 2**48         # quantos identificadores o formato comporta
 IDENTIFIER_PREFIX = "k_"         # o que vem antes dos digitos
 IDENTIFIER_DIGITS = 12           # digitos hexadecimais; espelho do M1
 
-# ── Servico automatizado: lote periodico ───────────────── D-058
+# ── Regime periodic_batch (perfil automated_service) ──── D-058
 
 BATCH_HOURS = (2, 8, 14, 20)     # horas do lote, todos os dias
 BATCH_JITTER_MINUTES = 10        # desvio em torno da hora cheia, random de 10 minutos.
 BATCH_REQUESTS_RANGE = (20, 40)  # requisicoes por sessao, sorteado na faixa
 BATCH_REQUEST_INTERVAL = 2.0     # segundos entre requisicoes, media do exponencial
 
-# ── Usuario legitimo: rotina ───────────────────────── D-058
+# ── Regime routine (perfil end_user) ─────────────────── D-058
 
 ROUTINE_SESSIONS_PER_BUSINESS_DAY = 1.5   # Poisson: variancia igual a media
 ROUTINE_OPENS_AT = 8                      # hora em que a janela de inicio abre
@@ -68,7 +68,7 @@ ROUTINE_CLOSES_AT = 18                    # e em que fecha
 ROUTINE_REQUESTS_RANGE = (6, 20)          # requisicoes por sessao
 ROUTINE_REQUEST_INTERVAL = 45.0           # segundos entre requisicoes
 
-# ── Administrador: custodia ocasional ──────────────────── D-058, D-071
+# ── Regime occasional_custody (perfil administrator) ─── D-058, D-071
 
 CUSTODY_SESSIONS_PER_BUSINESS_DAY = 2.0   # media; a Pascal abaixo e que dispersa
 CUSTODY_OPENS_AT = 9                      # hora em que a janela de inicio abre

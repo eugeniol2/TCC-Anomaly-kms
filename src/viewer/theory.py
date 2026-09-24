@@ -50,10 +50,12 @@ class Teoria:
 
 
 def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
-    """Por que o administrador usa binomial negativa e não Poisson.
+    """Por que o regime `occasional_custody` usa binomial negativa e não Poisson.
 
     As duas têm a mesma média. O que muda é a variância, e é a variância que
     produz o "ritmo irregular, padrão humano" que a lista de conferência pede.
+    O assunto é o regime, que governa o ritmo; o perfil que o usa é o
+    `administrator`.
     """
     contagens = np.arange(0, 9)
     sucesso = dispersao / (dispersao + media)
@@ -68,6 +70,9 @@ def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
     })
 
     variancia_pascal = media / sucesso
+    media_escrita = f"{media:.1f}".replace(".", ",")
+    variancia_escrita = f"{variancia_pascal:.2f}".replace(".", ",")
+    razao_escrita = f"{variancia_pascal / media:.2f}".replace(".", ",")
 
     return Teoria(
         titulo="Poisson ou binomial negativa (Pascal)?",
@@ -75,7 +80,7 @@ def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
             "Uma **Poisson** descreve chegadas independentes a uma taxa "
             "constante, que é o caso de quem trabalha sempre no mesmo ritmo. Ela tem "
             "uma propriedade rígida: a **variância é igual à média**. Com média "
-            f"{media}, a variância também é {media}.\n\n"
+            f"{media_escrita}, a variância também é {media_escrita}.\n\n"
             "Pessoas não trabalham assim. Um custodiante de chaves passa dias "
             "sem abrir uma sessão e então faz seis numa tarde, porque o trabalho "
             "chega em lote e não em fluxo. Isso é **superdispersão**: variância "
@@ -84,8 +89,9 @@ def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
             "um parâmetro a mais. Ela se lê como uma Poisson cuja taxa varia de "
             "dia para dia, e o parâmetro `n` controla quanto varia: quanto "
             f"menor, mais irregular. Com `n = {dispersao}` e a mesma média "
-            f"{media}, a variância sobe para **{variancia_pascal:.2f}**, ou "
-            f"{variancia_pascal / media:.2f} vez a média."
+            f"{media_escrita}, a variância sobe para **{variancia_escrita}**, ou "
+            f"{razao_escrita} vezes a média. É o ritmo do regime "
+            "`occasional_custody`, usado pelo perfil `administrator`."
         ),
         dados=dados,
         rotulo_x="sessões abertas num dia útil",
@@ -101,34 +107,53 @@ def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
 
 
 def teoria_da_poisson(media: float) -> Teoria:
-    """Onde a Poisson continua sendo a escolha certa."""
+    """Por que o regime `routine` é Poisson.
+
+    O assunto é o **regime**, e não o perfil: é o regime que governa o ritmo.
+    O título dizia "usuário legítimo", o nome que a D-092 aposentou porque os
+    três perfis são legítimos e a expressão confundia papel com inocência.
+    """
     contagens = np.arange(0, 8)
+    probabilidades = stats.poisson.pmf(contagens, media)
 
     dados = pd.DataFrame({
         "sessões no dia": contagens,
-        "Poisson": stats.poisson.pmf(contagens, media),
+        "Poisson": probabilidades,
     })
 
+    media_escrita = f"{media:.1f}".replace(".", ",")
+    vazios = probabilidades[0]
+    uma_ou_duas = probabilidades[1] + probabilidades[2]
+
     return Teoria(
-        titulo="Por que Poisson basta para o usuário legítimo",
+        titulo="Por que o regime routine é Poisson",
         texto=(
-            "A Poisson descreve chegadas independentes a uma taxa constante, e "
-            "tem variância igual à média, sem nenhum parâmetro extra para ajustar.\n\n"
-            "Para o `end_user` isso é suficiente, e é suficiente de "
-            "propósito. Ele é o **contraste** contra o qual o ritmo irregular do "
-            "`administrator` aparece: se os dois fossem superdispersos, o item "
-            "'ritmo irregular, padrão humano' da lista de conferência não teria "
-            "contra o que ser medido.\n\n"
-            f"Com média {media} sessões por dia útil, o usuário abre de uma a "
-            "duas sessões na maior parte dos dias, e a cauda longa é rara."
+            "O `routine` descreve **trabalho em fluxo**: a pessoa vem durante o "
+            "expediente, faz o que tem de fazer e volta outro dia, sem que um "
+            "dia cheio torne o seguinte mais vazio ou mais cheio. Chegadas "
+            "independentes a uma taxa constante são, por definição, uma "
+            "**Poisson**.\n\n"
+            "E ela não pede mais que isso. A Poisson tem um parâmetro só, a "
+            "média, e a variância sai **igual** a ela por consequência. Não há "
+            "forma a escolher, então não há decisão a defender além da média.\n\n"
+            "É também o **contraste** do trabalho: o `occasional_custody` é "
+            "irregular, e isso fica fácil de ver ao lado do `routine`, que é "
+            "regular e segue o mesmo calendário de dias úteis. O que separa os "
+            "dois não é a média de sessões, é como elas se espalham pelos dias: "
+            "um trabalha de forma constante e o outro em rajadas. É essa "
+            "comparação, dentro do mesmo log, que o teste confere.\n\n"
+            f"Com média de {media_escrita} sessões por dia útil, o regime abre "
+            f"uma ou duas sessões em **{uma_ou_duas * 100:.0f} %** dos dias, e "
+            f"em **{vazios * 100:.0f} %** não abre nenhuma. É o regime do perfil "
+            "`end_user`."
         ),
         dados=dados,
         rotulo_x="sessões abertas num dia útil",
         rotulo_y="probabilidade",
         leitura=(
             "Uma corcova só, estreita, centrada perto da média. Compare com a "
-            "Pascal do `administrator`: lá o zero e a cauda carregam muito mais "
-            "peso."
+            "Pascal do `occasional_custody`: lá o zero e a cauda carregam muito "
+            "mais peso."
         ),
     )
 

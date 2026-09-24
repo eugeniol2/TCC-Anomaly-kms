@@ -1,7 +1,7 @@
 """M6: o que cada operador fez no aquecimento, e que fica congelado ali.
 
 O `historical_profile` **nao se confunde com o `profile`** (D-034). `profile` e o
-tipo do operador na tabela de populacao (Usuario Legitimo, Servico
+tipo do operador na tabela de populacao (Usuario Final, Servico
 Automatizado, Administrador) e e dado do gerador. O que este modulo produz e
 **observacao de comportamento**: a janela horaria em que aquele operador abriu
 sessao e os enderecos de onde ele veio, lidos do log.

@@ -158,15 +158,18 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                  "D-058"),
         Variavel("ROUTINE_SESSIONS_PER_BUSINESS_DAY",
                  rotina.rhythm.sessions_per_business_day,
-                 "Sessões por dia útil do end_user, em média. Poisson.",
+                 "Sessões por dia útil do regime routine (perfil end_user), em "
+                 "média. Poisson.",
                  "D-058",
                  teoria_da_poisson(
                      rotina.rhythm.sessions_per_business_day)),
         Variavel("CUSTODY_SESSIONS_PER_BUSINESS_DAY",
                  custodia.rhythm.sessions_per_business_day,
-                 "Sessões por dia útil do administrator, em média.", "D-058"),
+                 "Sessões por dia útil do regime occasional_custody (perfil "
+                 "administrator), em média.", "D-058"),
         Variavel("CUSTODY_DISPERSION", custodia.rhythm.dispersion,
-                 "Parâmetro da Pascal que dá ritmo irregular ao administrator.",
+                 "Parâmetro da Pascal que dá ritmo irregular ao regime "
+                 "occasional_custody.",
                  "D-071",
                  teoria_da_pascal(
                      custodia.rhythm.sessions_per_business_day,
