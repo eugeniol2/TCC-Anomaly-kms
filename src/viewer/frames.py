@@ -114,9 +114,9 @@ def recorte(inteiro: pd.DataFrame, parte: pd.DataFrame, periodo: str) -> str:
     """A legenda de um painel que mostra so um pedaco do arquivo.
 
     Mostrar o tamanho do arquivo inteiro ao lado de uma legenda que fala de
-    outro periodo engana: parece que 66.672 requisicoes entraram no KMS quando
-    entraram 28.407. O painel passa a mostrar **o recorte**, e a legenda diz de
-    onde ele saiu.
+    outro periodo engana: parece que as oito semanas inteiras entraram no KMS
+    quando entrou so a fatia daquela fase. O painel passa a mostrar **o
+    recorte**, e a legenda diz de onde ele saiu.
     """
     fatia = len(parte) / len(inteiro)
 
@@ -278,11 +278,11 @@ def frames_da_fase_2(
                 "significaria atacante (D-040).\n\n"
                 "**O aquecimento inteiro entra aqui** (D-096). Até 23/09 a régua "
                 "saía de duas semanas e a terceira ficava reservada para "
-                "calibrar. Alargá-la para quatro derruba alarme falso sobre "
-                "gente inocente: `atypical_hour` cai de 8,83 % das sessões "
-                "limpas para **4,54 %**, e `new_source_ip` de 2,05 % para "
-                "**0,80 %**. O que disparava não era comportamento anômalo, era "
-                "perfil estimado de amostra pequena demais."
+                "calibrar. Alargá-la para quatro **derruba pela metade** o "
+                "alarme falso dos dois atributos de histórico: o que disparava "
+                "não era comportamento anômalo, era perfil estimado de amostra "
+                "pequena demais. Os números estão na seção 6.9 do "
+                "`relatorio-fundacao.md`, medidos nas 30 sementes."
             ),
             entradas=(
                 Painel("log.csv", log,
@@ -307,8 +307,9 @@ def frames_da_fase_2(
                 "perfil daquele operador."
             ),
             porque=(
-                "**Não existe tamanho de janela.** A unidade é a sessão, de 6 a "
-                "40 eventos (D-061). O que se pede ao modelo é dizer se uma "
+                "**Não existe tamanho de janela.** A unidade é a sessão, e ela "
+                "tem o comprimento que teve (D-061). O que se pede ao modelo é "
+                "dizer se uma "
                 "sessão é maliciosa, que é o que um analista investiga, e "
                 "nenhuma linha tem rótulo misto.\n\n"
                 "Consequência para a partição: como a linha já é a sessão, ela "

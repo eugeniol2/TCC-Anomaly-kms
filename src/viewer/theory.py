@@ -274,10 +274,11 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
             f"~{ausencia:.0%} de chance de **não aparecer nenhuma vez** — e é "
             "essa ausência que produz origem inédita legítima depois.\n\n"
             "**A régua de quatro semanas apertou essa folga**, e é o custo "
-            "declarado da D-096: 66,8 % dos perfis já viram todos os endereços "
-            "do operador, e as sessões legítimas com origem inédita caíram para "
-            "**11 na mediana** por semente, faixa de 3 a 21. Nenhuma semente "
-            "chega a zero, que é a condição mínima, mas a margem é fina."
+            "declarado da D-096: com mais semanas observadas, a maior parte dos "
+            "perfis passa a ter visto todos os endereços do operador, e sobra "
+            "menos para ser inédito depois. Nenhuma das 30 sementes chega a "
+            "zero, que é a condição mínima, mas a margem ficou fina — a "
+            "contagem por semente está na seção 6.9 do `relatorio-fundacao.md`."
         ),
         dados=dados,
         rotulo_x="posição do endereço na lista do operador",

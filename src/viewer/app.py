@@ -7,7 +7,7 @@ com a semente escolhida, e mostra o que entrou e o que saiu.
 
 A unidade da tela e o **passo do diagrama**, nao a funcao. Quem esta
 conhecendo o trabalho precisa ver que dados entraram, que entidade os
-processou e que dados sairam — `scope_pool` e `holders_by_scope` sao
+processou e que dados sairam — `scope_pool` e `split_keys_by_scope` sao
 granularidade de implementacao e ficam guardados atras de "por dentro", para
 quem quiser.
 """
@@ -69,7 +69,7 @@ TITULO = "Pipeline em tres fases"
 
 # Altura em pixels das tabelas, para caberem duas lado a lado sem rolar a
 # pagina. As tabelas sao mostradas INTEIRAS: o `st.dataframe` virtualiza as
-# linhas, entao 66 mil custam o mesmo que seis, e e mostrar tudo que permite
+# linhas, entao dezenas de milhares custam o mesmo que seis, e e mostrar tudo
 # ordenar por uma coluna e procurar um operador para explicar um conceito.
 ALTURA_DA_TABELA = 320
 
