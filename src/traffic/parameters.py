@@ -27,6 +27,22 @@ from src.globals.phases import DAYS_PER_WEEK, FIRST_DAY, WEEK_COUNT
 
 BUSINESS_WEEKDAYS = frozenset({0, 1, 2, 3, 4})   # dias em que pessoa abre sessao
 
+# ── Cauda do comprimento da sessao ─────────────────────── D-097
+#
+# A faixa de cada regime diz o comprimento **tipico**, e estes dois numeros
+# dizem o que acontece fora dele. Sem a cauda a faixa era um **teto rigido**:
+# nenhuma sessao legitima passava de 40 eventos, porque o sorteio era uniforme
+# numa faixa fechada. O atacante ostensivo sorteia em (40, 90), entao as
+# classes nao se sobrepunham e a regra `events` separava sozinha, com F1 0,982
+# em sigma 0,0 e falso positivo **zero por construcao**.
+#
+# Sao globais, e nao por regime, pelo mesmo motivo que `distinct_keys_range`:
+# o M3 consome os dois, e um numero repetido entre os modulos desfaria a
+# convergencia exata que a D-082 verifica.
+
+LONG_SESSION_CHANCE = 0.05       # fracao das sessoes que se estendem
+LONG_SESSION_EXCESS = 15.0       # requisicoes a mais, media da geometrica
+
 # ── Origem de rede ─────────────────────────────────────── D-040, D-058
 
 PRIMARY_ADDRESS_SHARE = 0.80     # chance de a sessao vir do endereco principal
@@ -112,6 +128,8 @@ class TrafficSpecification:
     stale_scope_rate: float = DEFAULT_STALE_SCOPE_RATE
     absent_identifier_rate: float = DEFAULT_ABSENT_IDENTIFIER_RATE
     distinct_keys_range: tuple[int, int] = DEFAULT_DISTINCT_KEYS_RANGE
+    long_session_chance: float = LONG_SESSION_CHANCE
+    long_session_excess: float = LONG_SESSION_EXCESS
 
     @property
     def day_count(self) -> int:

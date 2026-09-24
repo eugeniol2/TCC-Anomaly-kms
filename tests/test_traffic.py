@@ -32,10 +32,12 @@ from src.population.build import Population, build_population
 from src.population.parameters import KeyRepositorySpecification
 from src.traffic.build import COLUMNS, build_traffic
 from src.traffic.operations import OPERATIONS
+from src.attack.parameters import AttackSpecification
 from src.traffic.parameters import (
     BUSINESS_WEEKDAYS,
     IDENTIFIER_DIGITS,
     IDENTIFIER_PREFIX,
+    LONG_SESSION_CHANCE,
     TrafficSpecification,
 )
 from src.traffic.regimes import REGIMES, ScheduledRhythm
@@ -230,7 +232,15 @@ def test_operations_come_from_the_agreed_set(seed: int) -> None:
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_session_size_respects_the_regime_range(seed: int) -> None:
+def test_session_size_sits_in_the_regime_range_but_is_not_capped_by_it(
+    seed: int,
+) -> None:
+    """A faixa do regime e o comprimento tipico, e nao um teto (D-097).
+
+    O piso continua rigido — a sessao nao encolhe abaixo do minimo do regime —,
+    a grande maioria cai dentro da faixa, e **alguma a ultrapassa**. As tres
+    coisas juntas sao a forma da cauda; qualquer uma sozinha nao e.
+    """
     requests = traffic(seed)
     regime_of = regime_by_operator(population(seed).operators)
 
@@ -242,15 +252,47 @@ def test_session_size_respects_the_regime_range(seed: int) -> None:
         chosen = size[regime == name]
 
         assert chosen.min() >= lowest
-        assert chosen.max() <= highest
+
+        beyond = chosen > highest
+        assert beyond.mean() < 2 * LONG_SESSION_CHANCE
+        assert beyond.any(), (
+            f"nenhuma sessao de `{name}` passou de {highest} eventos: "
+            "o teto voltou a ser rigido, e a regra `events` volta a separar "
+            "as classes sozinha em sigma baixo (D-097)"
+        )
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_distinct_keys_per_session_stay_within_the_range(seed: int) -> None:
+def test_the_longest_legitimate_session_reaches_the_ostensive_range(
+    seed: int,
+) -> None:
+    """A sessao legitima mais longa alcanca a faixa do atacante ostensivo.
+
+    E a propriedade que a D-097 comprou, e a razao de ela existir: enquanto o
+    teto legitimo era 40 e o atacante sorteava em (40, 90), as duas classes
+    **nao se sobrepunham**, e o `events` separava por aritmetica de faixa — F1
+    0,982 em sigma 0,0, com falso positivo zero por construcao.
+    """
+    ostensive_lowest, _ = AttackSpecification().ostensive_requests_range
+    longest = traffic(seed).groupby("session_id").size().max()
+
+    assert longest >= ostensive_lowest
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_distinct_keys_are_typical_in_range_and_widen_on_long_sessions(
+    seed: int,
+) -> None:
     """Amplitude da sessao legitima, contra a varredura ampla do atacante.
 
     O teto vale sobre as chaves do alcance; os desvios da D-056 enderecam fora
     dele e por isso ficam de fora da contagem.
+
+    **A faixa e a amplitude tipica, e nao um teto** (D-098). Enquanto era teto,
+    a sessao de 200 eventos tocava as mesmas 12 chaves de uma de 20, e o
+    `distinct_keys` separava as classes sozinho ate sigma 0,5 — F1 0,879, e
+    **identico** em 0,0, 0,2 e 0,5, que e a assinatura de um separador que nao
+    responde a sigma nenhum.
     """
     requests = traffic(seed)
     tables = population(seed)
@@ -268,7 +310,14 @@ def test_distinct_keys_per_session_stay_within_the_range(seed: int) -> None:
     _, highest = SPECIFICATION.distinct_keys_range
 
     assert distinct.min() >= 1
-    assert distinct.max() <= highest
+
+    beyond = distinct > highest
+    assert beyond.mean() < 2 * LONG_SESSION_CHANCE
+    assert beyond.any(), (
+        f"nenhuma sessao passou de {highest} chaves distintas: o teto voltou "
+        "a ser rigido, e o `distinct_keys` volta a separar as classes sozinho "
+        "ate sigma 0,5 (D-098)"
+    )
 
 
 # Os dois desvios da D-056, sem os quais a falha vira marcador do atacante.

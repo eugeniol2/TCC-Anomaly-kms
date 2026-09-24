@@ -331,11 +331,17 @@ def test_the_ostensive_end_breaks_the_legitimate_ceiling_and_the_furtive_does_no
 ) -> None:
     """O acoplamento que a D-080 registrou, agora conferido dos dois lados.
 
-    O teto legitimo de chaves distintas por sessao e 15. Em sigma 0 a campanha
-    passa dele com folga, que e o comportamento pretendido; em sigma 1 ela fica
-    dentro, que e o que faz o piso ser piso.
+    Em sigma 0 a campanha e mais larga que qualquer sessao legitima daquela
+    semente; em sigma 1 ela cabe dentro do que o trafego legitimo produz, que e
+    o que faz o piso ser piso.
+
+    **O teto sai da propria semente, e nao de um numero fixo** (D-098). Ele era
+    15 enquanto a amplitude legitima tinha teto rigido, e fixa-lo aqui faria o
+    teste falhar por mudanca legitima da distribuicao em vez de por regressao —
+    que foi exatamente o que aconteceu quando a cauda entrou.
     """
-    ceiling = 15
+    legitimate = traffic(seed)
+    ceiling = legitimate.groupby("session_id")["key_id"].nunique().max()
 
     ostensive = compromised_rows_of(attack(seed, 0.0))
     furtive = compromised_rows_of(attack(seed, 1.0))

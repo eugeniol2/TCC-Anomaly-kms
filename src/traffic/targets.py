@@ -47,9 +47,21 @@ def distinct_key_count(
     O teto e o menor entre o alcance do operador e o tamanho da sessao: nao da
     para tocar oito chaves distintas em seis requisicoes, nem para alcancar
     doze quando o escopo tem quatro.
+
+    **A sessao que se estende tambem se alarga** (D-098). A faixa e a amplitude
+    tipica, e a mesma cauda da D-097 se aplica: sem ela, a sessao de 200 eventos
+    tocava as mesmas 12 chaves de uma de 20, e nenhuma sessao legitima passava
+    de 12 — teto rigido de que o `distinct_keys` separava as classes sozinho ate
+    sigma 0,5, com F1 0,879. Quem alarga de fato e o `ceiling`: a sessao curta
+    nao tem onde por o excesso, e so a longa o acomoda.
     """
     lowest, highest = specification.distinct_keys_range
     drawn = int(rng.integers(lowest, highest + 1))
+
+    runs_broad = rng.random() < specification.long_session_chance
+
+    if runs_broad:
+        drawn += int(rng.geometric(1.0 / specification.long_session_excess))
 
     return max(1, min(drawn, ceiling))
 

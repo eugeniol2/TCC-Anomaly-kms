@@ -121,7 +121,7 @@ def compromised_rows(
     operator = session.operator
 
     source_address = choose_address(rng, operator, stealth, known_addresses)
-    quantity = draw_request_count(rng, stealth.requests_range)
+    quantity = draw_request_count(rng, stealth.requests_range, traffic)
 
     instants = request_instants(
         rng, session.start, quantity, stealth.seconds_between_requests

@@ -53,16 +53,36 @@ def choose_source_address(rng: Generator, addresses: tuple[str, ...]) -> str:
     return addresses[int(chosen)]
 
 
-def draw_request_count(rng: Generator, requests_range: tuple[int, int]) -> int:
-    """Quantas requisicoes a sessao emite, dentro da faixa recebida.
+def draw_request_count(
+    rng: Generator,
+    requests_range: tuple[int, int],
+    specification: TrafficSpecification,
+) -> int:
+    """Quantas requisicoes a sessao emite: o tipico, e as vezes muito mais.
 
     Recebe a faixa, e nao o regime inteiro, porque o M3 chama esta mesma
     funcao com uma faixa interpolada por sigma. Em sigma 1 a faixa recebida e
-    a do regime, e as duas chamadas passam a ser indistinguiveis (D-082).
+    a do regime, e as duas chamadas passam a ser indistinguiveis (D-082) — a
+    cauda inclusive, porque ela vem da especificacao, que e a mesma nos dois.
+
+    **A faixa e o comprimento tipico, nao um teto** (D-097). Uma sessao em
+    vinte se estende por um excesso geometrico: e a migracao em lote, a
+    reprocessagem, a tentativa que repete. Sem isso a faixa era teto rigido e
+    nenhuma sessao legitima passava de 40 eventos, o que fazia a regra `events`
+    separar as classes sozinha em sigma baixo — por aritmetica de faixa, nao
+    por comportamento.
     """
     lowest, highest = requests_range
+    typical = int(rng.integers(lowest, highest + 1))
 
-    return int(rng.integers(lowest, highest + 1))
+    runs_long = rng.random() < specification.long_session_chance
+
+    if not runs_long:
+        return typical
+
+    excess = int(rng.geometric(1.0 / specification.long_session_excess))
+
+    return typical + excess
 
 
 def request_instants(
@@ -95,7 +115,7 @@ def session_rows(
     regime = REGIMES[operator.regime]
 
     source_address = choose_source_address(rng, operator.usual_ips)
-    quantity = draw_request_count(rng, regime.requests_range)
+    quantity = draw_request_count(rng, regime.requests_range, specification)
 
     instants = request_instants(
         rng, planned.start, quantity, regime.seconds_between_requests
