@@ -19,13 +19,14 @@ from src.attack.build import build_attack, draw_compromised_admin
 from src.attack.parameters import AttackSpecification
 from src.attack.stealth import stealth_of
 from src.audit_logger.build import build_log
-from src.calibration.build import build_thresholds, calibration_period
+from src.calibration.build import build_thresholds
+from src.calibration.build import ruler_period as ruler_sessions
 from src.dataset.build import build_dataset, per_session, with_rate_attributes
 from src.globals.phases import EVALUATED, WARMUP
 from src.globals.rng import ATTACK, POPULATION, TRAFFIC, stream
 from src.historical_profiles.build import (
     profile_of,
-    profile_period,
+    ruler_period,
     session_openings,
 )
 from src.kms.build import build_outcomes, requests_of_phase
@@ -67,12 +68,12 @@ FASES = (
         modulos="M1 · M2",
         execucoes="30 execuções, uma por semente",
         objetivo=(
-            "Produzir o mundo estático e as sete semanas de tráfego legítimo, "
+            "Produzir o mundo estático e as oito semanas de tráfego legítimo, "
             "antes de qualquer atacante existir."
         ),
         descricao=(
             "Constrói o mundo estático — quem existe e o que existe — e gera as "
-            "sete semanas de tráfego legítimo. Nada aqui depende de σ, porque o "
+            "oito semanas de tráfego legítimo. Nada aqui depende de σ, porque o "
             "atacante ainda não entrou."
         ),
         implementada=True,
@@ -82,16 +83,16 @@ FASES = (
         modulos="M4 · M5 · M6 · M7 · M8",
         execucoes="30 execuções, uma por semente",
         objetivo=(
-            "Extrair de tráfego **limpo** as duas referências contra as quais "
-            "tudo será medido depois: o **perfil histórico** de cada operador, "
-            "das semanas 1 e 2, e os **limiares do baseline**, da semana 3. "
-            "Nenhuma das duas pode ver o atacante — se visse, o baseline "
+            "Construir a **régua** com que tudo será medido depois, a partir de "
+            "tráfego **limpo**: o **perfil histórico** de cada operador e os "
+            "**limiares do baseline**, os dois das mesmas quatro semanas. "
+            "Nenhum dos dois pode ver o atacante — se visse, o baseline "
             "nasceria calibrado contra o comportamento que deveria detectar."
         ),
         descricao=(
-            "Extrai de tráfego limpo as duas referências contra as quais tudo "
-            "será medido: o perfil histórico, das semanas 1 e 2, e os limiares do "
-            "baseline, da semana 3. As duas ficam congeladas daqui em diante."
+            "Constrói a régua a partir de tráfego limpo: o perfil histórico e os "
+            "limiares do baseline, os dois das semanas 1 a 4. Ficam congelados "
+            "daqui em diante."
         ),
         implementada=True,
     ),
@@ -105,7 +106,7 @@ FASES = (
             "supervisionados — que é a pergunta de pesquisa do trabalho."
         ),
         descricao=(
-            "Injeta a campanha nas semanas 4 a 7, monta o dataset avaliado, "
+            "Injeta a campanha nas semanas 5 a 8, monta o dataset avaliado, "
             "particiona por sessão e compara o baseline de regras contra os dois "
             "modelos supervisionados. É a única fase que depende de σ, e por isso "
             "a única que roda 330 vezes."
@@ -477,7 +478,7 @@ def warmup_steps(
         modulo="M4",
         funcao="requests_of_phase",
         explicacao=(
-            "Recorta as semanas 1 a 3. O `requests.csv` tem as sete, e as quatro "
+            "Recorta as semanas 1 a 4. O `requests.csv` tem as sete, e as quatro "
             "ultimas pertencem ao ramo de sigma — o aquecimento e anterior ao "
             "ataque e tem de ficar limpo (D-048)."
         ),
@@ -528,20 +529,24 @@ def warmup_steps(
         legenda=f"log.csv, {len(log)} eventos; abaixo, 12 do {foco}",
     ))
 
-    do_perfil = profile_period(log)
+    do_perfil = ruler_period(log)
     passos.append(Step(
         fase=FASE_2,
         modulo="M6",
-        funcao="profile_period",
+        funcao="ruler_period",
         explicacao=(
-            "Recorta as semanas **1 e 2**. A semana 3 fica de fora de proposito: "
-            "ela calibra os limiares, e calcular a janela horaria sobre os mesmos "
-            "dados que fixam o limiar acoplaria as duas coisas (D-054)."
+            "E guarda, nao recorte: confere que o log recebido e mesmo o do "
+            "aquecimento e devolve-o inteiro. A regua sao as **quatro semanas**, "
+            "e nao ha divisao dentro dela (D-096).\n\n"
+            "Ate 23/09 aqui se recortavam as semanas 1 e 2, porque a 3 calibrava "
+            "os limiares e a D-054 queria evitar o acoplamento. As seis regras de "
+            "grandeza nao consultam o perfil, entao nao havia acoplamento — so um "
+            "perfil estimado da metade dos dados."
         ),
         entrada={"log": len(log)},
         saida=do_perfil.head(8),
         completa=do_perfil,
-        legenda=f"{len(do_perfil)} de {len(log)} eventos",
+        legenda=f"{len(do_perfil)} eventos, o aquecimento inteiro",
     ))
 
     aberturas = session_openings(do_perfil)
@@ -621,9 +626,10 @@ def warmup_steps(
         funcao="build_dataset",
         explicacao=(
             "Os dois atributos binarios, lidos contra o perfil **daquele "
-            "operador** e nunca contra um limiar global. Uma sessao das semanas "
-            "1 e 2 nunca e atipica — a janela e o minimo e o maximo delas "
-            "proprias —, entao o que dispara aqui vem so da semana 3.\n\n"
+            "operador** e nunca contra um limiar global. Nenhuma sessao do "
+            "aquecimento e atipica — a janela e o minimo e o maximo delas "
+            "proprias, e nenhuma cai fora do que ela mesma delimitou. E a "
+            "invariante que pegou o erro de arredondamento da D-090.\n\n"
             "**Sem coluna de rotulo.** O conjunto do aquecimento alimenta so o "
             "M8, e calibracao por percentil nao usa rotulo: se a coluna nao "
             "existe, ninguem a usa por engano (D-063)."
@@ -634,19 +640,23 @@ def warmup_steps(
         legenda=f"sessions.csv, {len(sessoes)} sessoes x 8 atributos",
     ))
 
-    semana_3 = calibration_period(sessoes)
+    do_aquecimento = ruler_sessions(sessoes)
     passos.append(Step(
         fase=FASE_2,
         modulo="M8",
-        funcao="calibration_period",
+        funcao="ruler_period",
         explicacao=(
-            "So a semana 3. Ela e limpa e anterior ao ataque, e e por isso que "
-            "os limiares podem ser os mesmos nas 11 condicoes de sigma (D-043)."
+            "A mesma guarda do M6, do outro lado da regua: confere que as sessoes "
+            "sao as do aquecimento e devolve-as inteiras. O aquecimento e limpo e "
+            "anterior ao ataque, e e por isso que os limiares podem ser os mesmos "
+            "nas 11 condicoes de sigma (D-043).\n\n"
+            "**O limiar sai do mesmo periodo que o perfil** (D-096). Ate 23/09 "
+            "saia da semana 3 sozinha — um terco dos dados disponiveis."
         ),
         entrada={"sessoes": len(sessoes)},
-        saida=semana_3.head(8),
-        completa=semana_3,
-        legenda=f"{len(semana_3)} de {len(sessoes)} sessoes",
+        saida=do_aquecimento.head(8),
+        completa=do_aquecimento,
+        legenda=f"{len(do_aquecimento)} sessoes, o arquivo inteiro",
     ))
 
     limiares = build_thresholds(sessoes)
@@ -655,14 +665,14 @@ def warmup_steps(
         modulo="M8",
         funcao="build_thresholds",
         explicacao=(
-            "Percentil 99 de cada grandeza, sobre a semana 3. **Seis regras, nao "
+            "Percentil 99 de cada grandeza, sobre o aquecimento. **Seis regras, nao "
             "oito**: `atypical_hour` e `new_source_ip` ja vem binarias do M7 e "
             "disparam quando valem 1 — percentil sobre uma coluna de zeros e uns "
             "daria 0 ou 1 e nao significaria nada.\n\n"
             "O baseline **nao recebe treino**: chega ao periodo avaliado com "
             "estes numeros congelados, e nunca ve um rotulo (D-033)."
         ),
-        entrada={"sessoes da semana 3": len(semana_3)},
+        entrada={"sessoes do aquecimento": len(do_aquecimento)},
         saida=limiares,
         legenda="thresholds.csv, um conjunto por semente",
     ))
@@ -755,7 +765,7 @@ def attack_steps(
         modulo="M3",
         funcao="build_attack",
         explicacao=(
-            "Mescla **58 sessoes comprometidas** as semanas 4 a 7 do trafego "
+            "Mescla **58 sessoes comprometidas** as semanas 5 a 8 do trafego "
             "legitimo. O numero e o mesmo nas 11 condicoes (D-081): o que sigma "
             "move e o comportamento dentro delas, nunca quantas sao — se movesse "
             "as duas coisas, a proporcao de anomalias mudaria junto e a "
@@ -797,7 +807,7 @@ def attack_steps(
         modulo="M4 · M5",
         funcao="build_outcomes + build_log",
         explicacao=(
-            "**As mesmas funcoes da fase 2**, agora sobre as semanas 4 a 7. O "
+            "**As mesmas funcoes da fase 2**, agora sobre as semanas 5 a 8. O "
             "KMS nao sabe que ha atacante: ele avalia a politica da chave, e as "
             "requisicoes do atacante sao negadas pelas mesmas regras que negam "
             "as legitimas.\n\n"

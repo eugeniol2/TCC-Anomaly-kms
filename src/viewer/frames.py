@@ -27,7 +27,6 @@ import pandas as pd
 
 from src.attack.parameters import AttackSpecification
 from src.globals.phases import EVALUATED, WARMUP, belongs_to
-from src.historical_profiles.build import profile_period
 from src.population.parameters import KeyRepositorySpecification
 from src.traffic.parameters import TrafficSpecification
 from src.viewer.decisions import (
@@ -168,7 +167,7 @@ def frames_da_fase_1(
             entidade="Scenario Engine",
             modulos="M2",
             resumo=(
-                "Transforma as duas tabelas em **sete semanas de requisições**. "
+                "Transforma as duas tabelas em **oito semanas de requisições**. "
                 "Cada operador abre sessões conforme o ritmo do seu regime, e "
                 "dentro de cada sessão pede chaves do seu alcance."
             ),
@@ -188,7 +187,7 @@ def frames_da_fase_1(
             ),
             saidas=(
                 Painel("requests.csv", requests,
-                       "sete semanas, só tráfego legítimo, sem desfecho"),
+                       "oito semanas, só tráfego legítimo, sem desfecho"),
             ),
             variaveis=variaveis_do_m2(TrafficSpecification()),
             detalhes=apenas(detalhes, "M2"),
@@ -204,13 +203,11 @@ def frames_da_fase_2(
     log: pd.DataFrame,
     perfis: pd.DataFrame,
     sessoes: pd.DataFrame,
-    semana_3: pd.DataFrame,
     limiares: pd.DataFrame,
     detalhes: list[Step],
 ) -> list[Quadro]:
     """Passos 3 a 6 do diagrama: o aquecimento e a calibração."""
     do_aquecimento = requests[belongs_to(WARMUP, requests["timestamp"])]
-    das_duas_semanas = profile_period(log)
 
     return [
         Quadro(
@@ -220,7 +217,7 @@ def frames_da_fase_2(
             modulos="M4 · M5",
             resumo=(
                 "O **KMS decide** o desfecho de cada requisição consultando a "
-                "política da chave; o **Audit Logger registra**. Semanas 1 a 3, "
+                "política da chave; o **Audit Logger registra**. Semanas 1 a 4, "
                 "sem atacante nenhum."
             ),
             porque=(
@@ -240,13 +237,13 @@ def frames_da_fase_2(
                 Painel("keys.csv", keys,
                        "estático — escopo e situação de cada chave"),
                 Painel("requests.csv", do_aquecimento,
-                       recorte(requests, do_aquecimento, "o que foi pedido nas semanas 1 a 3")),
+                       recorte(requests, do_aquecimento, "o que foi pedido nas semanas 1 a 4")),
             ),
             saidas=(
                 Painel("outcomes.csv", outcomes,
-                       "semanas 1 a 3 — duas colunas: event_id e outcome"),
+                       "semanas 1 a 4 — duas colunas: event_id e outcome"),
                 Painel("log.csv", log,
-                       "semanas 1 a 3 — as oito colunas do log de auditoria"),
+                       "semanas 1 a 4 — as oito colunas do log de auditoria"),
             ),
             variaveis=variaveis_do_m4_m5(),
             detalhes=apenas(detalhes, "M4", "M5"),
@@ -257,8 +254,9 @@ def frames_da_fase_2(
             entidade="Perfis históricos",
             modulos="M6",
             resumo=(
-                "Observa o que cada operador fez nas **semanas 1 e 2**: a janela "
-                "horária em que abriu sessão e as origens de rede de onde veio."
+                "Observa o que cada operador fez nas **quatro semanas de "
+                "aquecimento**: a janela horária em que abriu sessão e as "
+                "origens de rede de onde veio."
             ),
             porque=(
                 "**Fica congelado.** Perfil móvel absorveria o comportamento do "
@@ -269,15 +267,22 @@ def frames_da_fase_2(
                 "As origens observadas são um **subconjunto** das que o M1 "
                 "sorteou, e a diferença entre as duas é o que produz origem "
                 "inédita legítima depois. Sem essa folga, endereço novo "
-                "significaria atacante (D-040)."
+                "significaria atacante (D-040).\n\n"
+                "**O aquecimento inteiro entra aqui** (D-096). Até 23/09 a régua "
+                "saía de duas semanas e a terceira ficava reservada para "
+                "calibrar. Alargá-la para quatro derruba alarme falso sobre "
+                "gente inocente: `atypical_hour` cai de 8,83 % das sessões "
+                "limpas para **4,54 %**, e `new_source_ip` de 2,05 % para "
+                "**0,80 %**. O que disparava não era comportamento anômalo, era "
+                "perfil estimado de amostra pequena demais."
             ),
             entradas=(
-                Painel("log.csv", das_duas_semanas,
-                       recorte(log, das_duas_semanas, "só as semanas 1 e 2 são lidas")),
+                Painel("log.csv", log,
+                       "semanas 1 a 4, inteiras — a régua vê todo o aquecimento"),
             ),
             saidas=(
                 Painel("historical_profiles.csv", perfis,
-                       "**das semanas 1 e 2** — uma linha por operador: a "
+                       "**das semanas 1 a 4** — uma linha por operador: a "
                        "janela horária e as origens que ele usou ali"),
             ),
             variaveis=variaveis_do_m6(),
@@ -304,37 +309,31 @@ def frames_da_fase_2(
                 "construção.\n\n"
                 "Aqui o arquivo sai **sem coluna de rótulo**: ele alimenta só a "
                 "calibração, e calibração por percentil não usa rótulo (D-063).\n\n"
-                "**Entram as três semanas, e só a semana 3 será usada.** As "
-                "sessões das semanas 1 e 2 saem no arquivo mas ninguém as lê: "
-                "elas são as que *definiram* a janela horária e o conjunto de "
-                "origens, então não podem cair fora deles — `atypical_hour` e "
-                "`new_source_ip` valem **zero em todas elas, por construção**.\n\n"
-                "Elas entram porque `--fase warmup` significa semanas 1 a 3, e "
-                "significa isso para o M4, o M5 e o M7 igualmente; a bandeira "
-                "não pode querer dizer duas coisas conforme o módulo (D-049). "
-                "Quem corta é o M8, sempre. E é sobre essas linhas que roda a "
-                "invariante que pegou o defeito da D-090: *nenhuma sessão das "
-                "semanas 1 e 2 pode ser atípica*.\n\n"
-                "**Este passo não mede o período avaliado — mede a semana 3.** "
+                "**Este passo não mede o período avaliado — mede o aquecimento.** "
                 "O perfil entra aqui como **régua**, e a mesma régua volta no "
-                "passo 8 para medir as semanas 4 a 7. É isso que faz o limiar "
-                "transferir: calibrado numa escala, aplicado na mesma. Se a "
-                "semana 3 fosse medida contra outro perfil, o percentil 99 "
-                "sairia de um instrumento e seria usado com outro."
+                "passo 8 para medir as semanas 5 a 8. É isso que faz o limiar "
+                "transferir: calibrado numa escala, aplicado na mesma. Se o "
+                "aquecimento fosse medido contra outro perfil, o percentil 99 "
+                "sairia de um instrumento e seria usado com outro.\n\n"
+                "Repare que `atypical_hour` e `new_source_ip` valem **zero em "
+                "todas estas linhas, por construção**: são as sessões que "
+                "*definiram* a janela horária e o conjunto de origens, e nenhuma "
+                "pode cair fora do que ela própria delimitou. Não é defeito — é "
+                "a invariante que pegou o erro de arredondamento da D-090, e é "
+                "conferida nas 30 sementes."
             ),
             entradas=(
                 Painel("log.csv", log,
-                       "semanas 1 a 3, inteiras — é o que se mede"),
+                       "semanas 1 a 4, inteiras — é o que se mede"),
                 Painel("historical_profiles.csv", perfis,
-                       "**das semanas 1 e 2** — é a régua: contra ela "
+                       "**das semanas 1 a 4** — é a régua: contra ela "
                        "`atypical_hour` e `new_source_ip` são medidos, e é a "
-                       "mesma que medirá as semanas 4 a 7"),
+                       "mesma que medirá as semanas 5 a 8"),
             ),
             saidas=(
                 Painel("sessions.csv", sessoes,
-                       "semanas 1 a 3 — uma linha por sessão, oito atributos, "
-                       "sem rótulo; as das semanas 1 e 2 ficam no arquivo mas "
-                       "ninguém as lê"),
+                       "semanas 1 a 4 — uma linha por sessão, oito atributos, "
+                       "sem rótulo; o M8 lê o arquivo inteiro"),
             ),
             variaveis=variaveis_do_m7(),
             detalhes=apenas(detalhes, "M7"),
@@ -345,8 +344,8 @@ def frames_da_fase_2(
             entidade="Calibração de limiares",
             modulos="M8",
             resumo=(
-                "Percentil 99 de cada grandeza, sobre as sessões da **semana 3**. "
-                "Seis limiares, um por regra de grandeza."
+                "Percentil 99 de cada grandeza, sobre **todas** as sessões do "
+                "aquecimento. Seis limiares, um por regra de grandeza."
             ),
             porque=(
                 "O baseline **não recebe treino em momento nenhum** e chega ao "
@@ -357,16 +356,24 @@ def frames_da_fase_2(
                 "hiperparâmetro exige rótulo de ataque, que ele não teria.\n\n"
                 "Seis e não oito porque `atypical_hour` e `new_source_ip` já vêm "
                 "binárias do M7 — percentil sobre uma coluna de zeros e uns "
-                "daria 0 ou 1 e não significaria nada (D-080)."
+                "daria 0 ou 1 e não significaria nada (D-080).\n\n"
+                "**O limiar sai do mesmo período que o perfil** (D-096). Até "
+                "23/09 ele saía da semana 3 sozinha, reservada porque as semanas "
+                "1 e 2 tinham construído o perfil. O argumento não se "
+                "sustentava: as seis regras de grandeza **não consultam o "
+                "perfil** — contam eventos, chaves e negações do log cru —, "
+                "então não havia acoplamento a evitar. O que a divisão produzia "
+                "era um limiar estimado de um terço dos dados disponíveis."
             ),
             entradas=(
-                Painel("sessions.csv", semana_3,
-                       "**só a semana 3** — as das semanas 1 e 2 ficaram de fora"),
+                Painel("sessions.csv", sessoes,
+                       "semanas 1 a 4 — **o mesmo arquivo do passo 5**, "
+                       "inteiro"),
             ),
             saidas=(
                 Painel("thresholds.csv", limiares,
-                       "**da semana 3** — seis regras, um conjunto por semente, "
-                       "congelado daqui em diante"),
+                       "**das semanas 1 a 4** — seis regras, um conjunto por "
+                       "semente, congelado daqui em diante"),
             ),
             variaveis=variaveis_do_m8(),
             detalhes=apenas(detalhes, "M8"),
@@ -396,7 +403,7 @@ def frames_da_fase_3(
             entidade="Scenario Engine — campanha de ataque",
             modulos="M3",
             resumo=(
-                f"Mescla **58 sessões comprometidas** às semanas 4 a 7 do "
+                f"Mescla **58 sessões comprometidas** às semanas 5 a 8 do "
                 f"tráfego legítimo, sob a credencial de um administrador. Em "
                 f"σ **{sigma}**."
             ),
@@ -417,15 +424,15 @@ def frames_da_fase_3(
             entradas=(
                 Painel("requests.csv", do_avaliado,
                        recorte(requests, do_avaliado,
-                               "as semanas 4 a 7, onde a campanha entra")),
+                               "as semanas 5 a 8, onde a campanha entra")),
                 Painel("sigma", sigma,
                        "parâmetro, sem período — 0,0 ostensivo, 1,0 indistinguível"),
             ),
             saidas=(
                 Painel("requests.csv", campanha_requests,
-                       "semanas 4 a 7, legítimo + ataque, renumerado"),
+                       "semanas 5 a 8, legítimo + ataque, renumerado"),
                 Painel("compromised_sessions.csv", compromised,
-                       "semanas 4 a 7 — o rótulo, fora do log"),
+                       "semanas 5 a 8 — o rótulo, fora do log"),
                 Painel("run.csv", execucao,
                        "uma linha por execução — qual administrador foi "
                        "comprometido nesta semente"),
@@ -442,7 +449,7 @@ def frames_da_fase_3(
             modulos="M4 · M5 · M7",
             resumo=(
                 "**As mesmas entidades dos passos 3 e 5**, agora sobre as semanas "
-                "4 a 7 com ataque. Ao fim, o rótulo é juntado."
+                "5 a 8 com ataque. Ao fim, o rótulo é juntado."
             ),
             porque=(
                 "O KMS **não sabe que há atacante**. Ele avalia a política da "
@@ -456,17 +463,17 @@ def frames_da_fase_3(
             ),
             entradas=(
                 Painel("requests.csv", campanha_requests,
-                       "semanas 4 a 7 — legítimo com a campanha dentro"),
+                       "semanas 5 a 8 — legítimo com a campanha dentro"),
                 Painel("historical_profiles.csv", perfis,
-                       "**das semanas 1 e 2** — o mesmo arquivo do passo 5, "
+                       "**do aquecimento** — o mesmo arquivo do passo 5, "
                        "nunca recalculado"),
                 Painel("compromised_sessions.csv", compromised,
-                       "semanas 4 a 7 — o rótulo, que só é juntado aqui"),
+                       "semanas 5 a 8 — o rótulo, que só é juntado aqui"),
             ),
             saidas=(
-                Painel("log.csv", log, "semanas 4 a 7 — o log do período avaliado"),
+                Painel("log.csv", log, "semanas 5 a 8 — o log do período avaliado"),
                 Painel("sessions.csv", sessoes,
-                       f"semanas 4 a 7 — {len(sessoes)} sessões, {positivas} "
+                       f"semanas 5 a 8 — {len(sessoes)} sessões, {positivas} "
                        f"positivas ({positivas / len(sessoes):.2%}), já rotulado"),
             ),
             variaveis=variaveis_do_m4_m5() + variaveis_do_m7(),
@@ -487,7 +494,7 @@ def frames_da_fase_3(
                 "**23 positivas** que a contagem absoluta exige (D-070)."
             ),
             entradas=(Painel("sessions.csv", sessoes,
-                       "semanas 4 a 7 — o conjunto rotulado"),),
+                       "semanas 5 a 8 — o conjunto rotulado"),),
             saidas=(),
             variaveis=variaveis_pendentes_do_m9(),
             pendente="train.csv e holdout.csv ainda não existem.",
@@ -502,7 +509,7 @@ def frames_da_fase_3(
                 "e XGBoost — classificam o holdout, lado a lado."
             ),
             porque=(
-                "O baseline lê os limiares congelados na semana 3 e **não recebe "
+                "O baseline lê os limiares congelados no aquecimento e **não recebe "
                 "treino**. Os modelos treinam, com configuração idêntica nas 330 "
                 "execuções. **Sem reamostragem e sem SMOTE**: a proporção real é "
                 "preservada (D-024)."

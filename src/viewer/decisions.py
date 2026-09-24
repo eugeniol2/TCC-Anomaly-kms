@@ -30,8 +30,8 @@ from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
 from src.dataset.build import ATTRIBUTES
 from src.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
 from src.globals.experiment import SEEDS, SIGMAS
-from src.globals.phases import CALIBRATION_WEEK, PROFILE_WEEKS, WEEK_COUNT
-from src.historical_profiles.build import HOUR_DECIMALS
+from src.globals.phases import EVALUATED_WEEKS, RULER_WEEKS, WEEK_COUNT
+from src.historical_profiles.build import HOUR_FORMAT
 from src.kms.policy import OUTCOMES
 from src.population.parameters import KeyRepositorySpecification
 from src.population.profiles import PROFILES
@@ -238,13 +238,16 @@ def variaveis_do_m4_m5() -> tuple[Variavel, ...]:
 def variaveis_do_m6() -> tuple[Variavel, ...]:
     """O perfil histórico não tem parâmetro de forma — e isso é a decisão."""
     return (
-        Variavel("PROFILE_WEEKS", PROFILE_WEEKS,
-                 "Semanas que constroem o perfil.", "D-069"),
+        Variavel("RULER_WEEKS", RULER_WEEKS,
+                 "Semanas que constroem a régua: o perfil e os limiares.",
+                 "D-096"),
         Variavel("forma da janela horária", "do mínimo ao máximo observado",
                  "Como a janela é delimitada. Sem percentil e sem descarte.",
                  "D-073"),
-        Variavel("HOUR_DECIMALS", HOUR_DECIMALS,
-                 "Casas decimais da hora fracionária, cerca de 0,36 s.", "D-090"),
+        Variavel("HOUR_FORMAT", HOUR_FORMAT,
+                 "Como a hora da janela é escrita. Texto de largura fixa, que "
+                 "compara na ordem certa e não precisa de arredondamento.",
+                 "D-095"),
         Variavel("origens registradas", "só as que aparecem no log",
                  "Subconjunto das habituais que o M1 sorteou, não a lista inteira.",
                  "D-040"),
@@ -278,8 +281,10 @@ def variaveis_do_m7() -> tuple[Variavel, ...]:
 def variaveis_do_m8() -> tuple[Variavel, ...]:
     """O percentil, e de onde ele sai."""
     return (
-        Variavel("CALIBRATION_WEEK", CALIBRATION_WEEK,
-                 "Semana de onde saem os limiares.", "D-043"),
+        Variavel("período dos limiares", f"as {RULER_WEEKS} semanas do aquecimento",
+                 "De onde sai o percentil. O mesmo período do perfil: a régua "
+                 "é uma só.",
+                 "D-096"),
         Variavel("PERCENTILE", PERCENTILE,
                  "Percentil de cada grandeza que vira limiar.", "D-031, D-043"),
         Variavel("THRESHOLD_ATTRIBUTES", ", ".join(THRESHOLD_ATTRIBUTES),
@@ -403,6 +408,6 @@ def variaveis_pendentes_do_m12() -> tuple[Variavel, ...]:
                  "O que se faz depois de identificar trivialidade.", "D-050"),
         Variavel("tempo de inferência", "com tabela própria",
                  "Métrica de primeira classe, não nota de rodapé.", "D-023"),
-        Variavel("semanas", f"{WEEK_COUNT}, em 2 + 1 + 4",
+        Variavel("semanas", f"{WEEK_COUNT}, em {RULER_WEEKS} + {EVALUATED_WEEKS}",
                  "O período simulado de cada execução.", "D-069"),
     )

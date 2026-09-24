@@ -32,7 +32,7 @@ import streamlit as st
 from src.attack.build import build_attack
 from src.attack.parameters import AttackSpecification
 from src.audit_logger.build import build_log
-from src.calibration.build import build_thresholds, calibration_period
+from src.calibration.build import build_thresholds
 from src.dataset.build import build_dataset
 from src.globals.experiment import SIGMAS
 from src.globals.phases import EVALUATED, WARMUP
@@ -80,6 +80,9 @@ LINHAS_NO_DETALHE = 12
 
 # Altura do expansor das variaveis de decisao. Maior que a das tabelas
 # porque a coluna de significado e longa e quebra em varias linhas.
+TODOS = "todos"
+EXEMPLO_DE_FILTRO = 'outcome != "success"'
+
 ALTURA_DAS_VARIAVEIS = 420
 
 # Altura dos graficos de teoria. Baixa: eles ilustram uma forma, nao
@@ -131,7 +134,6 @@ def aquecimento(seed: int) -> dict[str, pd.DataFrame]:
         "log": log,
         "perfis": perfis,
         "sessoes": sessoes,
-        "semana_3": calibration_period(sessoes),
         "limiares": build_thresholds(sessoes),
     }
 
@@ -189,7 +191,7 @@ def quadros_da_fase(fase: Fase, seed: int, foco: str, sigma: float) -> list[Quad
         return frames_da_fase_2(
             trafego(seed), operators, keys,
             warmup["outcomes"], warmup["log"], warmup["perfis"],
-            warmup["sessoes"], warmup["semana_3"], warmup["limiares"],
+            warmup["sessoes"], warmup["limiares"],
             detalhes,
         )
 
@@ -202,8 +204,8 @@ def quadros_da_fase(fase: Fase, seed: int, foco: str, sigma: float) -> list[Quad
     )
 
 
-def mostrar_painel(painel: Painel) -> None:
-    """Um arquivo ou parametro, com previa quando e tabela."""
+def mostrar_painel(painel: Painel, chave: str) -> None:
+    """Um arquivo ou parametro, com filtro quando e tabela."""
     tamanho = painel.tamanho()
     rodape = f"  ·  {tamanho}" if tamanho else ""
 
@@ -215,8 +217,8 @@ def mostrar_painel(painel: Painel) -> None:
     is_tabela = isinstance(painel.dado, pd.DataFrame)
 
     if is_tabela:
-        st.dataframe(painel.dado, use_container_width=True, hide_index=True,
-                     height=ALTURA_DA_TABELA)
+        st.dataframe(filtrar(painel.dado, chave), use_container_width=True,
+                     hide_index=True, height=ALTURA_DA_TABELA)
         return
 
     is_lista = isinstance(painel.dado, (list, tuple))
@@ -228,7 +230,82 @@ def mostrar_painel(painel: Painel) -> None:
     st.code(str(painel.dado))
 
 
-def mostrar_lado(titulo: str, paineis: tuple[Painel, ...], vazio: str) -> None:
+def filtrar(quadro: pd.DataFrame, chave: str) -> pd.DataFrame:
+    """Um operador e uma expressao, acima da tabela.
+
+    A busca da barra do `st.dataframe` procura texto solto em qualquer coluna:
+    ela nao expressa "este operador **e** origem fora destas duas", que e a
+    pergunta que se faz ao explicar `new_source_ip` ou `atypical_hour`.
+
+    A expressao vai para o `DataFrame.query` do pandas, entao aceita `and`,
+    `or`, `not in` e comparacao. Expressao invalida vira aviso, nunca tela
+    quebrada — quem esta apresentando nao pode perder a tela por um parentese.
+    """
+    escolhido, expressao = controles_do_filtro(quadro, chave)
+
+    filtrado = quadro
+
+    if escolhido != TODOS:
+        filtrado = filtrado[filtrado["operator_id"] == escolhido]
+
+    if not expressao.strip():
+        return relatar_filtro(quadro, filtrado)
+
+    try:
+        filtrado = filtrado.query(expressao)
+    except Exception as erro:
+        st.warning(f"expressao invalida: {erro}", icon=":material/error:")
+
+        return filtrado
+
+    return relatar_filtro(quadro, filtrado)
+
+
+def controles_do_filtro(quadro: pd.DataFrame, chave: str) -> tuple[str, str]:
+    """O seletor de operador e a caixa de expressao, lado a lado."""
+    tem_operador = "operator_id" in quadro.columns
+
+    coluna_operador, coluna_expressao = st.columns([1, 3])
+
+    escolhido = TODOS
+
+    if tem_operador:
+        operadores = [TODOS] + sorted(quadro["operator_id"].unique())
+        escolhido = coluna_operador.selectbox(
+            "Operador", operadores, key=f"op_{chave}",
+        )
+
+    expressao = coluna_expressao.text_input(
+        "Filtro",
+        key=f"expr_{chave}",
+        placeholder=EXEMPLO_DE_FILTRO,
+        help=(
+            "Expressao do pandas. Aceita `and`, `or`, `not in`, `>`, `==`. "
+            "Exemplos: `outcome != \"success\"` · "
+            "`source_ip not in [\"10.1.2.3\", \"10.4.5.6\"]` · "
+            "`distinct_keys > 12 and events < 20`"
+        ),
+    )
+
+    return escolhido, expressao
+
+
+def relatar_filtro(inteiro: pd.DataFrame, filtrado: pd.DataFrame) -> pd.DataFrame:
+    """Diz quanto sobrou, para o numero na tela nunca enganar."""
+    mudou = len(filtrado) != len(inteiro)
+
+    if mudou:
+        st.caption(
+            f"**{len(filtrado)}** de {len(inteiro)} linhas "
+            f"({len(filtrado) / len(inteiro):.1%})"
+        )
+
+    return filtrado
+
+
+def mostrar_lado(
+    titulo: str, paineis: tuple[Painel, ...], vazio: str, chave: str
+) -> None:
     """As entradas ou as saidas, empilhadas e em largura cheia.
 
     Em largura cheia, e nao em duas colunas lado a lado, porque as tabelas tem
@@ -243,8 +320,8 @@ def mostrar_lado(titulo: str, paineis: tuple[Painel, ...], vazio: str) -> None:
         st.caption(vazio)
         return
 
-    for painel in paineis:
-        mostrar_painel(painel)
+    for posicao, painel in enumerate(paineis):
+        mostrar_painel(painel, f"{chave}_{posicao}")
 
 
 def mostrar_variaveis(quadro: Quadro) -> None:
@@ -386,8 +463,12 @@ def mostrar_quadro(quadro: Quadro, total: int, titular: bool) -> None:
 
     mostrar_variaveis(quadro)
 
-    mostrar_lado("Entra", quadro.entradas, "Nada: esta entidade abre a sequência.")
-    mostrar_lado("Sai", quadro.saidas, "Nada ainda: a entidade não foi escrita.")
+    mostrar_lado("Entra", quadro.entradas,
+                 "Nada: esta entidade abre a sequência.",
+                 f"entra{quadro.numero}")
+    mostrar_lado("Sai", quadro.saidas,
+                 "Nada ainda: a entidade não foi escrita.",
+                 f"sai{quadro.numero}")
 
     mostrar_detalhes(quadro)
 
