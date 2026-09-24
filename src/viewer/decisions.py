@@ -145,8 +145,9 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                  "regime, nunca o perfil.",
                  "D-012"),
         Variavel("week_count", trafego.week_count,
-                 "Semanas simuladas: 2 de perfil, 1 de calibração, 4 avaliadas.",
-                 "D-069"),
+                 f"Semanas simuladas: {RULER_WEEKS} de régua — o perfil e os "
+                 f"limiares, do mesmo período — e {EVALUATED_WEEKS} avaliadas.",
+                 "D-096"),
         Variavel("first_day", trafego.first_day,
                  "Primeiro dia simulado. Segunda-feira, fixa.", "D-067"),
         Variavel("BATCH_HOURS", lote.rhythm.hours,
@@ -339,9 +340,10 @@ def variaveis_do_m3(
         Variavel("chaves distintas",
                  f"{ataque.ostensive_distinct_keys_range}  →  "
                  f"{trafego.distinct_keys_range}",
-                 "Amplitude da varredura, do ostensivo ao furtivo. O teto "
-                 "legítimo é 15.",
-                 "D-082, D-080"),
+                 "Amplitude da varredura, do ostensivo ao furtivo. A faixa "
+                 "legítima é o típico, não um teto: a sessão que se estende "
+                 "também se alarga.",
+                 "D-082, D-080, D-098"),
         Variavel("horário", "madrugada, qualquer dia  →  dia útil, 09–19 h",
                  "Quando a sessão abre. É probabilidade, não grandeza: σ regula a "
                  "chance de a sessão ter a marca.",
@@ -388,7 +390,8 @@ def variaveis_pendentes_do_m10_m11() -> tuple[Variavel, ...]:
         Variavel("ponto de operação", "duas ou mais regras disparadas",
                  "Quando o baseline emite alerta.", "D-075"),
         Variavel("especificidade do baseline", "99,29 % contra tráfego limpo",
-                 "Alarme falso medido sem atacante: 0,71 % das sessões.", "D-080"),
+                 "Alarme falso medido sem atacante: 0,67 % das sessões, nas 30 "
+                 "sementes.", "D-080, D-075"),
         Variavel("modelos", "Random Forest, XGBoost",
                  "Os dois modelos supervisionados da comparação.",
                  "D-051, D-026"),
@@ -423,5 +426,5 @@ def variaveis_pendentes_do_m12() -> tuple[Variavel, ...]:
         Variavel("tempo de inferência", "com tabela própria",
                  "Métrica de primeira classe, não nota de rodapé.", "D-023"),
         Variavel("semanas", f"{WEEK_COUNT}, em {RULER_WEEKS} + {EVALUATED_WEEKS}",
-                 "O período simulado de cada execução.", "D-069"),
+                 "O período simulado de cada execução.", "D-096"),
     )
