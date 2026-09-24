@@ -27,7 +27,7 @@ src/
     profiles.py    perfis comportamentais da populacao
     operators.py   construcao de operators.csv
     keys.py        construcao de keys.csv
-  traffic/         M2, o trafego legitimo das sete semanas
+  traffic/         M2, o trafego legitimo das oito semanas
     __main__.py    linha de comando e fluxo principal
     parameters.py  todos os numeros que governam o M2
     regimes.py     a forma dos tres regimes, preenchida por parameters.py
@@ -43,7 +43,7 @@ tests/             verificacao de determinismo e de formato
 ```
 
 A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
-semanas 4 a 7, tudo que deriva das semanas 1 a 3 e independente de sigma — e o
+semanas 5 a 8, tudo que deriva do aquecimento e independente de sigma — e o
 pipeline tem dois ramos. M4, M5 e M7 aparecem nos dois.
 
 ```
@@ -55,16 +55,16 @@ data/
     seed-903/                     limiar X de exclusao por trivialidade
   seed-01/                        ---- ramo da semente, 30 execucoes ----
     operators.csv  keys.csv       M1
-    requests.csv                  M2, sete semanas, so legitimo
-    outcomes.csv  log.csv         M4, M5 — semanas 1 a 3
-    historical_profiles.csv       M6, das semanas 1 e 2
-    sessions.csv                  M7, da semana 3
-    thresholds.csv                M8, da semana 3
+    requests.csv                  M2, oito semanas, so legitimo
+    outcomes.csv  log.csv         M4, M5 — semanas 1 a 4
+    historical_profiles.csv       M6, do aquecimento inteiro
+    sessions.csv                  M7, semanas 1 a 4
+    thresholds.csv                M8, do aquecimento inteiro
     sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
-      requests.csv                M3, semanas 4 a 7, legitimo + ataque
+      requests.csv                M3, semanas 5 a 8, legitimo + ataque
       compromised_sessions.csv    M3
-      outcomes.csv  log.csv       M4, M5 — semanas 4 a 7
-      sessions.csv                M7, semanas 4 a 7
+      outcomes.csv  log.csv       M4, M5 — semanas 5 a 8
+      sessions.csv                M7, semanas 5 a 8
       train.csv  holdout.csv      M9
       predictions_rules.csv       M10
       predictions_ml.csv          M11
@@ -88,22 +88,24 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 |---|---|---|---|
 | M1 | `population` | seed | `operators.csv`, `keys.csv` |
 | M2 | `traffic` | seed, tabelas | `requests.csv` |
-| M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 4 a 7, legítimo + ataque), `compromised_sessions.csv` |
+| M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 5 a 8, legítimo + ataque), `compromised_sessions.csv` |
 | M4 | `kms` | fase, `requests.csv`, `keys.csv` | `outcomes.csv` |
 | M5 | `audit_logger` | fase, requests, outcomes | `log.csv` |
-| M6 | `historical_profiles` | `log.csv` (semanas 1 e 2) | `historical_profiles.csv` |
+| M6 | `historical_profiles` | `log.csv` (aquecimento inteiro) | `historical_profiles.csv` |
 | M7 | `dataset` | fase, `log.csv`, profiles, `compromised_sessions.csv` (só em `evaluated`) | `sessions.csv` |
-| M8 | `calibration` | `sessions.csv` (semana 3) | `thresholds.csv` |
-| M9 | `partition` | `sessions.csv` (semanas 4 a 7) | `train.csv`, `holdout.csv` |
+| M8 | `calibration` | `sessions.csv` (aquecimento inteiro) | `thresholds.csv` |
+| M9 | `partition` | `sessions.csv` (semanas 5 a 8) | `train.csv`, `holdout.csv` |
 | M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv` |
 | M11 | `models` | `train.csv`, `holdout.csv`, config | `predictions_ml.csv` |
 | M12 | `evaluation` | predictions | `metrics.csv` |
 
-As sete semanas simuladas têm papéis distintos: as semanas 1 e 2 constroem o perfil
-histórico, a semana 3 calibra os limiares do baseline, e as semanas 4 a 7 são o
-período avaliado, o único em que o atacante age.
+As oito semanas simuladas têm dois papéis. As semanas 1 a 4 constroem a **régua** — o
+perfil histórico de cada operador **e** os limiares do baseline, do mesmo período — e as
+semanas 5 a 8 são o período avaliado, o único em que o atacante age. A história é a de
+uma implantação: uma empresa com quatro semanas de log constrói o baseline e o põe em
+produção.
 
-O M3 lê o `requests.csv` do M2 e escreve outro, mesclando a campanha às semanas 4 a 7
+O M3 lê o `requests.csv` do M2 e escreve outro, mesclando a campanha às semanas 5 a 8
 do tráfego legítimo — nunca acrescentando linhas ao arquivo do M2. Já `fase` não é
 arquivo: é o parâmetro obrigatório de M4, M5 e M7, que diz qual arquivo o módulo lê e
 em qual dos dois ramos escreve.
@@ -178,11 +180,12 @@ de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuç
 
 ## Estado
 
-Em construção. **M1 e M2 implementados**, M3 a M12 pendentes. A Meta 1 é M1, M2, M4 e M5
-sem atacante, gerando as sete semanas de uma execução limpa — é dela que sairão o perfil
-histórico das semanas 1 e 2 e os limiares da semana 3.
+Em construção. **M1 a M8 implementados, e o orquestrador**; M9 a M12 pendentes. O ramo da
+semente já produz a régua inteira — o perfil histórico e os limiares do baseline, das
+quatro semanas de aquecimento — e o ramo de sigma já produz o conjunto rotulado das
+semanas 5 a 8.
 
-O M2 produz cerca de 67 mil requisições em 3,3 mil sessões por semente. Os três itens que
+O M2 produz cerca de 74 mil requisições em 3,8 mil sessões por semente. Os três itens que
 as convenções do projeto mandam conferir antes do M3 estão cobertos por teste: o serviço
 automatizado abre lote nas quatro horas fixas, o administrador tem ritmo mais disperso que
-o usuário esporádico, e os dois caminhos de falha legítima ocorrem nas 30 sementes.
+o regime `routine`, e os dois caminhos de falha legítima ocorrem nas 30 sementes.
