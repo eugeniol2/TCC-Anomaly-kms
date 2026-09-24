@@ -279,7 +279,7 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
     teoria reimplementava a fórmula, e a duplicação era um risco silencioso:
     mudada a forma do decaimento no gerador, o gráfico seguiria desenhando a
     antiga, plausível e errada, numa apresentação. É a mesma regra que o
-    `steps.py` declara para si — o observador se adapta ao código, nunca o
+    `steps.py` declara para si: o observador se adapta ao código, nunca o
     contrário.
 
     Só o `principal` continua chegando por parâmetro, porque ele é a variável

@@ -86,9 +86,14 @@ REGIMES: dict[str, Regime] = {
         seconds_between_requests=CUSTODY_REQUEST_INTERVAL,
     ),
 }
-"""O comportamento de cada regime, e nao de cada perfil.
+"""O comportamento de cada regime: quando abre sessao e em que passo.
 
-A coluna `regime` existe para que o M2 dependa do comportamento e nao do rotulo
-do perfil. Este dicionario e o unico lugar do modulo que menciona os tres nomes:
-todo o resto recebe um `Regime` ja resolvido e nao sabe qual e.
+O regime governa o **ritmo e o volume**; a **mistura de operacoes** e governada
+pelo perfil, em `operations.py` (D-055). As duas colunas sao um-para-um hoje, e
+a separacao e de vocabulario: `profile` e o papel do operador na organizacao,
+`regime` e o padrao de uso, e vem da coluna "regime de exportacao" da Tabela 1
+da proposta (D-007).
+
+Este dicionario e o unico lugar do modulo que menciona os tres nomes: todo o
+resto recebe um `Regime` ja resolvido e nao sabe qual e.
 """

@@ -1,7 +1,7 @@
 """Quando cada operador abre sessao, ao longo das oito semanas.
 
-Dois tipos de ritmo, e a diferenca entre eles e o que faz maquina e humano se
-distinguirem no log sem que nada consulte o rotulo do perfil: o lote chega em
+Dois tipos de ritmo, ambos lidos do regime, e a diferenca entre eles e o que
+faz maquina e humano se distinguirem no log: o lote chega em
 hora fixa todos os dias, inclusive fim de semana; a pessoa chega quando chega,
 em dia util, dentro do horario de expediente.
 """
@@ -59,11 +59,9 @@ def daily_session_count(rng: Generator, rhythm: ArrivalRhythm) -> int:
     para a Poisson; o `occasional_custody` declara e vai para a Pascal. O
     `periodic_batch` nao chega aqui, porque maquina nao sorteia quantas vezes
     roda. Essa correspondencia mora no `regimes.py`, e **esta funcao nao a
-    conhece de proposito**: ela decide pelo que o ritmo declara, nunca por quem
-    o operador e. Perguntar "e administrador?" faria o gerador depender do
-    rotulo do perfil, que e o que a separacao entre `profile` e `regime` existe
-    para impedir, e esvaziaria o teste de que o pico periodico aparece no log
-    sem ninguem consultar o nome do perfil.
+    conhece**: ela decide pelo que o ritmo declara, e nao por quem o operador
+    e. Assim um regime novo, superdisperso ou nao, entra acrescentando uma
+    entrada la, sem tocar aqui.
 
     O `success` nao e escolhido: e o unico valor que faz a media sair igual a
     `sessions_per_business_day`. O numpy parametriza a binomial negativa por

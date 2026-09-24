@@ -400,8 +400,8 @@ def test_absent_identifier_matches_the_repository_format(seed: int) -> None:
 def test_batch_sessions_open_at_the_scheduled_hours(seed: int) -> None:
     """Servico automatizado apresenta picos periodicos de volume.
 
-    E o primeiro item da lista de conferencia. O pico e o que distingue maquina
-    de pessoa sem que nada consulte o rotulo do perfil.
+    E o primeiro item da lista de conferencia. O pico sai do calendario de
+    horas fixas do regime, e e o que distingue maquina de pessoa no log.
     """
     rhythm = REGIMES["periodic_batch"].rhythm
 

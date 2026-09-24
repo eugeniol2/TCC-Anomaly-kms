@@ -318,7 +318,7 @@ TOLERANCIA = 0.004
 
 Quatro milesimos: com 200 mil amostras o erro padrao de uma proporcao fica
 abaixo de 0,0012, entao a folga e cerca de tres desvios. Frouxa o bastante para
-nao falhar por acaso, apertada o bastante para pegar troca de distribuicao — a
+nao falhar por acaso, apertada o bastante para pegar troca de distribuicao: a
 diferenca entre Poisson e Pascal na mesma media passa de 0,05 na primeira
 barra.
 """

@@ -141,9 +141,9 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                  "end_user → routine; "
                  "automated_service → periodic_batch; "
                  "administrator → occasional_custody",
-                 "O regime é derivado do perfil, um para um. O M2 consulta o "
-                 "regime, nunca o perfil.",
-                 "D-012"),
+                 "Derivado do perfil, um para um. O regime decide o ritmo e o "
+                 "volume das sessões; o perfil decide a mistura de operações.",
+                 "D-007, D-055"),
         Variavel("week_count", trafego.week_count,
                  f"Semanas simuladas: {RULER_WEEKS} de régua (o perfil e os "
                  f"limiares, do mesmo período) e {EVALUATED_WEEKS} avaliadas.",
