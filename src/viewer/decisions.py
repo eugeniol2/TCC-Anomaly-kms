@@ -43,6 +43,7 @@ from src.traffic.parameters import (
 from src.traffic.regimes import REGIMES
 from src.viewer.theory import (
     Teoria,
+    teoria_da_cauda,
     teoria_da_dirichlet,
     teoria_da_exponencial,
     teoria_da_geometrica,
@@ -175,11 +176,23 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                  f"administrator: "
                  f"{custodia.rhythm.opens_at}–{custodia.rhythm.closes_at} h",
                  "Em que faixa do dia cada regime abre sessão.", "D-058"),
-        Variavel("requisições por sessão",
+        Variavel("requisições por sessão, típico",
                  f"end_user: {rotina.requests_range}; "
                  f"automated_service: {lote.requests_range}; "
                  f"administrator: {custodia.requests_range}",
-                 "Faixa de requisições que cada sessão emite, sorteada.", "D-058"),
+                 "Faixa típica de requisições por sessão. **Não é teto**: acima "
+                 "dela vem a cauda da D-097.", "D-058"),
+        Variavel("LONG_SESSION_CHANCE", trafego.long_session_chance,
+                 "Fração das sessões que se estendem além do típico.", "D-097",
+                 teoria_da_cauda(
+                     lote.requests_range,
+                     trafego.long_session_chance,
+                     trafego.long_session_excess,
+                     AttackSpecification().ostensive_requests_range[0],
+                 )),
+        Variavel("LONG_SESSION_EXCESS", trafego.long_session_excess,
+                 "Requisições a mais na sessão que se estende, média da "
+                 "geométrica.", "D-097"),
         Variavel("segundos entre requisições",
                  f"end_user: {rotina.seconds_between_requests}; "
                  f"automated_service: {lote.seconds_between_requests}; "
@@ -191,8 +204,9 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                      "administrator": custodia.seconds_between_requests,
                  })),
         Variavel("DEFAULT_DISTINCT_KEYS_RANGE", trafego.distinct_keys_range,
-                 "Chaves distintas que uma sessão toca, se couberem no alcance.",
-                 "D-058"),
+                 "Chaves distintas que uma sessão toca, se couberem no alcance. "
+                 "É a amplitude **típica**: a sessão que se estende também se "
+                 "alarga, pela mesma cauda.", "D-058, D-098"),
         Variavel("PRIMARY_ADDRESS_SHARE", PRIMARY_ADDRESS_SHARE,
                  "Chance de a sessão vir do endereço principal; os demais decaem "
                  "geometricamente.",

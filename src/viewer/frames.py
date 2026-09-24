@@ -178,7 +178,15 @@ def frames_da_fase_1(
                 "regras e modelos mediria a ficção que a produziu (D-013).\n\n"
                 "O ritmo vem do **regime**, nunca do rótulo do perfil — é o que "
                 "faz o pico periódico do serviço automatizado aparecer no log "
-                "sem que nada tenha consultado o nome do perfil."
+                "sem que nada tenha consultado o nome do perfil.\n\n"
+                "**A faixa de comprimento de cada regime é o típico, não um "
+                "teto** (D-097). Uma sessão em vinte se estende por um excesso "
+                "geométrico, e a que se estende também se alarga (D-098). Sem "
+                "isso nenhuma sessão legítima passava de 40 eventos, o atacante "
+                "ostensivo começa em 40, e as duas classes não se sobrepunham: "
+                "`events` e `distinct_keys` separavam sozinhos, com F1 0,982 e "
+                "0,879. A cauda é o que obriga a regra a medir comportamento em "
+                "vez de ler a faixa."
             ),
             entradas=(
                 Painel("operators.csv", operators,

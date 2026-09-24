@@ -168,6 +168,77 @@ def teoria_da_exponencial(intervalos: dict[str, float]) -> Teoria:
     )
 
 
+def teoria_da_cauda(
+    faixa: tuple[int, int], chance: float, excesso: float, teto_ostensivo: int
+) -> Teoria:
+    """Por que a faixa de comprimento da sessão precisou de cauda (D-097)."""
+    menor, maior = faixa
+    comprimentos = np.arange(menor, teto_ostensivo + 30)
+
+    # O tipico e uniforme na faixa; sobre ele, uma geometrica de media
+    # `excesso` com probabilidade `chance`. E a mesma conta que o gerador faz.
+    dentro_da_faixa = (comprimentos >= menor) & (comprimentos <= maior)
+    uniforme = dentro_da_faixa / dentro_da_faixa.sum()
+
+    com_cauda = np.zeros_like(comprimentos, dtype=float)
+
+    for indice, tipico in enumerate(comprimentos):
+        if not dentro_da_faixa[indice]:
+            continue
+
+        peso = uniforme[indice]
+        com_cauda[indice] += peso * (1 - chance)
+
+        excessos = np.arange(1, len(comprimentos) - indice)
+        geometrica = stats.geom.pmf(excessos, 1.0 / excesso)
+        com_cauda[indice + 1:indice + 1 + len(excessos)] += (
+            peso * chance * geometrica
+        )
+
+    dados = pd.DataFrame({
+        "eventos na sessão": comprimentos,
+        "faixa fechada": uniforme,
+        "com cauda": com_cauda,
+    })
+
+    acima = com_cauda[comprimentos > maior].sum()
+
+    return Teoria(
+        titulo="Por que a faixa de comprimento precisou de cauda",
+        texto=(
+            f"A faixa de cada regime — aqui {faixa} — dizia o comprimento da "
+            "sessão por **sorteio uniforme numa faixa fechada**. Isso a tornava "
+            "um **teto rígido**: nenhuma sessão legítima podia ter mais de "
+            f"{maior} eventos, nunca.\n\n"
+            f"O atacante ostensivo sorteia a partir de {teto_ostensivo}. As duas "
+            "classes **não se sobrepunham**, e o percentil 99 do baseline caía "
+            f"exatamente em {maior}. A regra `events` passava a ter **falso "
+            "positivo zero por construção** e separava as classes sozinha, com "
+            "F1 **0,982** em σ 0,0 — por aritmética de faixa, não por "
+            "comportamento. A condição σ 0,0 seria excluída da comparação pelo "
+            "critério de trivialidade, e pela razão errada (D-097).\n\n"
+            f"A correção: **uma sessão em {1 / chance:.0f}** se estende por um "
+            f"excesso geométrico de média {excesso:.0f}. Tráfego real de KMS tem "
+            "cauda — migração em lote, reprocessagem, job que repete —, e o teto "
+            "era artefato do sorteio, não propriedade do domínio.\n\n"
+            f"Hoje **{acima:.1%}** das sessões passam do típico, e a mais longa "
+            "chega à faixa do atacante. O mesmo mecanismo vale para a amplitude: "
+            "a sessão que se estende também se alarga (D-098)."
+        ),
+        dados=dados,
+        rotulo_x="eventos na sessão",
+        rotulo_y="chance",
+        forma="linha",
+        leitura=(
+            f"A curva **faixa fechada** cai a zero em {maior} e não volta mais — "
+            "é o teto. A **com cauda** tem a mesma massa no meio e segue à "
+            "direita, fina mas sem acabar, atravessando a região onde o atacante "
+            "ostensivo vive. É essa sobreposição que faz a regra precisar medir "
+            "comportamento em vez de ler a faixa."
+        ),
+    )
+
+
 def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
     """Como a origem de rede é escolhida, e por que alguma precisa faltar."""
     posicoes = np.arange(maximo_de_enderecos)
@@ -180,7 +251,10 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
     })
 
     quarto = pesos[-1] if maximo_de_enderecos >= 4 else pesos[-1]
-    ausencia = (1 - quarto) ** 40
+    # Sessoes na regua, mediana nas 30 sementes. E o expoente que decide se o
+    # endereco raro falta: regua mais longa o derruba, e foi o custo da D-096.
+    SESSOES_NA_REGUA = 32
+    ausencia = (1 - quarto) ** SESSOES_NA_REGUA
 
     return Teoria(
         titulo="Por que a origem de rede decai geometricamente",
@@ -190,14 +264,20 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
             f"{principal:.0%}, e cada endereço seguinte leva {principal:.0%} do "
             "que sobrou.\n\n"
             "A razão não é realismo pelo realismo. O atributo `new_source_ip` "
-            "pergunta se a origem da sessão **apareceu no perfil das semanas 1 "
-            "e 2**. Se todos os endereços de um operador aparecessem sempre, "
-            "nenhuma sessão legítima teria origem inédita no período avaliado — "
-            "e origem inédita viraria marcador perfeito do atacante.\n\n"
+            "pergunta se a origem da sessão **apareceu na régua**, que são as "
+            "quatro semanas de aquecimento. Se todos os endereços de um operador "
+            "aparecessem sempre, nenhuma sessão legítima teria origem inédita no "
+            "período avaliado — e origem inédita viraria marcador perfeito do "
+            "atacante.\n\n"
             f"Com o decaimento, o quarto endereço fica em **{quarto:.2%}** de "
-            "chance por sessão. Num aquecimento de cerca de 40 sessões, ele tem "
+            "chance por sessão. Numa régua de cerca de 32 sessões, ele tem "
             f"~{ausencia:.0%} de chance de **não aparecer nenhuma vez** — e é "
-            "essa ausência que produz origem inédita legítima depois."
+            "essa ausência que produz origem inédita legítima depois.\n\n"
+            "**A régua de quatro semanas apertou essa folga**, e é o custo "
+            "declarado da D-096: 66,8 % dos perfis já viram todos os endereços "
+            "do operador, e as sessões legítimas com origem inédita caíram para "
+            "**11 na mediana** por semente, faixa de 3 a 21. Nenhuma semente "
+            "chega a zero, que é a condição mínima, mas a margem é fina."
         ),
         dados=dados,
         rotulo_x="posição do endereço na lista do operador",

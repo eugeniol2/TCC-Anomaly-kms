@@ -729,17 +729,23 @@ def attack_steps(
             "Em sigma 1 as duas colunas coincidem e o M3 chama as mesmas funcoes "
             "do M2: a sessao comprometida sai da mesma distribuicao que uma "
             "legitima, e nenhum mecanismo pode separa-las. E o piso declarado "
-            "da varredura (D-082)."
+            "da varredura (D-082).\n\n"
+            "**As duas primeiras linhas dizem o tipico, nao o teto** (D-097, "
+            "D-098). A cauda e a mesma nos dois lados: ela vem da especificacao "
+            "de trafego, que o M2 e o M3 compartilham, entao a convergencia "
+            "exata em sigma 1 vale com ela inclusive. Enquanto a faixa era teto, "
+            "as duas classes nao se sobrepunham e `events` separava sozinho com "
+            "F1 0,982 em sigma 0."
         ),
         entrada={"sigma": sigma, "regime": alvo.regime},
         saida=pd.DataFrame([
             {"dimensao": "segundos entre requisicoes",
              "neste sigma": str(round(furtividade.seconds_between_requests, 2)),
              "no legitimo": str(legitimo.seconds_between_requests)},
-            {"dimensao": "requisicoes por sessao",
+            {"dimensao": "requisicoes por sessao (tipico)",
              "neste sigma": str(furtividade.requests_range),
              "no legitimo": str(legitimo.requests_range)},
-            {"dimensao": "chaves distintas",
+            {"dimensao": "chaves distintas (tipico)",
              "neste sigma": str(furtividade.distinct_keys_range),
              "no legitimo": str(trafego.distinct_keys_range)},
             {"dimensao": "chance de hora atipica",
