@@ -48,13 +48,13 @@ porque sem eles nao ha como auditar um falso positivo. Quem separa
 identificador de atributo e o M9 e o M11, e a lista `ATTRIBUTES` abaixo e o
 contrato: o que nao esta nela nao entra no modelo.
 
-`opened_at` esta aqui por necessidade do M8, que calibra sobre a **semana 3** e
-precisa saber quais sessoes sao dela. Sem ele o M8 teria de reabrir o
-`log.csv`, e passaria a depender de dois arquivos para responder uma pergunta
-de calendario.
+`opened_at` esta aqui por necessidade do M8, que calibra sobre o **aquecimento**
+e precisa poder recusar um conjunto que nao seja dele. Sem ele o M8 teria de
+reabrir o `log.csv`, e passaria a depender de dois arquivos para responder uma
+pergunta de calendario.
 **Ele nao pode virar atributo.** O que o horario tem de informativo ja esta em
 `atypical_hour`, que compara contra o historico do operador; o instante cru
-deixaria o modelo aprender o calendario do experimento — que as semanas 4 a 7
+deixaria o modelo aprender o calendario do experimento — que as semanas 5 a 8
 concentram o ataque — em vez de aprender comportamento.
 """
 
@@ -145,16 +145,16 @@ def read_profiles(profiles: pd.DataFrame) -> pd.DataFrame:
 def with_history_attributes(
     sessions: pd.DataFrame, profiles: pd.DataFrame
 ) -> pd.DataFrame:
-    """Os dois atributos binarios, lidos contra o perfil das semanas 1 e 2.
+    """Os dois atributos binarios, lidos contra o perfil do aquecimento.
 
     Ambos comparam a sessao com o historico **daquele operador**, nunca com um
     limiar global: e o que a D-041 exige ao sortear a quantidade de origens por
     operador em faixas sobrepostas.
 
     Operador ausente do perfil nao existe nesta escala — todo operador abre
-    sessao nas duas primeiras semanas —, e o `KeyError` que isso levantaria e
-    preferivel a um padrao silencioso que decidisse por conta propria se a
-    sessao e atipica.
+    sessao nas quatro semanas de aquecimento —, e o `KeyError` que isso
+    levantaria e preferivel a um padrao silencioso que decidisse por conta
+    propria se a sessao e atipica.
     """
     history = read_profiles(profiles)
 
@@ -162,6 +162,10 @@ def with_history_attributes(
     opens = sessions["operator_id"].map(history["window_opens_at"])
     closes = sessions["operator_id"].map(history["window_closes_at"])
 
+    # Comparacao de texto, e nao de numero. As tres pontas sao `HH:MM:SS`
+    # de largura fixa, entao a ordem alfabetica e a cronologica, e a
+    # sessao que definiu a ponta bate com ela exatamente — que e o que a
+    # fracao de hora nao conseguia garantir (D-090, D-095).
     is_inside = (hours >= opens) & (hours <= closes)
 
     is_known = [

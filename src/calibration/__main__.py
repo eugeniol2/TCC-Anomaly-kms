@@ -1,8 +1,8 @@
-"""Linha de comando do M8: os limiares do baseline, da semana 3.
+"""Linha de comando do M8: os limiares do baseline, do aquecimento.
 
     python -m src.calibration --seed 1
 
-Nao recebe `--fase` nem `--sigma`. A semana 3 e anterior ao ataque e mora no
+Nao recebe `--fase` nem `--sigma`. O aquecimento e anterior ao ataque e mora no
 ramo da semente: nao ha segundo ramo onde este modulo pudesse rodar (D-043).
 """
 
@@ -53,7 +53,7 @@ def report(destination: Path, thresholds: pd.DataFrame) -> None:
     print(f"{destination}")
     print(f"  thresholds.csv   {len(thresholds)} regras de grandeza, "
           f"percentil {thresholds['percentile'].iloc[0]} de "
-          f"{thresholds['sessions'].iloc[0]} sessoes da semana 3")
+          f"{thresholds['sessions'].iloc[0]} sessoes do aquecimento")
 
     for row in thresholds.itertuples():
         print(f"     {row.attribute:<22} > {row.threshold:>10.4f}")

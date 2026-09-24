@@ -7,14 +7,15 @@ outro**.
 
 Quatro invariantes valem mais que as outras:
 
-1. **O perfil sai so das semanas 1 e 2** (D-044). Perfil que enxergasse a
-   semana 3 acoplaria a janela horaria ao limiar, que a D-054 mantem separados.
-2. **Toda sessao das semanas 1 e 2 e tipica, por construcao** (D-073). A janela
+1. **O perfil sai so do aquecimento** (D-044). Perfil que enxergasse o periodo
+   avaliado absorveria o atacante, e o desvio que deveria denuncia-lo viraria a
+   normalidade do operador comprometido.
+2. **Toda sessao do aquecimento e tipica, por construcao** (D-073). A janela
    e o minimo e o maximo daquelas sessoes, entao nenhuma delas pode cair fora.
    E o teste que pega inversao de sinal ou janela lida do periodo errado.
 3. **O `sessions.csv` do aquecimento nao tem rotulo** (D-063). Se a coluna nao
    existe, o M8 nao pode usa-la por engano.
-4. **O limiar sai so da semana 3** (D-043), e nunca do holdout.
+4. **O limiar sai do mesmo periodo que o perfil** (D-096), e nunca do holdout.
 """
 
 from __future__ import annotations
@@ -28,21 +29,26 @@ from src.attack.build import build_attack
 from src.attack.parameters import AttackSpecification
 from src.audit_logger.build import build_log
 from src.calibration.build import COLUMNS as THRESHOLD_COLUMNS
-from src.calibration.build import build_thresholds, calibration_period
+from src.calibration.build import build_thresholds, ruler_period
 from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
 from src.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL, build_dataset
 from src.globals.experiment import SEEDS
 from src.globals.phases import (
-    CALIBRATION_WEEK,
     EVALUATED,
-    PROFILE_WEEKS,
+    RULER_WEEKS,
     WARMUP,
+    belongs_to,
     day_after_last_of,
     first_day_of,
 )
 from src.globals.tables import MULTIVALUE_SEPARATOR
 from src.historical_profiles.build import COLUMNS as PROFILE_COLUMNS
-from src.historical_profiles.build import build_profiles, hour_of_day
+from src.historical_profiles.build import (
+    build_profiles,
+    hour_of_day,
+    session_openings,
+    window_width_hours,
+)
 from src.kms.build import build_outcomes
 from src.population.build import Population, build_population
 from src.population.parameters import KeyRepositorySpecification
@@ -107,14 +113,9 @@ def evaluated_sessions(seed: int, sigma: float) -> pd.DataFrame:
     return build_dataset(log, profiles(seed), EVALUATED, campaign.compromised)
 
 
-def within_profile_weeks(sessions: pd.DataFrame) -> pd.DataFrame:
-    first_week, last_week = PROFILE_WEEKS
-
-    opens = pd.Timestamp(first_day_of(first_week))
-    closes = pd.Timestamp(day_after_last_of(last_week))
-    instants = pd.to_datetime(sessions["opened_at"])
-
-    return sessions[(instants >= opens) & (instants < closes)]
+def within_ruler_weeks(sessions: pd.DataFrame) -> pd.DataFrame:
+    """As sessoes do aquecimento, que desde a D-096 sao a regua inteira."""
+    return sessions[belongs_to(WARMUP, sessions["opened_at"])]
 
 
 # M6: o perfil historico.
@@ -134,35 +135,23 @@ def test_every_operator_has_a_profile(seed: int) -> None:
 
 
 @pytest.mark.parametrize("seed", SAMPLE_SEEDS)
-def test_the_profile_ignores_the_calibration_week(seed: int) -> None:
-    """D-044 e D-054: a janela sai das semanas 1 e 2, nunca da semana 3.
+def test_the_ruler_sees_the_whole_warmup_and_nothing_else(seed: int) -> None:
+    """D-096: a regua sao as quatro semanas, e so elas.
 
-    Conferido pelo efeito, e nao pela leitura do codigo. A semana 3 traz
-    horarios novos, entao uma janela calculada sobre o aquecimento inteiro e
-    **mais larga ou igual** para todo operador, e estritamente mais larga para
-    alguns. Se as duas versoes coincidissem em todos, o recorte nao estaria
-    acontecendo.
+    Conferido pelo efeito e nao pela leitura do codigo. Se o M6 estivesse
+    recortando um pedaco do aquecimento, a janela sairia **mais estreita**
+    que a das sessoes que ele de fato recebeu. Aqui ela tem de coincidir
+    exatamente: para todo operador, a ponta da janela e o minimo e o maximo
+    das aberturas dele no aquecimento inteiro.
     """
-    log = warmup_log(seed)
-    instants = pd.to_datetime(log["timestamp"])
+    aberturas = session_openings(warmup_log(seed))
+    horas = hour_of_day(aberturas["moment"])
 
-    week_three = log[instants >= pd.Timestamp(first_day_of(CALIBRATION_WEEK))]
-    assert len(week_three) > 0
-
+    esperado = aberturas.assign(hora=horas).groupby("operator_id")["hora"]
     produced = profiles(seed).set_index("operator_id")
-    relabelled = log.assign(
-        timestamp=instants.where(
-            instants < pd.Timestamp(first_day_of(CALIBRATION_WEEK)),
-            instants - pd.Timedelta(days=7),
-        ).dt.strftime("%Y-%m-%dT%H:%M:%S")
-    )
-    widened = build_profiles(relabelled).set_index("operator_id")
 
-    narrower = produced["window_closes_at"] - produced["window_opens_at"]
-    wider = widened["window_closes_at"] - widened["window_opens_at"]
-
-    assert (wider >= narrower - 1e-9).all()
-    assert (wider > narrower + 1e-9).any()
+    assert produced["window_opens_at"].to_dict() == esperado.min().to_dict()
+    assert produced["window_closes_at"].to_dict() == esperado.max().to_dict()
 
 
 @pytest.mark.parametrize("seed", SAMPLE_SEEDS)
@@ -242,11 +231,11 @@ def test_the_warmup_refuses_a_label_and_the_evaluated_demands_one() -> None:
 def test_no_session_of_the_profile_weeks_is_atypical(seed: int) -> None:
     """A invariante que prova que a janela foi lida do periodo certo.
 
-    A janela e o minimo e o maximo das sessoes das semanas 1 e 2 (D-073), entao
+    A janela e o minimo e o maximo das sessoes das quatro semanas do aquecimento (D-073), entao
     **nenhuma delas pode cair fora**, e nenhum endereco delas pode ser inedito.
     Janela lida do periodo errado, ou comparacao invertida, quebra isto na hora.
     """
-    inside = within_profile_weeks(warmup_sessions(seed))
+    inside = within_ruler_weeks(warmup_sessions(seed))
 
     assert len(inside) > 0
     assert (inside["atypical_hour"] == 0).all()
@@ -291,7 +280,7 @@ def test_the_rate_attributes_are_finite_and_consistent(seed: int) -> None:
 def test_the_opening_instant_matches_the_first_event_of_the_session(
     seed: int,
 ) -> None:
-    """`opened_at` e o primeiro evento, e e o que o M8 usa para achar a semana 3."""
+    """`opened_at` e o primeiro evento, e e por ele que o M8 confere a fase."""
     log = warmup_log(seed)
     expected = log.groupby("session_id")["timestamp"].min()
 
@@ -315,31 +304,40 @@ def test_thresholds_cover_the_six_magnitude_rules(seed: int) -> None:
 
 
 @pytest.mark.parametrize("seed", SAMPLE_SEEDS)
-def test_calibration_reads_the_third_week_and_nothing_else(seed: int) -> None:
-    """D-043: o limiar sai da semana 3, que e limpa e anterior ao ataque."""
-    selected = calibration_period(warmup_sessions(seed))
+def test_the_thresholds_come_from_the_same_period_as_the_profile(
+    seed: int,
+) -> None:
+    """D-096: o perfil e os limiares sao os dois lados da mesma regua.
+
+    Sairem de periodos diferentes era o desenho ate 23/09, e custava
+    alarme falso sem comprar nada: as seis regras de grandeza nao usam o
+    perfil, entao nao havia acoplamento a evitar.
+    """
+    selected = ruler_period(warmup_sessions(seed))
+
+    assert len(selected) == len(warmup_sessions(seed))
+    assert belongs_to(WARMUP, selected["opened_at"]).all()
+    assert (thresholds(seed)["sessions"] == len(selected)).all()
+
+    opens = pd.Timestamp(first_day_of(1))
+    closes = pd.Timestamp(day_after_last_of(RULER_WEEKS))
     instants = pd.to_datetime(selected["opened_at"])
 
-    opens = pd.Timestamp(first_day_of(CALIBRATION_WEEK))
-    closes = pd.Timestamp(day_after_last_of(CALIBRATION_WEEK))
-
-    assert len(selected) > 0
-    assert len(selected) < len(warmup_sessions(seed))
     assert (instants >= opens).all()
     assert (instants < closes).all()
-    assert (thresholds(seed)["sessions"] == len(selected)).all()
 
 
 @pytest.mark.parametrize("seed", SAMPLE_SEEDS)
-def test_each_rule_fires_on_about_one_percent_of_the_calibration_week(
+def test_each_rule_fires_on_about_one_percent_of_the_ruler(
     seed: int,
 ) -> None:
     """O percentil 99 fixa o alarme falso por construcao, e o teste confere.
 
-    Nao e resultado de deteccao: a semana 3 e limpa, entao toda marcacao ali e
-    falso positivo por definicao, e o numero e propriedade do percentil.
+    Nao e resultado de deteccao: o aquecimento e limpo, entao toda marcacao
+    ali e falso positivo por definicao, e o numero e propriedade do
+    percentil.
     """
-    calibration = calibration_period(warmup_sessions(seed))
+    calibration = ruler_period(warmup_sessions(seed))
     limits = thresholds(seed).set_index("attribute")["threshold"]
 
     for attribute in THRESHOLD_ATTRIBUTES:

@@ -1,4 +1,4 @@
-"""M6: o que cada operador fez nas semanas 1 e 2, e que fica congelado ali.
+"""M6: o que cada operador fez no aquecimento, e que fica congelado ali.
 
 O `historical_profile` **nao se confunde com o `profile`** (D-034). `profile` e o
 tipo do operador na tabela de populacao — Usuario Legitimo, Servico
@@ -11,10 +11,9 @@ analista teria; o tipo do operador e o que so o gerador sabe.
 
 Duas propriedades vem de decisoes e nao de conveniencia:
 
-**Sai das semanas 1 e 2, e nunca e recalculado** (D-044). Perfil movel
-absorveria o comportamento do atacante durante o periodo avaliado, e o baseline
-passaria a comparar o atacante contra ele mesmo. O mesmo arquivo serve a
-calibracao da semana 3 e as semanas 4 a 7.
+**Sai das quatro semanas de aquecimento, e nunca e recalculado** (D-044,
+D-096). Perfil movel absorveria o comportamento do atacante durante o periodo
+avaliado, e o baseline passaria a comparar o atacante contra ele mesmo.
 
 **A janela e do menor ao maior horario observado** (D-073). Sem percentil, sem
 descarte, sem parametro. O corte de 95 % da D-031 foi abandonado porque nao era
@@ -26,7 +25,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.globals.phases import PROFILE_WEEKS, day_after_last_of, first_day_of
+from src.globals.phases import WARMUP, belongs_to
 from src.globals.tables import MULTIVALUE_SEPARATOR
 
 COLUMNS = (
@@ -40,7 +39,7 @@ COLUMNS = (
 
 `observed_ips` **nao** e `usual_ips` de `operators.csv`, e o nome difere de
 proposito. Aquela e a lista que o gerador sorteou; esta e o subconjunto dela
-que apareceu no log das semanas 1 e 2. A diferenca entre as duas e exatamente o
+que apareceu no log do aquecimento. A diferenca entre as duas e exatamente o
 que produz origem inedita legitima no periodo avaliado (D-040), entao chama-las
 igual apagaria o mecanismo.
 
@@ -50,21 +49,19 @@ so e mensuravel se a contagem estiver em disco.
 """
 
 
-def profile_period(log: pd.DataFrame) -> pd.DataFrame:
-    """Apenas as semanas 1 e 2, que sao as que constroem o perfil.
+def ruler_period(log: pd.DataFrame) -> pd.DataFrame:
+    """O aquecimento inteiro, que desde a D-096 **e** a regua.
 
-    O log de aquecimento cobre tres semanas: a terceira calibra os limiares e
-    **nao** entra aqui. Calcular a janela sobre a semana de calibracao daria a
-    cobertura por construcao, que e a degeneracao que a D-054 evita.
+    Nao ha mais recorte dentro dele. Ate 23/09 o perfil saia das semanas 1 e 2
+    e os limiares da semana 3, e a divisao custava alarme falso sem comprar
+    nada — a regua via metade dos dados que podia ver.
+
+    A funcao sobrevive a divisao como **guarda**: ela recusa silenciosamente o
+    que nao for do aquecimento, para um log do periodo avaliado nunca virar
+    perfil. Perfil que enxergasse o periodo avaliado absorveria o atacante, e
+    o desvio que deveria denuncia-lo viraria a normalidade dele (D-044).
     """
-    first_week, last_week = PROFILE_WEEKS
-
-    opens = pd.Timestamp(first_day_of(first_week))
-    closes = pd.Timestamp(day_after_last_of(last_week))
-
-    instants = pd.to_datetime(log["timestamp"])
-
-    return log[(instants >= opens) & (instants < closes)]
+    return log[belongs_to(WARMUP, log["timestamp"])]
 
 
 def session_openings(log: pd.DataFrame) -> pd.DataFrame:
@@ -86,37 +83,56 @@ def session_openings(log: pd.DataFrame) -> pd.DataFrame:
     })
 
 
-HOUR_DECIMALS = 4
-"""Casas decimais da hora fracionaria, cerca de 0,36 segundo de resolucao.
+HOUR_FORMAT = "%H:%M:%S"
+"""Como a hora do dia e escrita: `09:00:45`, de largura fixa e com zero a esquerda.
 
-Existe para o CSV ficar legivel — 8,7364 em vez de 8,736388888888889 — e o
-arredondamento **tem de acontecer aqui dentro**, nao em quem chama.
+**A largura fixa e o que torna a comparacao possivel como texto.** Com zero a
+esquerda, a ordem alfabetica coincide com a cronologica — `"09:00:45"` vem
+antes de `"14:23:01"` como string e como hora. E a mesma propriedade que faz o
+`requests.csv` poder ser ordenado pelo `timestamp` sem converter nada.
 
-Foi um defeito antes de ser uma constante. O M6 arredondava as pontas da janela
-e o M7 comparava a hora sem arredondar, de modo que a sessao que **define** a
-ponta caia fora da propria janela por 1,1 x 10⁻⁵: a ponta subia para 8,7364 e a
-hora continuava 8,73638… Marcava 37 das 993 sessoes das semanas 1 e 2 na
-semente 1, sempre as extremas, e inflava `atypical_hour` em todos os periodos
-sem que nada acusasse.
-Com o arredondamento dentro desta funcao, os dois lados quantizam pelo mesmo
-caminho por construcao, e nao por duas lembrancas coincidirem.
+Esta coluna foi **fracao de hora** ate 23/09, `9.0125` em vez de `09:00:45`
+(D-095). A troca e de legibilidade, e tambem de robustez: a fracao precisa de
+arredondamento, e foi dele que nasceu o defeito da D-090 — o M6 arredondava a
+ponta da janela e o M7 comparava sem arredondar, de modo que a sessao que
+**define** a ponta caia fora dela por 1,1 x 10⁻⁵, marcando 37 das 993 sessoes
+da regua de entao — as semanas 1 e 2 — na semente 1.
+Formatar para `HH:MM:SS` e **exato**: o `timestamp` tem resolucao de segundo, e
+nada se perde no caminho. Aquela classe de defeito deixa de existir em vez de
+ser contida.
 """
 
 
 def hour_of_day(moments: pd.Series) -> pd.Series:
-    """A hora do dia como fracao, para a janela nao perder os minutos.
+    """A hora do dia como texto `HH:MM:SS`, sem a data.
 
-    Uma sessao das 09:50 e das 09:10 tem a mesma hora inteira e horarios
-    diferentes. Truncar para a hora alargaria toda janela em ate uma hora, e a
-    largura da janela e o que decide quantas sessoes legitimas disparam.
+    Sem a data de proposito: a janela habitual e sobre a **hora**, nao sobre o
+    dia. Duas sessoes das 09:10, em dias diferentes, sao o mesmo ponto dentro
+    da janela.
+
+    Nao trunca para a hora cheia: uma sessao das 09:50 e outra das 09:10 tem a
+    mesma hora inteira e horarios diferentes, e truncar alargaria toda janela
+    em ate uma hora — a largura da janela e o que decide quantas sessoes
+    legitimas disparam.
     """
-    fractional = moments.dt.hour + moments.dt.minute / 60 + moments.dt.second / 3600
+    return moments.dt.strftime(HOUR_FORMAT)
 
-    return fractional.round(HOUR_DECIMALS)
+
+def window_width_hours(profiles: pd.DataFrame) -> pd.Series:
+    """A largura da janela em horas, para quem precisa do numero.
+
+    As pontas sao texto `HH:MM:SS`, que compara e se le, mas nao subtrai.
+    Quem quer a largura converte aqui, e so aqui: espalhar a conversao
+    seria convidar cada chamador a inventar a sua.
+    """
+    opens = pd.to_timedelta(profiles["window_opens_at"])
+    closes = pd.to_timedelta(profiles["window_closes_at"])
+
+    return (closes - opens).dt.total_seconds() / 3600
 
 
 def profile_of(openings: pd.DataFrame) -> pd.DataFrame:
-    """A janela e as origens de cada operador, do log das semanas 1 e 2."""
+    """A janela e as origens de cada operador, do log do aquecimento."""
     hours = hour_of_day(openings["moment"])
     dated = openings.assign(hour=hours)
 
@@ -138,11 +154,10 @@ def profile_of(openings: pd.DataFrame) -> pd.DataFrame:
 def build_profiles(log: pd.DataFrame) -> pd.DataFrame:
     """Do log do aquecimento ao perfil historico de cada operador.
 
-    Recebe o log inteiro da fase `warmup` e recorta as semanas 1 e 2 aqui
-    dentro, em vez de exigir que quem chama ja recorte: a fatia e propriedade
-    do M6, e deixa-la do lado de fora seria mais uma coisa a lembrar.
+    Recebe o log da fase `warmup` e usa **todas** as quatro semanas dele: o
+    aquecimento e a regua, e nao ha recorte a fazer (D-096).
     """
-    openings = session_openings(profile_period(log))
+    openings = session_openings(ruler_period(log))
     profiles = profile_of(openings)
 
     return profiles.sort_values("operator_id", ignore_index=True)[list(COLUMNS)]

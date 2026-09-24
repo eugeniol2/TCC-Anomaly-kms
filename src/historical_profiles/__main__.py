@@ -2,9 +2,9 @@
 
     python -m src.historical_profiles --seed 1
 
-Nao recebe `--fase` nem `--sigma`. O perfil sai das semanas 1 e 2, que moram no
-ramo da semente e sao anteriores ao ataque: nao ha segundo ramo onde este
-modulo pudesse rodar (D-044, D-048).
+Nao recebe `--fase` nem `--sigma`. O perfil sai das quatro semanas de
+aquecimento, que moram no ramo da semente e sao anteriores ao ataque: nao ha
+segundo ramo onde este modulo pudesse rodar (D-044, D-048, D-096).
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import pandas as pd
 
 from src.globals.layout import DEFAULT_ROOT, seed_directory
 from src.globals.tables import MULTIVALUE_SEPARATOR, write_csv
-from src.historical_profiles.build import build_profiles
+from src.historical_profiles.build import build_profiles, window_width_hours
 
 
 class Arguments(argparse.Namespace):
@@ -51,7 +51,7 @@ def read_log(tables: Path) -> pd.DataFrame:
 
 def report(destination: Path, profiles: pd.DataFrame) -> None:
     """Resumo da execucao, para conferencia imediata na linha de comando."""
-    widths = profiles["window_closes_at"] - profiles["window_opens_at"]
+    widths = window_width_hours(profiles)
     addresses = profiles["observed_ips"].str.split(MULTIVALUE_SEPARATOR).str.len()
     sessions = profiles["session_count"]
 

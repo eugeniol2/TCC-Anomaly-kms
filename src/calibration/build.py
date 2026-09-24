@@ -1,7 +1,7 @@
-"""M8: os limiares do baseline, calibrados na semana 3.
+"""M8: os limiares do baseline, calibrados nas quatro semanas de aquecimento.
 
 **Um conjunto de limiares por semente**, compartilhado pelas 11 condicoes de
-sigma daquela varredura (D-043). A semana 3 e anterior ao ataque, logo
+sigma daquela varredura (D-043). O aquecimento e anterior ao ataque, logo
 independente de sigma, e por isso mora no ramo da semente e roda 30 vezes e nao
 330.
 
@@ -9,7 +9,8 @@ Tres propriedades vem de decisao e nao de conveniencia:
 
 **Calibra sobre tráfego limpo, nunca sobre o holdout** (D-033, D-046). O
 baseline nao recebe treino em momento nenhum e chega ao periodo avaliado com os
-limiares congelados desde a semana 3. A assimetria com os modelos e deliberada:
+limiares congelados desde o fim do aquecimento. A assimetria com os modelos e
+deliberada:
 calibrar limiar exige so comportamento normal, que um administrador teria antes
 de qualquer incidente; ajustar hiperparametro exige rotulo de ataque, que ele
 nao teria.
@@ -19,8 +20,13 @@ tem coluna de rotulo (D-063). A cegueira e estrutural, nao disciplina.
 
 **O limiar e global, nao por operador.** As duas regras que comparam contra o
 historico de cada operador — `atypical_hour` e `new_source_ip` — ja vem prontas
-do M7, lidas contra o perfil das semanas 1 e 2. As seis daqui sao de grandeza
-absoluta e saem do percentil sobre todas as sessoes da semana juntas.
+do M7, lidas contra o perfil. As seis daqui sao de grandeza absoluta e saem do
+percentil sobre todas as sessoes do aquecimento juntas.
+
+**Sai das quatro semanas de aquecimento** (D-096), e nao de uma so. O perfil e
+os limiares sao os dois lados da mesma regua, construida de uma vez, no mesmo
+periodo: e o que permite dizer que o baseline nasce pronto ao fim do
+aquecimento e so entao entra em producao.
 """
 
 from __future__ import annotations
@@ -29,7 +35,7 @@ import numpy as np
 import pandas as pd
 
 from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.globals.phases import CALIBRATION_WEEK, day_after_last_of, first_day_of
+from src.globals.phases import WARMUP, belongs_to
 
 COLUMNS = ("attribute", "threshold", "percentile", "sessions")
 """As colunas de `thresholds.csv` (D-087).
@@ -42,19 +48,20 @@ sobre a fragilidade do baseline, e material da Discussao.
 """
 
 
-def calibration_period(sessions: pd.DataFrame) -> pd.DataFrame:
-    """Apenas a semana 3, de todo o aquecimento.
+def ruler_period(sessions: pd.DataFrame) -> pd.DataFrame:
+    """As sessoes do aquecimento inteiro, que desde a D-096 **sao** a regua.
 
-    As semanas 1 e 2 construiram o perfil e **nao** entram: calcular o limiar
-    sobre os mesmos dados que definiram a janela horaria acoplaria as duas
-    coisas, que a D-054 mantem em periodos diferentes de proposito.
+    Ate 23/09 so a semana 3 entrava, e as semanas 1 e 2 ficavam de fora porque
+    tinham construido o perfil. O argumento nao se sustentava: **as seis
+    regras de grandeza nao usam o perfil** — `events`, `duration_minutes` e as
+    outras quatro se calculam do log cru —, entao nao havia acoplamento a
+    evitar. O que a divisao produzia era um limiar estimado de um terco dos
+    dados disponiveis.
+
+    Como guarda, a funcao recusa o que nao for do aquecimento: calibrar sobre
+    o periodo avaliado poria o atacante dentro do percentil (D-033).
     """
-    opens = pd.Timestamp(first_day_of(CALIBRATION_WEEK))
-    closes = pd.Timestamp(day_after_last_of(CALIBRATION_WEEK))
-
-    instants = pd.to_datetime(sessions["opened_at"])
-
-    return sessions[(instants >= opens) & (instants < closes)]
+    return sessions[belongs_to(WARMUP, sessions["opened_at"])]
 
 
 def threshold_of(values: pd.Series) -> float:
@@ -70,13 +77,13 @@ def threshold_of(values: pd.Series) -> float:
 
 def build_thresholds(sessions: pd.DataFrame) -> pd.DataFrame:
     """Do conjunto de sessoes do aquecimento aos seis limiares da semente."""
-    calibration = calibration_period(sessions)
+    calibration = ruler_period(sessions)
 
     is_empty = len(calibration) == 0
 
     if is_empty:
         raise ValueError(
-            f"a semana {CALIBRATION_WEEK} nao tem sessao nenhuma; "
+            "nenhuma sessao do aquecimento; "
             "o `sessions.csv` recebido e da fase avaliada?"
         )
 

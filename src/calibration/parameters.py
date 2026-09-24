@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 PERCENTILE = 99
-"""Percentil da semana 3 que vira limiar de cada regra de grandeza (D-031, D-043).
+"""Percentil do aquecimento que vira limiar de cada regra de grandeza (D-031, D-043).
 
 Escolhido antes de qualquer dado e mantido desde entao. Ele fixa, por
-construcao, que cerca de **1 % das sessoes da semana de calibracao** dispararia
-cada regra — e a semana 3 e limpa, entao esse 1 % e alarme falso por definicao.
+construcao, que cerca de **1 % das sessoes do aquecimento** dispararia cada
+regra — e o aquecimento e limpo, entao esse 1 % e alarme falso por definicao.
 E o orcamento de triagem que a D-075 depois transformou em "duas ou mais regras
 disparadas".
 
