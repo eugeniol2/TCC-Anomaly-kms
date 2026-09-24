@@ -558,9 +558,12 @@ def warmup_steps(
         funcao="profile_of",
         explicacao=(
             "A janela vai do **menor ao maior** horario observado, sem percentil "
-            "e sem descarte (D-073). O corte de 95 % foi abandonado porque nao e "
-            "entregavel nesta escala: com mediana de 16 sessoes por perfil, 5 % "
-            "da 0,8 sessao, e o arredondamento manda descartar zero.\n\n"
+            "e sem descarte (D-073). O corte de 95 % foi abandonado porque nao era "
+            "entregavel na escala de entao: com a regua de duas semanas a mediana "
+            "era de 16 sessoes por perfil, 5 % davam 0,8 sessao, e o arredondamento "
+            "mandava descartar zero. A regua de quatro semanas dobrou esse numero, "
+            "mas a forma ja tinha sido decidida — e minimo a maximo e livre de "
+            "distribuicao, o que o percentil nao e.\n\n"
             "`observed_ips` **nao** e `usual_ips`. Aquela e a lista que o M1 "
             "sorteou; esta e o subconjunto que apareceu no log — e a diferenca "
             "entre as duas e o que produz origem inedita legitima depois (D-040)."
