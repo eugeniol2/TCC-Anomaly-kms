@@ -195,13 +195,48 @@ def teoria_da_cauda(
             peso * chance * geometrica
         )
 
+    # A curva mostrada e a **cumulativa invertida**: "qual a chance de a sessao
+    # passar de N eventos?". A densidade tem um degrau enorme em `maior`, de
+    # 4,7 % para 0,18 % de um evento para o outro, e em escala linear a cauda
+    # depois dele vira uma linha rente ao eixo, que se le como "acaba aqui".
+    # E o contrario do que o grafico existe para mostrar. Na cumulativa a
+    # queda e suave e a cauda fica visivel, entao a pergunta que importa (uma
+    # sessao legitima alcanca a faixa do atacante?) se responde olhando.
+    #
+    # Calculada **analiticamente**, e nao somando o pedaco desenhado: a soma
+    # truncada daria zero no ultimo ponto do eixo, que e o proprio artefato que
+    # esta curva veio corrigir.
+    tipicos = np.arange(menor, maior + 1)
+    quantos = len(tipicos)
+    sobrevive = 1.0 - 1.0 / excesso
+
+    def passa_de(n: int, com_cauda: bool) -> float:
+        """Chance de a sessao ter mais de `n` eventos."""
+        maiores = (tipicos > n).sum() / quantos
+
+        if not com_cauda:
+            return maiores
+
+        # Tipico acima de n ja passa, com ou sem excesso. Tipico abaixo so
+        # passa se a sessao se estendeu o bastante: a geometrica sobrevive
+        # a `n - t` com (1 - p) elevado a essa diferenca.
+        alcancados = [
+            chance * sobrevive ** (n - t) for t in tipicos if t <= n
+        ]
+
+        return maiores + sum(alcancados) / quantos
+
+    passa_de_fechada = np.array([passa_de(n, False) for n in comprimentos])
+    passa_de_com_cauda = np.array([passa_de(n, True) for n in comprimentos])
+
     dados = pd.DataFrame({
         "eventos na sessão": comprimentos,
-        "faixa fechada": uniforme,
-        "com cauda": com_cauda,
+        "faixa fechada": passa_de_fechada,
+        "com cauda": passa_de_com_cauda,
     })
 
     acima = com_cauda[comprimentos > maior].sum()
+    alcanca = passa_de_com_cauda[comprimentos == teto_ostensivo][0]
 
     return Teoria(
         titulo="Por que a faixa de comprimento precisou de cauda",
@@ -227,14 +262,18 @@ def teoria_da_cauda(
         ),
         dados=dados,
         rotulo_x="eventos na sessão",
-        rotulo_y="chance",
+        rotulo_y="chance de a sessão passar deste tamanho",
         forma="linha",
         leitura=(
-            f"A curva **faixa fechada** cai a zero em {maior} e não volta mais: "
-            "é o teto. A **com cauda** tem a mesma massa no meio e segue à "
-            "direita, fina mas sem acabar, atravessando a região onde o atacante "
-            "ostensivo vive. É essa sobreposição que faz a regra precisar medir "
-            "comportamento em vez de ler a faixa."
+            f"Cada ponto responde: **qual a chance de a sessão passar de N "
+            f"eventos?** A curva **faixa fechada** chega a {maior} e despenca "
+            "para zero, onde fica: é o teto, e à direita dele não existe sessão "
+            "legítima nenhuma.\n\n"
+            f"A **com cauda** continua acima de zero: em {teto_ostensivo} "
+            f"eventos, que é onde o atacante ostensivo começa, ela ainda vale "
+            f"**{alcanca:.1%}**. É pouco, e é o suficiente: enquanto for maior "
+            "que zero, uma sessão longa é explicação possível, e a regra precisa "
+            "medir comportamento em vez de ler a faixa."
         ),
     )
 
