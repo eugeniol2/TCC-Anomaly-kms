@@ -70,30 +70,25 @@ def draw_key_ids(rng: Generator, quantity: int) -> list[str]:
     return identifiers
 
 
-def build_keys(
-    rng: Generator, sizes: dict[str, int], holders: dict[str, list[str]]
-) -> pd.DataFrame:
+def build_keys(rng: Generator, sizes: dict[str, int]) -> pd.DataFrame:
     """Repositorio de chaves, todas ativas, agrupadas por escopo.
 
-    O proprietario de cada chave é sorteado entre os operadores que detem o
-    escopo dela.
+    **A chave nao tem dono** (D-099). Quem alcanca uma chave e quem detem o
+    escopo dela, e o escopo e detido por varios operadores — entao propriedade
+    nao decide acesso, nem aqui nem no M4. A tabela teve uma coluna `owner` ate
+    24/09; ela nunca foi consumida por modulo nenhum.
     """
     identifiers = iter(draw_key_ids(rng, sum(sizes.values())))
-    rows = []
 
-    for scope in sorted(sizes):
-        owners = holders[scope]
-
-        for _ in range(sizes[scope]):
-            chosen_owner = owners[int(rng.integers(len(owners)))]
-            rows.append(
-                {
-                    "key_id": next(identifiers),
-                    "owner": chosen_owner,
-                    "scope": scope,
-                    "status": "active",
-                }
-            )
+    rows = [
+        {
+            "key_id": next(identifiers),
+            "scope": scope,
+            "status": "active",
+        }
+        for scope in sorted(sizes)
+        for _ in range(sizes[scope])
+    ]
 
     return pd.DataFrame(rows)
 

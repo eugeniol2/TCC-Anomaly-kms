@@ -34,7 +34,7 @@ from src.kms.policy import read_repository
 from src.traffic.regimes import REGIMES
 from src.globals.tables import shuffle_rows
 from src.population.keys import build_keys, disable_random_sample, split_keys_by_scope
-from src.population.operators import build_operators_covering_pool, holders_by_scope
+from src.population.operators import build_operators_covering_pool
 from src.population.parameters import KeyRepositorySpecification
 from src.population.scopes import scope_pool
 from src.traffic.build import chronological, plan_sessions, request_rows, with_event_ids
@@ -182,20 +182,6 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
         legenda=f"{len(operators)} operadores",
     ))
 
-    scope_holders = holders_by_scope(operators)
-    passos.append(Step(
-        fase=FASE_1,
-        modulo="M1",
-        funcao="holders_by_scope",
-        explicacao="Indice inverso: de cada escopo para quem o detem.",
-        entrada={"operators": f"{len(operators)} linhas"},
-        saida=pd.DataFrame([
-            {"escopo_de_chaves": escopo, "numero_operadores": len(quem)}
-            for escopo, quem in sorted(scope_holders.items())
-        ]),
-        legenda="quantos detentores por escopo",
-    ))
-
     scope_sizes = split_keys_by_scope(rng, pool, specification)
     passos.append(Step(
         fase=FASE_1,
@@ -217,16 +203,18 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
         legenda=f"soma {sum(scope_sizes.values())}",
     ))
 
-    keys_in_scope_order = build_keys(rng, scope_sizes, scope_holders)
+    keys_in_scope_order = build_keys(rng, scope_sizes)
     passos.append(Step(
         fase=FASE_1,
         modulo="M1",
         funcao="build_keys",
         explicacao=(
-            "Sorteia os identificadores e atribui proprietario. Identificador "
-            "aleatorio, nunca sequencial (D-009): com sequencia, o atacante "
-            "enumerando produziria progressao aritmetica e qualquer atributo de "
-            "distancia separaria as classes sozinho."
+            "Sorteia os identificadores. Aleatorio, nunca sequencial (D-009): "
+            "com sequencia, o atacante enumerando produziria progressao "
+            "aritmetica e qualquer atributo de distancia separaria as classes "
+            "sozinho.\n\n"
+            "Tres colunas, e nenhuma diz de quem a chave e (D-099): quem alcanca "
+            "uma chave e quem detem o escopo dela, e o escopo e de varios."
         ),
         entrada={"scope_sizes": f"{len(scope_sizes)} escopos"},
         saida=keys_in_scope_order,
@@ -323,10 +311,10 @@ def traffic_steps(
         explicacao=(
             f"O {operador_foco} detem **escopos**, nao chaves. Esta funcao soma "
             "as chaves de cada escopo dele, e o total e o que ele **alcanca**.\n\n"
-            "Alcancar nao e possuir: a coluna `owner` da tabela de chaves e "
-            "metadado e **nenhum modulo a consulta** (D-042). Um operador pode "
-            "alcancar dezenas de chaves e nao ser dono de nenhuma — e cerca de "
-            "5,6 % deles nao sao donos de chave alguma.\n\n"
+            "**A chave nao tem dono** (D-099). O escopo dela e detido por varios "
+            "operadores ao mesmo tempo, entao alcance e o unico criterio — aqui "
+            "e no M4, que autoriza pela mesma regra. Ate 24/09 a tabela tinha "
+            "uma coluna `owner`, e nenhum modulo a consultava.\n\n"
             "O resultado e o `in_reach`; o que sobra do repositorio vira "
             "`out_of_reach`, alvo do desvio de escopo obsoleto da D-056."
         ),
@@ -337,8 +325,6 @@ def traffic_steps(
             for escopo in foco.scopes
         ] + [
             {"escopo_de_chaves": "ALCANCE TOTAL", "numero_chaves": len(alcance)},
-            {"escopo_de_chaves": "das quais ele possui",
-             "numero_chaves": int((keys_table["owner"] == operador_foco).sum())},
         ]),
         legenda=f"alcanca {len(alcance)} de {len(keys_table)} chaves",
     ))
@@ -607,8 +593,8 @@ def warmup_steps(
         modulo="M7",
         funcao="with_rate_attributes",
         explicacao=(
-            "Contagem vira taxa. Com sessoes de 6 a 40 eventos, contagem bruta "
-            "confunde sessao longa com sessao intensa.\n\n"
+            "Contagem vira taxa. Com sessoes de comprimento variavel, contagem "
+            "bruta confunde sessao longa com sessao intensa.\n\n"
             "`distinct_keys` e a excecao deliberada (D-080): a razao "
             "`chaves / eventos` tem teto em 1,0 e a regra correspondente nascia "
             "morta. O companheiro dela e o `events`, que esta na lista ao lado."

@@ -91,13 +91,15 @@ def test_every_scope_has_a_holder(seed: int) -> None:
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_every_owner_holds_the_key_scope(seed: int) -> None:
-    """A autorizacao do M4 e por escopo; proprietario fora do escopo e incoerencia."""
-    current = population(seed)
-    holders = holders_by_scope(current.operators)
+def test_the_key_table_has_no_owner(seed: int) -> None:
+    """A chave nao tem dono (D-099), e a ausencia precisa ser guardada.
 
-    for key in current.keys.itertuples():
-        assert key.owner in holders[key.scope]
+    Ate 24/09 havia uma coluna `owner`, e um teste conferindo que o dono detinha
+    o escopo da chave. Ela nunca foi consumida por modulo nenhum: quem alcanca
+    uma chave e quem detem o escopo dela. O teste que existia guardava a
+    coerencia de um campo inerte; este guarda que ele nao volte.
+    """
+    assert "owner" not in population(seed).keys.columns
 
 
 # Escala e forma da populacao, conforme a Tabela 1 da proposta (D-035, D-041).

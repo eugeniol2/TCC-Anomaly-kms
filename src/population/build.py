@@ -11,7 +11,7 @@ from typing import NamedTuple
 import pandas as pd
 
 from src.population.keys import build_keys, disable_random_sample, split_keys_by_scope
-from src.population.operators import build_operators_covering_pool, holders_by_scope
+from src.population.operators import build_operators_covering_pool
 from src.population.scopes import scope_pool
 from src.population.parameters import KeyRepositorySpecification
 from src.globals.rng import POPULATION, stream
@@ -36,10 +36,9 @@ def build_population(seed: int, specification: KeyRepositorySpecification) -> Po
     pool = scope_pool(specification.scope_count)
 
     operators = build_operators_covering_pool(rng, pool) # cria os operadores que cobrem todos os escopos
-    scope_holders = holders_by_scope(operators) # cria um dicionario que mapeia cada escopo para os operadores que o possuem
 
     scope_sizes = split_keys_by_scope(rng, pool, specification) # cria um dicionario que mapeia cada escopo para a quantidade de chaves que ele deve ter
-    keys_in_scope_order = build_keys(rng, scope_sizes, scope_holders)
+    keys_in_scope_order = build_keys(rng, scope_sizes)
     keys_with_status = disable_random_sample(
         rng, keys_in_scope_order, specification.disabled_rate
     )

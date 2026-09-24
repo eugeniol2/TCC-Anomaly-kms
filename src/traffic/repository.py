@@ -1,9 +1,10 @@
 """Leitura de `keys.csv`: o que o M2 precisa saber sobre as chaves.
 
-Montado uma vez por execucao e consultado em toda sessao. Nada aqui olha a
-coluna `owner`: a atividade legitima e dirigida por **escopo**, nunca por
-propriedade (D-042). Cerca de 5,6 % dos operadores nao possuem chave alguma, e
-dirigir por propriedade os deixaria mudos no log.
+Montado uma vez por execucao e consultado em toda sessao. A atividade legitima
+e dirigida por **escopo**, e nao ha o que a dirija de outro jeito: a chave nao
+tem dono (D-099). A tabela teve uma coluna `owner` ate 24/09, e a D-042 ja a
+declarava nao consumida — a coluna so descrevia um mecanismo que o pipeline
+nunca usou.
 """
 
 from __future__ import annotations
