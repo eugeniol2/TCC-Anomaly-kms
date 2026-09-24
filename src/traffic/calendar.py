@@ -54,6 +54,21 @@ def daily_session_count(rng: Generator, rhythm: ArrivalRhythm) -> int:
     Sem dispersao declarada e Poisson, onde a variancia iguala a media. Com
     dispersao e binomial negativa de mesma media e variancia maior, que e o
     ritmo irregular exigido do administrador.
+
+    **Quem cai em cada ramo, hoje:** o `routine` nao declara dispersao e vai
+    para a Poisson; o `occasional_custody` declara e vai para a Pascal. O
+    `periodic_batch` nao chega aqui, porque maquina nao sorteia quantas vezes
+    roda. Essa correspondencia mora no `regimes.py`, e **esta funcao nao a
+    conhece de proposito**: ela decide pelo que o ritmo declara, nunca por quem
+    o operador e. Perguntar "e administrador?" faria o gerador depender do
+    rotulo do perfil, que e o que a separacao entre `profile` e `regime` existe
+    para impedir, e esvaziaria o teste de que o pico periodico aparece no log
+    sem ninguem consultar o nome do perfil.
+
+    O `success` nao e escolhido: e o unico valor que faz a media sair igual a
+    `sessions_per_business_day`. O numpy parametriza a binomial negativa por
+    `(n, p)`, com media `n(1-p)/p`; isolando `p` da igualdade com a media
+    desejada `m` chega-se a `p = n / (m + n)`, que e a linha abaixo.
     """
     is_overdispersed = rhythm.dispersion is not None
 
