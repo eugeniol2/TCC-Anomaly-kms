@@ -23,6 +23,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from src.traffic.sessions import address_weights
+
 # A cor não mora aqui. Os passos da paleta mudam entre o tema claro e o
 # escuro (a versão clara reprovou na verificação contra fundo escuro), e
 # quem sabe o tema é o app. Aqui só se declara quantas séries existem; o app
@@ -171,44 +173,33 @@ def teoria_da_exponencial(intervalos: dict[str, float]) -> Teoria:
 def teoria_da_cauda(
     faixa: tuple[int, int], chance: float, excesso: float, teto_ostensivo: int
 ) -> Teoria:
-    """Por que a faixa de comprimento da sessão precisou de cauda (D-097)."""
+    """Por que a faixa de comprimento da sessão precisou de cauda (D-097).
+
+    **O eixo comeca perto do teto, e nao no inicio da faixa.** Desenhado de
+    ponta a ponta, o grafico gasta tres quartos da largura com as duas curvas
+    sobrepostas, onde nao ha nada a ver, e espreme no canto direito a unica
+    coisa que importa: que uma delas continua acima de zero e a outra nao.
+    Recortar nao esconde nada: a esquerda do recorte as duas valem o mesmo.
+    """
     menor, maior = faixa
-    comprimentos = np.arange(menor, teto_ostensivo + 30)
-
-    # O tipico e uniforme na faixa; sobre ele, uma geometrica de media
-    # `excesso` com probabilidade `chance`. E a mesma conta que o gerador faz.
-    dentro_da_faixa = (comprimentos >= menor) & (comprimentos <= maior)
-    uniforme = dentro_da_faixa / dentro_da_faixa.sum()
-
-    com_cauda = np.zeros_like(comprimentos, dtype=float)
-
-    for indice, tipico in enumerate(comprimentos):
-        if not dentro_da_faixa[indice]:
-            continue
-
-        peso = uniforme[indice]
-        com_cauda[indice] += peso * (1 - chance)
-
-        excessos = np.arange(1, len(comprimentos) - indice)
-        geometrica = stats.geom.pmf(excessos, 1.0 / excesso)
-        com_cauda[indice + 1:indice + 1 + len(excessos)] += (
-            peso * chance * geometrica
-        )
 
     # A curva mostrada e a **cumulativa invertida**: "qual a chance de a sessao
     # passar de N eventos?". A densidade tem um degrau enorme em `maior`, de
     # 4,7 % para 0,18 % de um evento para o outro, e em escala linear a cauda
     # depois dele vira uma linha rente ao eixo, que se le como "acaba aqui".
-    # E o contrario do que o grafico existe para mostrar. Na cumulativa a
-    # queda e suave e a cauda fica visivel, entao a pergunta que importa (uma
-    # sessao legitima alcanca a faixa do atacante?) se responde olhando.
+    # E o contrario do que o grafico existe para mostrar.
     #
-    # Calculada **analiticamente**, e nao somando o pedaco desenhado: a soma
-    # truncada daria zero no ultimo ponto do eixo, que e o proprio artefato que
+    # Calculada **analiticamente**, e nao somando uma densidade truncada: a
+    # soma daria zero no ultimo ponto do eixo, que e o proprio artefato que
     # esta curva veio corrigir.
     tipicos = np.arange(menor, maior + 1)
     quantos = len(tipicos)
     sobrevive = 1.0 - 1.0 / excesso
+
+    # Comeca poucos eventos antes do teto, onde as curvas ainda coincidem, para
+    # que o leitor veja as duas juntas e depois se separarem.
+    inicio = maior - 4
+    comprimentos = np.arange(inicio, teto_ostensivo + 30)
 
     def passa_de(n: int, com_cauda: bool) -> float:
         """Chance de a sessao ter mais de `n` eventos."""
@@ -235,8 +226,8 @@ def teoria_da_cauda(
         "com cauda": passa_de_com_cauda,
     })
 
-    acima = com_cauda[comprimentos > maior].sum()
-    alcanca = passa_de_com_cauda[comprimentos == teto_ostensivo][0]
+    acima = passa_de(maior, com_cauda=True)
+    alcanca = passa_de(teto_ostensivo, com_cauda=True)
 
     return Teoria(
         titulo="Por que a faixa de comprimento precisou de cauda",
@@ -266,30 +257,43 @@ def teoria_da_cauda(
         forma="linha",
         leitura=(
             f"Cada ponto responde: **qual a chance de a sessão passar de N "
-            f"eventos?** A curva **faixa fechada** chega a {maior} e despenca "
-            "para zero, onde fica: é o teto, e à direita dele não existe sessão "
-            "legítima nenhuma.\n\n"
-            f"A **com cauda** continua acima de zero: em {teto_ostensivo} "
-            f"eventos, que é onde o atacante ostensivo começa, ela ainda vale "
-            f"**{alcanca:.1%}**. É pouco, e é o suficiente: enquanto for maior "
-            "que zero, uma sessão longa é explicação possível, e a regra precisa "
-            "medir comportamento em vez de ler a faixa."
+            f"eventos?** O eixo começa em {inicio}, e não no início da faixa, "
+            "porque à esquerda daqui as duas curvas valem quase o mesmo e não "
+            "há o que comparar.\n\n"
+            f"Elas descem juntas até {maior - 1}. Em **{maior}** se separam, e "
+            "é este o gráfico inteiro: a **faixa fechada** cai a zero e fica "
+            "ali, porque à direita do teto não existe sessão legítima nenhuma. "
+            f"A **com cauda** vale **{alcanca:.1%}** nesse ponto e segue "
+            "descendo devagar, sem nunca tocar o eixo.\n\n"
+            "É pouco, e é o suficiente: enquanto for maior que zero, sessão "
+            "longa é explicação possível para um tamanho grande, e a regra "
+            "precisa medir comportamento em vez de ler a faixa."
         ),
     )
 
 
 def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
-    """Como a origem de rede é escolhida, e por que alguma precisa faltar."""
+    """Como a origem de rede é escolhida, e por que alguma precisa faltar.
+
+    **Os pesos vêm de `address_weights`, a função que o M2 de fato usa.** Esta
+    teoria reimplementava a fórmula, e a duplicação era um risco silencioso:
+    mudada a forma do decaimento no gerador, o gráfico seguiria desenhando a
+    antiga, plausível e errada, numa apresentação. É a mesma regra que o
+    `steps.py` declara para si — o observador se adapta ao código, nunca o
+    contrário.
+
+    Só o `principal` continua chegando por parâmetro, porque ele é a variável
+    de decisão que a tabela mostra ao lado do gráfico.
+    """
+    pesos = address_weights(maximo_de_enderecos)
     posicoes = np.arange(maximo_de_enderecos)
-    pesos = principal * (1 - principal) ** posicoes
-    pesos = pesos / pesos.sum()
 
     dados = pd.DataFrame({
         "endereço": [f"{posicao + 1}º" for posicao in posicoes],
         "chance de ser usado": pesos,
     })
 
-    quarto = pesos[-1] if maximo_de_enderecos >= 4 else pesos[-1]
+    quarto = pesos[-1]
     # Sessoes na regua, mediana nas 30 sementes. E o expoente que decide se o
     # endereco raro falta: regua mais longa o derruba, e foi o custo da D-096.
     SESSOES_NA_REGUA = 32

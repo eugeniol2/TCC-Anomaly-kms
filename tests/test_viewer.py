@@ -25,6 +25,7 @@ sem erro. Layout se confere olhando.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -45,12 +46,22 @@ from src.viewer.frames import (
     frames_da_fase_2,
     frames_da_fase_3,
 )
+from src.traffic.calendar import daily_session_count
+from src.traffic.parameters import PRIMARY_ADDRESS_SHARE
+from src.traffic.regimes import REGIMES
+from src.traffic.sessions import address_weights, draw_request_count
 from src.viewer.steps import (
     FASES,
     attack_steps,
     population_steps,
     traffic_steps,
     warmup_steps,
+)
+from src.viewer.theory import (
+    teoria_da_cauda,
+    teoria_da_geometrica,
+    teoria_da_pascal,
+    teoria_da_poisson,
 )
 
 REPOSITORY = KeyRepositorySpecification()
@@ -284,3 +295,111 @@ def test_the_three_phases_declare_what_they_are() -> None:
         assert fase.execucoes
         assert fase.objetivo
         assert fase.descricao
+
+
+# As curvas de teoria: a unica parte da tela que **descreve** o gerador em vez
+# de chama-lo.
+#
+# Nao ha como evitar. Densidade nao se obtem de um sorteador sem sortear
+# muito, e amostrar a cada carga da pagina seria lento e ruidoso, entao o
+# grafico deriva a forma fechada enquanto o gerador sorteia: duas
+# implementacoes do mesmo modelo, que podem divergir.
+#
+# O que estes testes fazem e o que a duplicacao permite. Sortear bastante uma
+# vez, aqui, e exigir que o histograma bata com a curva. Se alguem trocar a
+# distribuicao no gerador e esquecer a teoria, a tela passaria a explicar um
+# modelo que nao existe mais, de forma plausivel e sem aviso, numa
+# apresentacao. E o mesmo risco que os testes acima guardam para os dados.
+
+AMOSTRAS = 200_000
+
+TOLERANCIA = 0.004
+"""Folga absoluta entre a curva e o histograma.
+
+Quatro milesimos: com 200 mil amostras o erro padrao de uma proporcao fica
+abaixo de 0,0012, entao a folga e cerca de tres desvios. Frouxa o bastante para
+nao falhar por acaso, apertada o bastante para pegar troca de distribuicao — a
+diferenca entre Poisson e Pascal na mesma media passa de 0,05 na primeira
+barra.
+"""
+
+SEMENTE_DA_AMOSTRA = 20260924
+"""Semente das amostras destes testes, fixa para nao falharem por sorte.
+
+Fora da faixa das replicas e das preparatorias: estes sorteios nao pertencem
+ao experimento, so conferem a tela.
+"""
+
+
+def test_the_tail_chart_matches_the_generator() -> None:
+    """A cumulativa desenhada e a que `draw_request_count` produz (D-097)."""
+    faixa = REGIMES["periodic_batch"].requests_range
+
+    curva = teoria_da_cauda(
+        faixa,
+        TRAFFIC.long_session_chance,
+        TRAFFIC.long_session_excess,
+        ATTACK.ostensive_requests_range[0],
+    ).dados.set_index("eventos na sessão")
+
+    rng = np.random.default_rng(SEMENTE_DA_AMOSTRA)
+    sorteado = np.array([
+        draw_request_count(rng, faixa, TRAFFIC) for _ in range(AMOSTRAS)
+    ])
+
+    for tamanho, esperado in curva["com cauda"].items():
+        medido = (sorteado > tamanho).mean()
+
+        assert abs(medido - esperado) < TOLERANCIA, (
+            f"em {tamanho} eventos a curva diz {esperado:.4f} e o gerador "
+            f"produz {medido:.4f}"
+        )
+
+
+def test_the_rhythm_charts_match_the_generator() -> None:
+    """As barras de Poisson e Pascal sao as que `daily_session_count` produz."""
+    rotina = REGIMES["routine"].rhythm
+    custodia = REGIMES["occasional_custody"].rhythm
+
+    casos = (
+        (teoria_da_poisson(rotina.sessions_per_business_day), "Poisson", rotina),
+        (
+            teoria_da_pascal(
+                custodia.sessions_per_business_day, custodia.dispersion
+            ),
+            f"Pascal, n = {custodia.dispersion}",
+            custodia,
+        ),
+    )
+
+    for teoria, coluna, ritmo in casos:
+        curva = teoria.dados.set_index("sessões no dia")
+
+        rng = np.random.default_rng(SEMENTE_DA_AMOSTRA)
+        sorteado = np.array([
+            daily_session_count(rng, ritmo) for _ in range(AMOSTRAS)
+        ])
+
+        for contagem, esperado in curva[coluna].items():
+            medido = (sorteado == contagem).mean()
+
+            assert abs(medido - esperado) < TOLERANCIA, (
+                f"{coluna}: em {contagem} sessoes a curva diz {esperado:.4f} "
+                f"e o gerador produz {medido:.4f}"
+            )
+
+
+def test_the_address_chart_calls_the_generator_function() -> None:
+    """O grafico de origem **chama** `address_weights`, nao repete a formula.
+
+    A formula era reimplementada ali ate 24/09. Enquanto foi, mudar o
+    decaimento no gerador deixaria a tela desenhando o antigo sem nada acusar.
+    Igualdade exata, e nao tolerancia: aqui nao ha amostragem, sao as duas
+    chamando a mesma funcao.
+    """
+    for quantidade in (2, 3, 4):
+        desenhado = teoria_da_geometrica(
+            PRIMARY_ADDRESS_SHARE, quantidade
+        ).dados["chance de ser usado"].to_numpy()
+
+        assert np.array_equal(desenhado, address_weights(quantidade))
