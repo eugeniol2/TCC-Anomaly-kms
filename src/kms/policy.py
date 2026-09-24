@@ -75,7 +75,7 @@ def outcome_of(operator_id: str, key_id: str, repository: Repository) -> str:
 
     **Autorizacao antes de estado.** Responder `disabled_key` a quem nao
     detem o escopo confirmaria que a chave existe e revelaria em que estado
-    ela esta — vazamento por mensagem de erro. Negar sem qualificar e a
+    ela esta, que e vazamento por mensagem de erro. Negar sem qualificar e a
     pratica correta, e por acaso e tambem a que acrescenta 4 % a contagem de
     `denied_by_policy`, que e o desfecho escasso.
     """

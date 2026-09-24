@@ -26,7 +26,7 @@ COLUMNS = (
 )
 """As oito colunas de `log.csv` (D-064).
 
-Sao as sete do `requests.csv` mais `outcome`, sem renomear nada — por isso o
+Sao as sete do `requests.csv` mais `outcome`, sem renomear nada, e por isso o
 identificador ja nasce `event_id` no M2, e nao `request_id`.
 
 **Nada de escopo, perfil ou proprietario.** Poriam o modelo em condicao de

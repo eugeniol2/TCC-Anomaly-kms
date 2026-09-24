@@ -1,8 +1,8 @@
 """M6: o que cada operador fez no aquecimento, e que fica congelado ali.
 
 O `historical_profile` **nao se confunde com o `profile`** (D-034). `profile` e o
-tipo do operador na tabela de populacao — Usuario Legitimo, Servico
-Automatizado, Administrador — e e dado do gerador. O que este modulo produz e
+tipo do operador na tabela de populacao (Usuario Legitimo, Servico
+Automatizado, Administrador) e e dado do gerador. O que este modulo produz e
 **observacao de comportamento**: a janela horaria em que aquele operador abriu
 sessao e os enderecos de onde ele veio, lidos do log.
 
@@ -44,7 +44,7 @@ que produz origem inedita legitima no periodo avaliado (D-040), entao chama-las
 igual apagaria o mecanismo.
 
 `session_count` nao alimenta regra nenhuma. Esta ali porque a fragilidade que a
-D-073 deixou em aberto — perfil pequeno produz janela estreita e dispara mais —
+D-073 deixou em aberto (perfil pequeno produz janela estreita e dispara mais)
 so e mensuravel se a contagem estiver em disco.
 """
 
@@ -54,7 +54,7 @@ def ruler_period(log: pd.DataFrame) -> pd.DataFrame:
 
     Nao ha mais recorte dentro dele. Ate 23/09 o perfil saia das semanas 1 e 2
     e os limiares da semana 3, e a divisao custava alarme falso sem comprar
-    nada — a regua via metade dos dados que podia ver.
+    nada: a regua via metade dos dados que podia ver.
 
     A funcao sobrevive a divisao como **guarda**: ela recusa silenciosamente o
     que nao for do aquecimento, para um log do periodo avaliado nunca virar
@@ -87,16 +87,16 @@ HOUR_FORMAT = "%H:%M:%S"
 """Como a hora do dia e escrita: `09:00:45`, de largura fixa e com zero a esquerda.
 
 **A largura fixa e o que torna a comparacao possivel como texto.** Com zero a
-esquerda, a ordem alfabetica coincide com a cronologica — `"09:00:45"` vem
+esquerda, a ordem alfabetica coincide com a cronologica: `"09:00:45"` vem
 antes de `"14:23:01"` como string e como hora. E a mesma propriedade que faz o
 `requests.csv` poder ser ordenado pelo `timestamp` sem converter nada.
 
 Esta coluna foi **fracao de hora** ate 23/09, `9.0125` em vez de `09:00:45`
 (D-095). A troca e de legibilidade, e tambem de robustez: a fracao precisa de
-arredondamento, e foi dele que nasceu o defeito da D-090 — o M6 arredondava a
+arredondamento, e foi dele que nasceu o defeito da D-090: o M6 arredondava a
 ponta da janela e o M7 comparava sem arredondar, de modo que a sessao que
 **define** a ponta caia fora dela por 1,1 x 10⁻⁵, marcando 37 das 993 sessoes
-da regua de entao — as semanas 1 e 2 — na semente 1.
+da regua de entao, as semanas 1 e 2, na semente 1.
 Formatar para `HH:MM:SS` e **exato**: o `timestamp` tem resolucao de segundo, e
 nada se perde no caminho. Aquela classe de defeito deixa de existir em vez de
 ser contida.
@@ -112,7 +112,7 @@ def hour_of_day(moments: pd.Series) -> pd.Series:
 
     Nao trunca para a hora cheia: uma sessao das 09:50 e outra das 09:10 tem a
     mesma hora inteira e horarios diferentes, e truncar alargaria toda janela
-    em ate uma hora — a largura da janela e o que decide quantas sessoes
+    em ate uma hora, e a largura da janela e o que decide quantas sessoes
     legitimas disparam.
     """
     return moments.dt.strftime(HOUR_FORMAT)

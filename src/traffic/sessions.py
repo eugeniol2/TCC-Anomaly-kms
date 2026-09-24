@@ -62,14 +62,14 @@ def draw_request_count(
 
     Recebe a faixa, e nao o regime inteiro, porque o M3 chama esta mesma
     funcao com uma faixa interpolada por sigma. Em sigma 1 a faixa recebida e
-    a do regime, e as duas chamadas passam a ser indistinguiveis (D-082) — a
+    a do regime, e as duas chamadas passam a ser indistinguiveis (D-082), a
     cauda inclusive, porque ela vem da especificacao, que e a mesma nos dois.
 
     **A faixa e o comprimento tipico, nao um teto** (D-097). Uma sessao em
     vinte se estende por um excesso geometrico: e a migracao em lote, a
     reprocessagem, a tentativa que repete. Sem isso a faixa era teto rigido e
     nenhuma sessao legitima passava de 40 eventos, o que fazia a regra `events`
-    separar as classes sozinha em sigma baixo — por aritmetica de faixa, nao
+    separar as classes sozinha em sigma baixo, por aritmetica de faixa e nao
     por comportamento.
     """
     lowest, highest = requests_range
@@ -91,7 +91,7 @@ def request_instants(
     """Os instantes das requisicoes, a partir da abertura da sessao.
 
     Intervalo exponencial, com a media recebida. E dele que sai a duracao da
-    sessao, e portanto a taxa de requisicoes — uma das cinco dimensoes que
+    sessao, e portanto a taxa de requisicoes, que e uma das cinco dimensoes que
     sigma interpola no M3, que reaproveita esta funcao com outra media.
     """
     gaps = rng.exponential(seconds_between, size=quantity - 1)

@@ -1,7 +1,7 @@
 """Todos os numeros que governam a campanha de ataque (M3).
 
 Cada dimensao de sigma tem **dois extremos**: o ostensivo, que vale em sigma 0,
-e o furtivo, que vale em sigma 1. O furtivo nao e escolhido aqui — ele e
+e o furtivo, que vale em sigma 1. O furtivo nao e escolhido aqui: ele e
 importado do M2, porque em sigma 1 a sessao comprometida precisa sair da
 **mesma distribuicao** que uma sessao legitima daquele administrador (D-082).
 Repetir o valor aqui criaria duas fontes para o mesmo numero, e bastaria alguem
@@ -23,7 +23,7 @@ CAMPAIGN_SESSIONS = 58
 
 Sao 1,5x as 39 sessoes legitimas que o administrador alvo tem na mediana do
 periodo avaliado. Com a particao 60/40 da D-070, rendem **23 positivas no
-holdout** — a contagem absoluta que a armadilha de Athapaththu et al. cobra.
+holdout**, a contagem absoluta que a armadilha de Athapaththu et al. cobra.
 """
 
 # Extremos ostensivos, que valem em sigma 0 (D-082).
@@ -43,7 +43,7 @@ sigma 0 e ostensivo e deve ser facil de pegar.
 
 OSTENSIVE_OPENS_AT = 0
 OSTENSIVE_CLOSES_AT = 6
-"""Faixa horaria da sessao fora da janela do operador — madrugada."""
+"""Faixa horaria da sessao fora da janela do operador: madrugada."""
 
 OSTENSIVE_STALE_SCOPE_RATE = 0.30
 """Fracao das requisicoes que cai fora do escopo em sigma 0.

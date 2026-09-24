@@ -4,13 +4,13 @@ Este módulo responde a pergunta que a tela precisa responder antes de mostrar
 qualquer tabela: **que números fazem este dado ser o que é?**
 
 Cada variável traz o nome como ele aparece no código, o valor em vigor e uma
-linha dizendo o que ele é. O *porquê* não mora aqui — ele está na caixa "Por
+linha dizendo o que ele é. O *porquê* não mora aqui: ele está na caixa "Por
 que é assim" de cada quadro, e na entrada do registro. Misturar os dois faria a
 tabela virar texto corrido, e tabela com parágrafo dentro não se lê.
 
 O campo `decisao` guarda a entrada do registro que fixou o valor. Ele **não
 aparece na tela**: `D-040` não significa nada para quem está vendo a
-apresentação. Fica no código porque ali ele é útil — diz de onde o número veio
+apresentação. Fica no código porque ali ele é útil, já que diz de onde o número veio
 para quem for mexer neste arquivo.
 
 **Os valores são lidos dos próprios objetos de parâmetro**, nunca copiados. Um
@@ -145,8 +145,8 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                  "regime, nunca o perfil.",
                  "D-012"),
         Variavel("week_count", trafego.week_count,
-                 f"Semanas simuladas: {RULER_WEEKS} de régua — o perfil e os "
-                 f"limiares, do mesmo período — e {EVALUATED_WEEKS} avaliadas.",
+                 f"Semanas simuladas: {RULER_WEEKS} de régua (o perfil e os "
+                 f"limiares, do mesmo período) e {EVALUATED_WEEKS} avaliadas.",
                  "D-096"),
         Variavel("first_day", trafego.first_day,
                  "Primeiro dia simulado. Segunda-feira, fixa.", "D-067"),
@@ -251,7 +251,7 @@ def variaveis_do_m4_m5() -> tuple[Variavel, ...]:
 
 
 def variaveis_do_m6() -> tuple[Variavel, ...]:
-    """O perfil histórico não tem parâmetro de forma — e isso é a decisão."""
+    """O perfil histórico não tem parâmetro de forma, e isso é a decisão."""
     return (
         Variavel("RULER_WEEKS", RULER_WEEKS,
                  "Semanas que constroem a régua: o perfil e os limiares.",

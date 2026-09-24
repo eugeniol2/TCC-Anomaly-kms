@@ -1,12 +1,12 @@
 """Testes do observador: o que a tela mostra é o que o pipeline produz.
 
-O risco que este arquivo guarda não é o de o viewer quebrar — ele quebraria
+O risco que este arquivo guarda não é o de o viewer quebrar: ele quebraria
 ruidosamente, e em cima de uma apresentação. É o de ele **divergir em
 silêncio**.
 
 O `steps.py` não chama `build_population`: ele chama os internos dela, um a um,
 porque precisa mostrar o intermediário de cada etapa. Isso é uma **segunda
-cópia da ordem de execução**, e a ordem faz parte do resultado — todas as
+cópia da ordem de execução**, e a ordem faz parte do resultado: todas as
 chamadas consomem sorteios do mesmo fluxo, então trocar duas de lugar muda a
 saída inteira com a mesma semente. É o mesmo risco que a D-091 tirou do
 pipeline, e que aqui não dá para tirar: o observador precisa dos passos
@@ -15,7 +15,7 @@ separados justamente porque é isso que ele existe para mostrar.
 O que dá para fazer é **acusar**. Se alguém reordenar duas chamadas dentro de
 um módulo, o digest de referência acusa a mudança do pipeline e estes testes
 acusam a do viewer. Sem eles, a tela passaria a mostrar uma população que não é
-a do experimento, de forma plausível e sem aviso — que é o pior tipo de erro
+a do experimento, de forma plausível e sem aviso, que é o pior tipo de erro
 para um trabalho que vai ser defendido com esta tela aberta.
 
 **Não cobre a aparência.** Nada aqui renderiza Streamlit: o que se verifica é
@@ -81,7 +81,7 @@ def test_the_viewer_rebuilds_the_population_the_pipeline_produces(
 
     Conferido pela saida e nao pela leitura do codigo: se as chamadas
     estivessem em ordem diferente, os sorteios sairiam do fluxo noutra ordem e
-    as tabelas seriam outras — validas, plausiveis e erradas.
+    as tabelas seriam outras: validas, plausiveis e erradas.
     """
     produzida = build_population(seed, REPOSITORY)
     observada = por_funcao(population_steps(seed, REPOSITORY))

@@ -2,7 +2,7 @@
 
 O M4 decide o desfecho comparando o escopo da chave com os escopos do operador.
 Se o M2 enderecar chave errada em volume errado, o desfecho muda, o rotulo muda
-junto, e nao ha erro em lugar nenhum — so um resultado diferente. E isso que
+junto, e nao ha erro em lugar nenhum, so um resultado diferente. E isso que
 estes testes guardam.
 
 Duas invariantes valem mais que as outras. A primeira e que **nenhuma coluna
@@ -12,7 +12,7 @@ existem**: sem eles, negacao por politica e identificador inexistente so
 poderiam vir do atacante, e cada um viraria separador trivial.
 
 As invariantes rodam nas 30 sementes da grade. Construir o trafego custa cerca
-de 0,4 s por semente, entao a suite deste modulo leva alguns segundos — o cache
+de 0,4 s por semente, entao a suite deste modulo leva alguns segundos, e o cache
 garante uma construcao por semente, nao uma por teste.
 """
 
@@ -132,7 +132,7 @@ def test_reference_output_has_not_changed() -> None:
     Guarda o resumo criptografico em vez do CSV inteiro porque o arquivo tem
     cerca de 48 mil linhas: versiona-lo pesaria mais que o repositorio de
     codigo. A contrapartida e que a falha diz **que** mudou, nao **o que**
-    mudou — e o arquivo se regenera com `python -m src.traffic --seed 1`.
+    mudou, e o arquivo se regenera com `python -m src.traffic --seed 1`.
 
     Quando falhar, confirme se a mudanca era intencional, registre a decisao e
     atualize o valor de referencia.
@@ -237,7 +237,7 @@ def test_session_size_sits_in_the_regime_range_but_is_not_capped_by_it(
 ) -> None:
     """A faixa do regime e o comprimento tipico, e nao um teto (D-097).
 
-    O piso continua rigido — a sessao nao encolhe abaixo do minimo do regime —,
+    O piso continua rigido (a sessao nao encolhe abaixo do minimo do regime),
     a grande maioria cai dentro da faixa, e **alguma a ultrapassa**. As tres
     coisas juntas sao a forma da cauda; qualquer uma sozinha nao e.
     """
@@ -270,7 +270,7 @@ def test_the_longest_legitimate_session_reaches_the_ostensive_range(
 
     E a propriedade que a D-097 comprou, e a razao de ela existir: enquanto o
     teto legitimo era 40 e o atacante sorteava em (40, 90), as duas classes
-    **nao se sobrepunham**, e o `events` separava por aritmetica de faixa — F1
+    **nao se sobrepunham**, e o `events` separava por aritmetica de faixa: F1
     0,982 em sigma 0,0, com falso positivo zero por construcao.
     """
     ostensive_lowest, _ = AttackSpecification().ostensive_requests_range
@@ -290,7 +290,7 @@ def test_distinct_keys_are_typical_in_range_and_widen_on_long_sessions(
 
     **A faixa e a amplitude tipica, e nao um teto** (D-098). Enquanto era teto,
     a sessao de 200 eventos tocava as mesmas 12 chaves de uma de 20, e o
-    `distinct_keys` separava as classes sozinho ate sigma 0,5 — F1 0,879, e
+    `distinct_keys` separava as classes sozinho ate sigma 0,5: F1 0,879, e
     **identico** em 0,0, 0,2 e 0,5, que e a assinatura de um separador que nao
     responde a sigma nenhum.
     """
@@ -378,7 +378,7 @@ def test_absent_identifier_matches_the_repository_format(seed: int) -> None:
 
     A fronteira entre modulos e o arquivo, entao o M2 nao importa o formato do
     M1: ele o repete. Se o M1 mudar o formato do identificador, este teste
-    falha antes que o identificador forjado fique distinguivel de um real — o
+    falha antes que o identificador forjado fique distinguivel de um real, e o
     que faria o atributo de formato separar as classes sozinho.
     """
     requests = traffic(seed)

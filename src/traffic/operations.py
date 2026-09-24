@@ -5,8 +5,8 @@ e zero: operacao privativa de um perfil funcionaria como marcador do perfil por
 construcao, e os operadores incapazes de exerce-la formariam uma populacao
 negativa de antemao.
 
-As cinco operacoes que alterariam o estado do repositorio — `CreateKey`,
-`Rotate`, `EnableKey`, `DisableKey`, `DeleteKey` — ficaram de fora: `keys.csv`
+As cinco operacoes que alterariam o estado do repositorio (`CreateKey`,
+`Rotate`, `EnableKey`, `DisableKey`, `DeleteKey`) ficaram de fora: `keys.csv`
 tem um unico modulo que o escreve, e `DeleteKey` executada pelo atacante seria
 marcador quase perfeito, ja que ele exfiltra e nao administra.
 """

@@ -37,7 +37,7 @@ comprometida passa a sair da mesma distribuicao que uma legitima (D-082).
 
 O que **nao** e invariante e o objetivo da campanha. O que sigma preserva e o
 numero de sessoes, fixo em 58 nas onze condicoes (D-081); o atacante furtivo
-simplesmente consegue menos. O inverso — objetivo fixo e sessoes variaveis —
+simplesmente consegue menos. O inverso (objetivo fixo e sessoes variaveis)
 faria a proporcao de anomalias mudar junto com sigma, e a comparacao entre
 condicoes confundiria furtividade com desbalanceamento.
 """
@@ -52,7 +52,7 @@ Reservada, fora da faixa das replicas: a populacao que ajudou a escolher a
 configuracao nao pode reaparecer entre as 330 avaliadas, senao o desempenho do
 modelo naquela replica vem inflado.
 
-Os limiares do baseline nao usam semente reservada — saem do aquecimento da
+Os limiares do baseline nao usam semente reservada: saem do aquecimento da
 propria execucao, um conjunto por semente (D-043).
 
 A faixa 9xx deixa espaco para preparacoes futuras sem risco de colisao, caso a
@@ -68,8 +68,8 @@ sairia alto demais; em sigma alto, o inverso. O meio e o unico ponto que nao
 desloca sistematicamente para um dos lados (D-052).
 
 Reservada e distinta da 902 de proposito. As duas preparatorias servem a
-propositos diferentes — uma escolhe configuracao de modelo, a outra fixa criterio
-de exclusao de condicao — e reaproveitar o holdout da 902 conflitaria com a
+propositos diferentes (uma escolhe configuracao de modelo, a outra fixa criterio
+de exclusao de condicao) e reaproveitar o holdout da 902 conflitaria com a
 D-045, que o reserva de qualquer papel na selecao.
 
 ORDEM: a 903 roda antes das 330, nao junto. Se acusar defeito do gerador, o achado

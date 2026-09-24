@@ -31,7 +31,7 @@ COLUMNS = (
 """As colunas de `requests.csv`.
 
 Sao as oito do `log.csv` (D-064) menos `outcome`, que so existe depois do M4.
-O M5 junta as duas coisas e o log fecha, sem renomear nada — por isso o
+O M5 junta as duas coisas e o log fecha, sem renomear nada, e por isso o
 identificador ja nasce `event_id` aqui, e nao `request_id`: e a mesma linha em
 estagios diferentes, e dois nomes para um conceito so seria ruido.
 """

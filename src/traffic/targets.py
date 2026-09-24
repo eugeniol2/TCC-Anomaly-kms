@@ -2,7 +2,7 @@
 
 O alvo normal e uma chave dos escopos do operador, que o M4 autoriza. Os dois
 desvios da D-056 existem porque, sem eles, nenhuma requisicao legitima poderia
-falhar por politica ou por identificador inexistente — e cada um desses
+falhar por politica ou por identificador inexistente, e cada um desses
 desfechos passaria a significar atacante, virando separador trivial.
 
 Os desvios sao emitidos como tentativa comum, **sem marca nenhuma**. Quem os
@@ -51,7 +51,7 @@ def distinct_key_count(
     **A sessao que se estende tambem se alarga** (D-098). A faixa e a amplitude
     tipica, e a mesma cauda da D-097 se aplica: sem ela, a sessao de 200 eventos
     tocava as mesmas 12 chaves de uma de 20, e nenhuma sessao legitima passava
-    de 12 — teto rigido de que o `distinct_keys` separava as classes sozinho ate
+    de 12: teto rigido de que o `distinct_keys` separava as classes sozinho ate
     sigma 0,5, com F1 0,879. Quem alarga de fato e o `ceiling`: a sessao curta
     nao tem onde por o excesso, e so a longa o acomoda.
     """
@@ -71,8 +71,8 @@ def spread_over_requests(
 ) -> list[str]:
     """Distribui as chaves escolhidas pelas requisicoes da sessao.
 
-    Cada chave aparece ao menos uma vez — e por isso que a contagem de
-    distintas e exatamente a sorteada — e as requisicoes restantes repetem
+    Cada chave aparece ao menos uma vez (e por isso que a contagem de
+    distintas e exatamente a sorteada) e as requisicoes restantes repetem
     alguma delas. A permutacao final evita que as primeiras requisicoes sejam
     sempre as de chave inedita.
     """

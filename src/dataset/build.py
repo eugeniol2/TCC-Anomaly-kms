@@ -1,7 +1,7 @@
 """M7: do log de auditoria ao conjunto que os modelos classificam.
 
-Uma linha por sessao (D-061). Nao existe tamanho de janela — nem parametro, nem
-sobreposicao, nem resto descartado —, e por isso a particao por sessao deixa de
+Uma linha por sessao (D-061). Nao existe tamanho de janela: nem parametro, nem
+sobreposicao, nem resto descartado. Por isso a particao por sessao deixa de
 ser regra e vira estrutura: nenhuma linha atravessa fronteira de sessao, entao o
 vazamento que a D-029 procura nao pode existir.
 
@@ -11,7 +11,7 @@ o atacante variaria aquele comportamento e nada mediria a diferenca.
 
 | Atributo | Dimensao de sigma |
 |---|---|
-| `events` | — (companheiro das razoes) |
+| `events` | nenhuma: e o companheiro das razoes |
 | `duration_minutes` | taxa |
 | `requests_per_minute` | taxa |
 | `distinct_keys` | chaves distintas |
@@ -54,8 +54,8 @@ reabrir o `log.csv`, e passaria a depender de dois arquivos para responder uma
 pergunta de calendario.
 **Ele nao pode virar atributo.** O que o horario tem de informativo ja esta em
 `atypical_hour`, que compara contra o historico do operador; o instante cru
-deixaria o modelo aprender o calendario do experimento — que as semanas 5 a 8
-concentram o ataque — em vez de aprender comportamento.
+deixaria o modelo aprender o calendario do experimento (que as semanas 5 a 8
+concentram o ataque) em vez de aprender comportamento.
 """
 
 ATTRIBUTES = (
@@ -151,8 +151,8 @@ def with_history_attributes(
     limiar global: e o que a D-041 exige ao sortear a quantidade de origens por
     operador em faixas sobrepostas.
 
-    Operador ausente do perfil nao existe nesta escala — todo operador abre
-    sessao nas quatro semanas de aquecimento —, e o `KeyError` que isso
+    Operador ausente do perfil nao existe nesta escala, porque todo operador abre
+    sessao nas quatro semanas de aquecimento, e o `KeyError` que isso
     levantaria e preferivel a um padrao silencioso que decidisse por conta
     propria se a sessao e atipica.
     """
@@ -164,7 +164,7 @@ def with_history_attributes(
 
     # Comparacao de texto, e nao de numero. As tres pontas sao `HH:MM:SS`
     # de largura fixa, entao a ordem alfabetica e a cronologica, e a
-    # sessao que definiu a ponta bate com ela exatamente — que e o que a
+    # sessao que definiu a ponta bate com ela exatamente, que e o que a
     # fracao de hora nao conseguia garantir (D-090, D-095).
     is_inside = (hours >= opens) & (hours <= closes)
 

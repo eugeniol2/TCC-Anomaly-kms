@@ -12,7 +12,7 @@ Tres coisas saem daqui, e a ordem entre elas importa:
    condicoes da mesma semente (D-011).
 2. O **`requests.csv` mesclado**, renumerado do zero em ordem cronologica.
 3. O **`compromised_sessions.csv`**, com os identificadores das sessoes da
-   campanha — o rotulo, que viaja fora do log (D-063).
+   campanha: o rotulo, que viaja fora do log (D-063).
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ ADMINISTRATOR = "administrator"
 COMPROMISED_COLUMNS = ("session_id",)
 """As colunas de `compromised_sessions.csv` (D-084).
 
-Uma so. O arquivo responde a unica pergunta que o M7 lhe faz — esta sessao e
-comprometida? —, e quem e o administrador ja esta em `run.csv`. Acrescentar
+Uma so. O arquivo responde a unica pergunta que o M7 lhe faz (esta sessao e
+comprometida?), e quem e o administrador ja esta em `run.csv`. Acrescentar
 `operator_id` aqui repetiria em 58 linhas o que ja esta registrado em uma.
 """
 
@@ -133,8 +133,8 @@ def renumbered(merged: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, str]]:
 
     Renumerar tudo e obrigatorio, nao arrumacao. Mantidos os identificadores
     do M2 e dados numeros novos so as sessoes do atacante, elas ficariam todas
-    no fim da faixa, e o identificador de sessao — que a D-015 mantem fora dos
-    atributos justamente para nao carregar sinal — passaria a **anunciar o
+    no fim da faixa, e o identificador de sessao (que a D-015 mantem fora dos
+    atributos justamente para nao carregar sinal) passaria a **anunciar o
     rotulo** para quem abrisse o arquivo.
     """
     ordered = chronological(merged)

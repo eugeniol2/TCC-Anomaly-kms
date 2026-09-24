@@ -1,7 +1,7 @@
 """A ordem de execução do pipeline, como código em vez de documentação.
 
-Até aqui a ordem existia em seis lugares em prosa — `README.md`, `CLAUDE.md`,
-três relatórios e um diagrama — e em nenhum deles executava. Seis cópias de um
+Até aqui a ordem existia em seis lugares em prosa (`README.md`, `CLAUDE.md`,
+três relatórios e um diagrama) e em nenhum deles executava. Seis cópias de um
 fato divergem, e divergiram: o diagrama ficou quatro decisões atrás do código
 sem que nada acusasse.
 
@@ -15,7 +15,7 @@ O ramo da semente roda 30 vezes e produz tudo que é anterior ao ataque; o ramo
 de sigma roda 330 e produz o período avaliado. Rodar o primeiro dentro do
 segundo recomputaria onze vezes o mesmo aquecimento, e bastaria um sorteio
 consumido em ordem diferente para os perfis divergirem entre condições da mesma
-semente, quebrando o pareamento que a D-002 assume — sem erro e sem aviso.
+semente, quebrando o pareamento que a D-002 assume, sem erro e sem aviso.
 
 **Tudo roda no mesmo processo.** A grade completa são cerca de 2370 invocações
 de módulo; como subprocesso, paga-se a partida do interpretador e o import do

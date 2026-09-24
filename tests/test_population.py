@@ -197,7 +197,7 @@ def test_reference_output_has_not_changed(table: str) -> None:
 
     Nao tem verdade propria: a referencia e o que o gerador produzia quando os
     arquivos foram gravados. Ele pega a classe de mudanca que nenhuma
-    invariante pega, a que e valida mas diferente — reordenar duas chamadas do
+    invariante pega, a que e valida mas diferente: reordenar duas chamadas do
     `build_population`, por exemplo, mantem todas as invariantes e produz
     outros dados.
 

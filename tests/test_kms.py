@@ -2,7 +2,7 @@
 
 O M4 e a peca de que depende o argumento central do trabalho: se o desfecho
 nao viesse da politica, o rotulo seria inventado. Por isso os testes aqui
-guardam menos o codigo e mais a **derivacao** — que cada desfecho corresponda
+guardam menos o codigo e mais a **derivacao**: que cada desfecho corresponda
 ao que as tabelas estaticas dizem, e nao ao que o gerador quis.
 
 Tres invariantes valem mais que as outras:
@@ -113,7 +113,7 @@ def test_disabled_only_reaches_keys_the_operator_may_use() -> None:
     """Consequencia da ordem: `disabled_key` tem leitura unica.
 
     Com autorizacao antes de estado, o desfecho significa sempre "voce podia
-    pedir, mas a chave esta inativa" — nunca mistura autorizacao com
+    pedir, mas a chave esta inativa", e nunca mistura autorizacao com
     disponibilidade.
     """
     repository = Repository(

@@ -51,7 +51,7 @@ def destination_of(args: Arguments) -> Path:
 
     O aquecimento mora no ramo da semente, que roda 30 vezes; o periodo
     avaliado mora no ramo de sigma, que roda 330. Nenhum modulo monta caminho
-    a mao — quem os conhece e o `layout.py`.
+    a mao: quem os conhece e o `layout.py`.
     """
     is_warmup = args.fase == WARMUP
 

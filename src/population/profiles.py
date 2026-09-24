@@ -5,7 +5,7 @@ regime exerce a recuperacao de material (D-035).
 Os tres nomes descrevem **papel**, nunca legitimidade. O primeiro chamou-se
 `legitimate_user` ate 23/09 e foi renomeado para `end_user` (D-092): o nome
 antigo sugeria "nao e o atacante", e nao e isso que ele diz. **Os tres perfis
-sao legitimos** — o atacante nao tem perfil proprio, ele age sob a credencial
+sao legitimos**: o atacante nao tem perfil proprio, ele age sob a credencial
 de um `administrator` real. Quem diz se a sessao e maliciosa e a coluna
 `compromised` do `sessions.csv`, e so ela.
 

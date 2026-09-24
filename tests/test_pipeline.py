@@ -1,6 +1,6 @@
 """Testes do orquestrador: a ordem de execução, agora como código.
 
-O risco que este arquivo guarda não é o de o orquestrador quebrar — ele é uma
+O risco que este arquivo guarda não é o de o orquestrador quebrar: ele é uma
 lista de chamadas e quebraria ruidosamente. É o de ele **divergir dos módulos**
 que orquestra: alguém muda a composição de um módulo, o `__main__` dele
 acompanha, e a linha correspondente aqui fica para trás produzindo um arquivo
@@ -141,7 +141,7 @@ def _as_csv(frame: pd.DataFrame, directory: Path, name: str) -> Path:
     """Escreve e relê, para comparar depois da mesma travessia de CSV.
 
     Comparar o quadro em memória contra o arquivo lido acusaria diferença de
-    tipo — um inteiro que volta como float, uma data que volta como texto — em
+    tipo (um inteiro que volta como float, uma data que volta como texto) em
     vez de diferença de conteúdo, que é o que interessa.
     """
     path = directory / f"esperado_{name}"

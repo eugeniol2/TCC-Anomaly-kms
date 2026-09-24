@@ -3,7 +3,7 @@
 O numero de sessoes e **fixo nas onze condicoes** (D-081): o que sigma move e
 o comportamento dentro delas, nunca quantas sao. Se sigma mexesse na contagem,
 a proporcao de anomalias mudaria junto, e a comparacao entre condicoes
-confundiria furtividade com desbalanceamento — exatamente o que a D-002 existe
+confundiria furtividade com desbalanceamento, que e exatamente o que a D-002 existe
 para impedir.
 
 O momento de abertura e a primeira das cinco dimensoes. Ele carrega **dia e

@@ -2,7 +2,7 @@
 
 O que muda aqui e a **forma** do comportamento: quantos tipos de ritmo existem,
 que campos um regime tem. Os numeros que preenchem essa forma moram em
-`parameters.py`, e mudam por outro motivo — decisao de registro, nao de codigo.
+`parameters.py`, e mudam por outro motivo: decisao de registro, nao de codigo.
 
 A separacao entre os dois arquivos e essa: valores de um lado, vocabulario do
 outro. Este importa daquele, nunca o contrario.

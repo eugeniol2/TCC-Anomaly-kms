@@ -17,7 +17,7 @@ def requests_of_phase(requests: pd.DataFrame, phase: str) -> pd.DataFrame:
 
     O `requests.csv` do ramo da semente traz as oito semanas, entao o
     aquecimento precisa recortar as quatro primeiras. O do ramo de sigma ja vem
-    so com as semanas 5 a 8, e ali o filtro nao remove nada — aplicar nos dois
+    so com as semanas 5 a 8, e ali o filtro nao remove nada: aplicar nos dois
     casos custa pouco e evita que o modulo dependa de qual arquivo recebeu.
     """
     return requests[belongs_to(phase, requests["timestamp"])].reset_index(drop=True)

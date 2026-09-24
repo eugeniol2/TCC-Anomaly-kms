@@ -72,7 +72,7 @@ FASES = (
             "antes de qualquer atacante existir."
         ),
         descricao=(
-            "Constrói o mundo estático — quem existe e o que existe — e gera as "
+            "Constrói o mundo estático (quem existe e o que existe) e gera as "
             "oito semanas de tráfego legítimo. Nada aqui depende de σ, porque o "
             "atacante ainda não entrou."
         ),
@@ -86,7 +86,7 @@ FASES = (
             "Construir a **régua** com que tudo será medido depois, a partir de "
             "tráfego **limpo**: o **perfil histórico** de cada operador e os "
             "**limiares do baseline**, os dois das mesmas quatro semanas. "
-            "Nenhum dos dois pode ver o atacante — se visse, o baseline "
+            "Nenhum dos dois pode ver o atacante: se visse, o baseline "
             "nasceria calibrado contra o comportamento que deveria detectar."
         ),
         descricao=(
@@ -103,7 +103,7 @@ FASES = (
         objetivo=(
             "Injetar a campanha de ataque, montar o conjunto rotulado e "
             "comparar o baseline de regras contra os dois modelos "
-            "supervisionados — que é a pergunta de pesquisa do trabalho."
+            "supervisionados, que é a pergunta de pesquisa do trabalho."
         ),
         descricao=(
             "Injeta a campanha nas semanas 5 a 8, monta o dataset avaliado, "
@@ -161,7 +161,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
         fase=FASE_1,
         modulo="M1",
         funcao="scope_pool",
-        explicacao="Cria os nomes dos escopos. Nao sorteia nada — e so uma lista.",
+        explicacao="Cria os nomes dos escopos. Nao sorteia nada: e so uma lista.",
         entrada={"quantity": specification.scope_count},
         saida=pool,
         legenda=f"{len(pool)} escopos",
@@ -175,7 +175,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
         explicacao=(
             "Sorteia a populacao: quantos escopos e quantas origens de rede cada "
             "operador tem, conforme o perfil. Repete ate todo escopo ter ao menos "
-            "um detentor — sem isso sobrariam chaves que ninguem alcanca."
+            "um detentor, porque sem isso sobrariam chaves que ninguem alcanca."
         ),
         entrada={"pool": f"{len(pool)} escopos"},
         saida=operators,
@@ -312,7 +312,7 @@ def traffic_steps(
             f"O {operador_foco} detem **escopos**, nao chaves. Esta funcao soma "
             "as chaves de cada escopo dele, e o total e o que ele **alcanca**.\n\n"
             "**A chave nao tem dono** (D-099). O escopo dela e detido por varios "
-            "operadores ao mesmo tempo, entao alcance e o unico criterio — aqui "
+            "operadores ao mesmo tempo, entao alcance e o unico criterio, aqui "
             "e no M4, que autoriza pela mesma regra. Ate 24/09 a tabela tinha "
             "uma coluna `owner`, e nenhum modulo a consultava.\n\n"
             "O resultado e o `in_reach`; o que sobra do repositorio vira "
@@ -387,7 +387,7 @@ def traffic_steps(
         explicacao=(
             "Preenche cada sessao: escolhe a origem de rede, quantas requisicoes, "
             "os instantes, as operacoes e as chaves. Emite **tentativas**, nunca "
-            "desfechos — quem decide se foi autorizada e o M4 (D-013)."
+            "desfechos: quem decide se foi autorizada e o M4 (D-013)."
         ),
         entrada={"sessoes": len(planejadas)},
         saida=pd.DataFrame([
@@ -429,7 +429,7 @@ def warmup_steps(
     requests: pd.DataFrame,
     foco: str,
 ) -> list[Step]:
-    """Refaz a fase 2 — M4, M5, M6, M7 e M8 — guardando cada intermediario.
+    """Refaz a fase 2 (M4, M5, M6, M7 e M8) guardando cada intermediario.
 
     Nenhum destes modulos sorteia nada: os cinco sao deterministicos por
     construcao. Nao ha `stream` aqui, e e por isso que o M4 recebe a semente
@@ -446,7 +446,7 @@ def warmup_steps(
         explicacao=(
             "Monta os tres indices contra os quais cada requisicao sera julgada: "
             "o escopo de cada chave, o conjunto de chaves desabilitadas e os "
-            "escopos de cada operador. **Tudo sai das duas tabelas do M1** — e o "
+            "escopos de cada operador. **Tudo sai das duas tabelas do M1**, e o "
             "que faz o desfecho ser derivado da politica em vez de inventado."
         ),
         entrada={"keys": len(keys), "operators": len(operators)},
@@ -465,7 +465,7 @@ def warmup_steps(
         funcao="requests_of_phase",
         explicacao=(
             "Recorta as semanas 1 a 4. O `requests.csv` tem as sete, e as quatro "
-            "ultimas pertencem ao ramo de sigma — o aquecimento e anterior ao "
+            "ultimas pertencem ao ramo de sigma, porque o aquecimento e anterior ao "
             "ataque e tem de ficar limpo (D-048)."
         ),
         entrada={"requests": len(requests), "fase": WARMUP},
@@ -485,7 +485,7 @@ def warmup_steps(
             "existe, depois fora de escopo, depois chave desabilitada, depois "
             "sucesso (D-077). Autorizacao antes de estado: quem nao detem o "
             "escopo recebe negacao, e nao a informacao de que a chave existe.\n\n"
-            "Duas colunas so, `event_id` e `outcome` — o diagnostico de qual "
+            "Duas colunas so, `event_id` e `outcome`: o diagnostico de qual "
             "regra disparou ficaria no arquivo e o M5 teria de lembrar de "
             "descarta-lo (D-078)."
         ),
@@ -506,7 +506,7 @@ def warmup_steps(
             "resolvido, para que identificador inexistente seja observavel.\n\n"
             "Nao ha escopo, perfil nem proprietario aqui: qualquer um deles "
             "deixaria o modelo reconstruir a fronteira de autorizacao e aprender "
-            "a politica em vez do comportamento. E nao ha rotulo — ele viaja em "
+            "a politica em vez do comportamento. E nao ha rotulo: ele viaja em "
             "outro arquivo (D-063)."
         ),
         entrada={"requests": len(da_fase), "outcomes": len(outcomes)},
@@ -526,7 +526,7 @@ def warmup_steps(
             "e nao ha divisao dentro dela (D-096).\n\n"
             "Ate 23/09 aqui se recortavam as semanas 1 e 2, porque a 3 calibrava "
             "os limiares e a D-054 queria evitar o acoplamento. As seis regras de "
-            "grandeza nao consultam o perfil, entao nao havia acoplamento — so um "
+            "grandeza nao consultam o perfil, entao nao havia acoplamento, so um "
             "perfil estimado da metade dos dados."
         ),
         entrada={"log": len(log)},
@@ -542,7 +542,7 @@ def warmup_steps(
         funcao="session_openings",
         explicacao=(
             "Uma linha por sessao: quem abriu, quando e de onde. O instante e o "
-            "do **primeiro evento**, e a origem e a dele — origem e uma so por "
+            "do **primeiro evento**, e a origem e a dele, porque origem e uma so por "
             "sessao desde o M2."
         ),
         entrada={"eventos": len(do_perfil)},
@@ -562,10 +562,10 @@ def warmup_steps(
             "entregavel na escala de entao: com a regua de duas semanas a mediana "
             "era de 16 sessoes por perfil, 5 % davam 0,8 sessao, e o arredondamento "
             "mandava descartar zero. A regua de quatro semanas dobrou esse numero, "
-            "mas a forma ja tinha sido decidida — e minimo a maximo e livre de "
+            "mas a forma ja tinha sido decidida, e minimo a maximo e livre de "
             "distribuicao, o que o percentil nao e.\n\n"
             "`observed_ips` **nao** e `usual_ips`. Aquela e a lista que o M1 "
-            "sorteou; esta e o subconjunto que apareceu no log — e a diferenca "
+            "sorteou; esta e o subconjunto que apareceu no log, e a diferenca "
             "entre as duas e o que produz origem inedita legitima depois (D-040)."
         ),
         entrada={"sessoes": len(aberturas)},
@@ -581,7 +581,7 @@ def warmup_steps(
         funcao="per_session",
         explicacao=(
             "Agrupa o log por sessao e conta o que e contavel: eventos, chaves "
-            "distintas, falhas e negacoes. Ainda sao grandezas brutas — nenhuma "
+            "distintas, falhas e negacoes. Ainda sao grandezas brutas: nenhuma "
             "delas e atributo ainda."
         ),
         entrada={"eventos": len(log)},
@@ -616,7 +616,7 @@ def warmup_steps(
         explicacao=(
             "Os dois atributos binarios, lidos contra o perfil **daquele "
             "operador** e nunca contra um limiar global. Nenhuma sessao do "
-            "aquecimento e atipica — a janela e o minimo e o maximo delas "
+            "aquecimento e atipica, porque a janela e o minimo e o maximo delas "
             "proprias, e nenhuma cai fora do que ela mesma delimitou. E a "
             "invariante que pegou o erro de arredondamento da D-090.\n\n"
             "**Sem coluna de rotulo.** O conjunto do aquecimento alimenta so o "
@@ -640,7 +640,7 @@ def warmup_steps(
             "anterior ao ataque, e e por isso que os limiares podem ser os mesmos "
             "nas 11 condicoes de sigma (D-043).\n\n"
             "**O limiar sai do mesmo periodo que o perfil** (D-096). Ate 23/09 "
-            "saia da semana 3 sozinha — um terco dos dados disponiveis."
+            "saia da semana 3 sozinha, que era um terco dos dados disponiveis."
         ),
         entrada={"sessoes": len(sessoes)},
         saida=do_aquecimento.head(8),
@@ -656,7 +656,7 @@ def warmup_steps(
         explicacao=(
             "Percentil 99 de cada grandeza, sobre o aquecimento. **Seis regras, nao "
             "oito**: `atypical_hour` e `new_source_ip` ja vem binarias do M7 e "
-            "disparam quando valem 1 — percentil sobre uma coluna de zeros e uns "
+            "disparam quando valem 1: percentil sobre uma coluna de zeros e uns "
             "daria 0 ou 1 e nao significaria nada.\n\n"
             "O baseline **nao recebe treino**: chega ao periodo avaliado com "
             "estes numeros congelados, e nunca ve um rotulo (D-033)."
@@ -714,7 +714,7 @@ def attack_steps(
         explicacao=(
             f"Interpola as cinco dimensoes entre o ostensivo e o furtivo, em "
             f"sigma **{sigma}**. A coluna da direita e o que o **M2 usaria** "
-            "para este administrador — ela nao foi escolhida, foi importada.\n\n"
+            "para este administrador: ela nao foi escolhida, foi importada.\n\n"
             "Em sigma 1 as duas colunas coincidem e o M3 chama as mesmas funcoes "
             "do M2: a sessao comprometida sai da mesma distribuicao que uma "
             "legitima, e nenhum mecanismo pode separa-las. E o piso declarado "
@@ -762,7 +762,7 @@ def attack_steps(
         explicacao=(
             "Mescla **58 sessoes comprometidas** as semanas 5 a 8 do trafego "
             "legitimo. O numero e o mesmo nas 11 condicoes (D-081): o que sigma "
-            "move e o comportamento dentro delas, nunca quantas sao — se movesse "
+            "move e o comportamento dentro delas, nunca quantas sao, porque se movesse "
             "as duas coisas, a proporcao de anomalias mudaria junto e a "
             "comparacao entre condicoes confundiria furtividade com "
             "desbalanceamento.\n\n"
@@ -807,7 +807,7 @@ def attack_steps(
             "requisicoes do atacante sao negadas pelas mesmas regras que negam "
             "as legitimas.\n\n"
             "E isso que faz o rotulo ser **derivado da politica** em vez de "
-            "inventado pelo gerador — o argumento central do trabalho."
+            "inventado pelo gerador, que e o argumento central do trabalho."
         ),
         entrada={"requisicoes": len(campanha.requests)},
         saida=do_atacante_log["outcome"].value_counts().rename_axis(
@@ -824,7 +824,7 @@ def attack_steps(
         funcao="build_dataset",
         explicacao=(
             "O conjunto que os modelos vao classificar. Mesmo codigo da fase 2, "
-            "mais a juncao do rotulo — que so acontece aqui.\n\n"
+            "mais a juncao do rotulo, que so acontece aqui.\n\n"
             "Cada sessao comprometida e **uma** positiva (D-061). A proporcao "
             "abaixo e contada no dado, nao herdada do parametro do gerador, "
             "como o metodo exige.\n\n"

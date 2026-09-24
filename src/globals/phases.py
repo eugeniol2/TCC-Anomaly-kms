@@ -12,8 +12,8 @@ modulos e o arquivo.
     --fase warmup      semanas 1 a 4, ramo da semente
     --fase evaluated   semanas 5 a 8, ramo de sigma
 
-**O aquecimento tem um trabalho so** (D-096). Ate 23/09 ele era dividido —
-semanas 1 e 2 faziam o perfil, a semana 3 calibrava os limiares — e a divisao
+**O aquecimento tem um trabalho so** (D-096). Ate 23/09 ele era dividido
+(semanas 1 e 2 faziam o perfil, a semana 3 calibrava os limiares) e a divisao
 custava alarme falso sem comprar nada: com a regua vendo quatro semanas em vez
 de duas, `atypical_hour` cai de 8,83 % para 4,54 % das sessoes limpas e
 `new_source_ip` de 2,05 % para 0,80 %.
@@ -49,7 +49,7 @@ mesmas semanas avaliadas, com a regua crescendo:
 O que cai e **alarme falso sobre gente inocente**: a janela e a lista de
 origens sao estimadas de amostra finita, e amostra pequena demais nao
 representa o operador. Baseline mais forte torna a comparacao mais
-defensavel — o mesmo argumento que deu os oito atributos a ele (D-080).
+defensavel, pelo mesmo argumento que deu os oito atributos a ele (D-080).
 """
 
 EVALUATED_WEEKS = 4
@@ -62,7 +62,7 @@ sao 24.
 
 **E o que impede a simetria de ser gratuita.** Encurtar para tres deixaria o
 admin alvo com 30 sessoes legitimas em vez de 40, a campanha com 45 e o
-holdout com 18 positivas — abaixo do piso de 20 que a D-081 fixou. A simetria
+holdout com 18 positivas, abaixo do piso de 20 que a D-081 fixou. A simetria
 4 + 4 sai de alongar a regua, nunca de encurtar a avaliacao.
 """
 

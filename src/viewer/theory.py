@@ -1,7 +1,7 @@
 """A teoria por trás das variáveis que são distribuições, com gráfico.
 
 Algumas variáveis do gerador não são um número escolhido: são a **forma de uma
-distribuição**. `CUSTODY_DISPERSION = 2` não quer dizer "dois" de nada — quer
+distribuição**. `CUSTODY_DISPERSION = 2` não quer dizer "dois" de nada: quer
 dizer que as sessões do administrador chegam por uma Pascal em vez de uma
 Poisson, e a diferença entre as duas é o que produz o ritmo irregular que a
 lista de conferência exige.
@@ -24,7 +24,7 @@ import pandas as pd
 from scipy import stats
 
 # A cor não mora aqui. Os passos da paleta mudam entre o tema claro e o
-# escuro — a versão clara reprovou na verificação contra fundo escuro —, e
+# escuro (a versão clara reprovou na verificação contra fundo escuro), e
 # quem sabe o tema é o app. Aqui só se declara quantas séries existem; o app
 # toma os primeiros N slots, na ordem fixa que é o mecanismo de segurança
 # para daltonismo.
@@ -71,7 +71,7 @@ def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
         titulo="Poisson ou binomial negativa (Pascal)?",
         texto=(
             "Uma **Poisson** descreve chegadas independentes a uma taxa "
-            "constante — o caso de quem trabalha sempre no mesmo ritmo. Ela tem "
+            "constante, que é o caso de quem trabalha sempre no mesmo ritmo. Ela tem "
             "uma propriedade rígida: a **variância é igual à média**. Com média "
             f"{media}, a variância também é {media}.\n\n"
             "Pessoas não trabalham assim. Um custodiante de chaves passa dias "
@@ -80,7 +80,7 @@ def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
             "maior que a média.\n\n"
             "A **binomial negativa**, também chamada de Pascal, é a Poisson com "
             "um parâmetro a mais. Ela se lê como uma Poisson cuja taxa varia de "
-            "dia para dia, e o parâmetro `n` controla quanto varia — quanto "
+            "dia para dia, e o parâmetro `n` controla quanto varia: quanto "
             f"menor, mais irregular. Com `n = {dispersao}` e a mesma média "
             f"{media}, a variância sobe para **{variancia_pascal:.2f}**, ou "
             f"{variancia_pascal / media:.2f} vez a média."
@@ -89,7 +89,7 @@ def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
         rotulo_x="sessões abertas num dia útil",
         rotulo_y="probabilidade",
         leitura=(
-            "As duas curvas têm o mesmo centro de massa — a média é a mesma. O "
+            "As duas curvas têm o mesmo centro de massa, porque a média é a mesma. O "
             "que muda são as pontas: a Pascal põe **mais peso no zero** e "
             "**mais peso na cauda** de 5 ou mais. É exatamente isso que produz "
             "dias vazios e dias cheios, e é isso que se lê no log como ritmo "
@@ -111,7 +111,7 @@ def teoria_da_poisson(media: float) -> Teoria:
         titulo="Por que Poisson basta para o usuário legítimo",
         texto=(
             "A Poisson descreve chegadas independentes a uma taxa constante, e "
-            "tem variância igual à média — nenhum parâmetro extra para ajustar.\n\n"
+            "tem variância igual à média, sem nenhum parâmetro extra para ajustar.\n\n"
             "Para o `end_user` isso é suficiente, e é suficiente de "
             "propósito. Ele é o **contraste** contra o qual o ritmo irregular do "
             "`administrator` aparece: se os dois fossem superdispersos, o item "
@@ -148,7 +148,7 @@ def teoria_da_exponencial(intervalos: dict[str, float]) -> Teoria:
             "eventos de um processo sem memória: o tempo já decorrido não muda "
             "a chance de o próximo evento ocorrer agora.\n\n"
             "É a escolha natural aqui porque **a duração da sessão não é "
-            "escrita em lugar nenhum** — ela emerge da soma desses intervalos. "
+            "escrita em lugar nenhum**: ela emerge da soma desses intervalos. "
             "E é da duração que sai `requests_per_minute`, que é uma das cinco "
             "dimensões que σ interpola.\n\n"
             "Cada perfil tem sua média. O `automated_service` dispara "
@@ -161,7 +161,7 @@ def teoria_da_exponencial(intervalos: dict[str, float]) -> Teoria:
         forma="linha",
         leitura=(
             "Quanto mais alta a curva na origem, mais curto o intervalo típico. "
-            "A do `automated_service` despenca quase de imediato — quase toda a "
+            "A do `automated_service` despenca quase de imediato, e quase toda a "
             "massa está nos primeiros segundos. A do `administrator` é rasa e "
             "longa, o que dá sessões de dezenas de minutos."
         ),
@@ -206,7 +206,7 @@ def teoria_da_cauda(
     return Teoria(
         titulo="Por que a faixa de comprimento precisou de cauda",
         texto=(
-            f"A faixa de cada regime — aqui {faixa} — dizia o comprimento da "
+            f"A faixa de cada regime (aqui {faixa}) dizia o comprimento da "
             "sessão por **sorteio uniforme numa faixa fechada**. Isso a tornava "
             "um **teto rígido**: nenhuma sessão legítima podia ter mais de "
             f"{maior} eventos, nunca.\n\n"
@@ -214,12 +214,12 @@ def teoria_da_cauda(
             "classes **não se sobrepunham**, e o percentil 99 do baseline caía "
             f"exatamente em {maior}. A regra `events` passava a ter **falso "
             "positivo zero por construção** e separava as classes sozinha, com "
-            "F1 **0,982** em σ 0,0 — por aritmética de faixa, não por "
+            "F1 **0,982** em σ 0,0, por aritmética de faixa e não por "
             "comportamento. A condição σ 0,0 seria excluída da comparação pelo "
             "critério de trivialidade, e pela razão errada (D-097).\n\n"
             f"A correção: **uma sessão em {1 / chance:.0f}** se estende por um "
             f"excesso geométrico de média {excesso:.0f}. Tráfego real de KMS tem "
-            "cauda — migração em lote, reprocessagem, job que repete —, e o teto "
+            "cauda (migração em lote, reprocessagem, job que repete), e o teto "
             "era artefato do sorteio, não propriedade do domínio.\n\n"
             f"Hoje **{acima:.1%}** das sessões passam do típico, e a mais longa "
             "chega à faixa do atacante. O mesmo mecanismo vale para a amplitude: "
@@ -230,7 +230,7 @@ def teoria_da_cauda(
         rotulo_y="chance",
         forma="linha",
         leitura=(
-            f"A curva **faixa fechada** cai a zero em {maior} e não volta mais — "
+            f"A curva **faixa fechada** cai a zero em {maior} e não volta mais: "
             "é o teto. A **com cauda** tem a mesma massa no meio e segue à "
             "direita, fina mas sem acabar, atravessando a região onde o atacante "
             "ostensivo vive. É essa sobreposição que faz a regra precisar medir "
@@ -267,17 +267,17 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
             "pergunta se a origem da sessão **apareceu na régua**, que são as "
             "quatro semanas de aquecimento. Se todos os endereços de um operador "
             "aparecessem sempre, nenhuma sessão legítima teria origem inédita no "
-            "período avaliado — e origem inédita viraria marcador perfeito do "
+            "período avaliado, e origem inédita viraria marcador perfeito do "
             "atacante.\n\n"
             f"Com o decaimento, o quarto endereço fica em **{quarto:.2%}** de "
             "chance por sessão. Numa régua de cerca de 32 sessões, ele tem "
-            f"~{ausencia:.0%} de chance de **não aparecer nenhuma vez** — e é "
+            f"~{ausencia:.0%} de chance de **não aparecer nenhuma vez**, e é "
             "essa ausência que produz origem inédita legítima depois.\n\n"
             "**A régua de quatro semanas apertou essa folga**, e é o custo "
             "declarado da D-096: com mais semanas observadas, a maior parte dos "
             "perfis passa a ter visto todos os endereços do operador, e sobra "
             "menos para ser inédito depois. Nenhuma das 30 sementes chega a "
-            "zero, que é a condição mínima, mas a margem ficou fina — a "
+            "zero, que é a condição mínima, mas a margem ficou fina: a "
             "contagem por semente está na seção 6.9 do `relatorio-fundacao.md`."
         ),
         dados=dados,
@@ -305,7 +305,7 @@ def teoria_da_dirichlet(chaves: pd.DataFrame, concentracao: float) -> Teoria:
         titulo="Por que os escopos têm tamanhos desiguais",
         texto=(
             "As chaves se repartem entre os escopos por uma **Dirichlet**, que "
-            "é a distribuição de proporções que somam 1 — o sorteio natural "
+            "é a distribuição de proporções que somam 1, que é o sorteio natural "
             "quando se quer dividir um total em partes. O parâmetro de "
             f"concentração, aqui **{concentracao}**, controla quão desigual: "
             "valores altos aproximam a divisão de partes iguais, valores baixos "
@@ -313,7 +313,7 @@ def teoria_da_dirichlet(chaves: pd.DataFrame, concentracao: float) -> Teoria:
             "A desigualdade é **deliberada**. O alcance de um operador é a soma "
             "das chaves dos escopos que ele detém. Se todos os escopos tivessem "
             "o mesmo tamanho, dois operadores do mesmo perfil teriam alcances "
-            "quase idênticos, e `distinct_keys` variaria pouco entre eles — o "
+            "quase idênticos, e `distinct_keys` variaria pouco entre eles, e o "
             "que tornaria o atributo mais fácil de separar por um limiar global "
             "do que pelo histórico de cada um.\n\n"
             "O gráfico é medido no `keys.csv` desta semente, não simulado."
@@ -324,7 +324,7 @@ def teoria_da_dirichlet(chaves: pd.DataFrame, concentracao: float) -> Teoria:
         leitura=(
             f"Se a divisão fosse igual, todo escopo teria **{uniforme:.0f} "
             f"chaves**. O maior aqui tem {por_escopo.iloc[0]} e o menor "
-            f"{por_escopo.iloc[-1]} — uma diferença de "
+            f"{por_escopo.iloc[-1]}, uma diferença de "
             f"{por_escopo.iloc[0] / por_escopo.iloc[-1]:.1f} vezes. É essa "
             "distância que faz dois operadores do mesmo perfil terem alcances "
             "diferentes."

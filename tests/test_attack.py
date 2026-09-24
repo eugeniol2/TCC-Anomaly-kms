@@ -160,7 +160,7 @@ def test_a_batch_regime_is_refused() -> None:
     """So um operador de ritmo humano pode ser personificado.
 
     O administrador comprometido e sempre `occasional_custody` (D-010), entao
-    receber um regime de lote aqui significa que alguem trocou o alvo — falhar
+    receber um regime de lote aqui significa que alguem trocou o alvo, e falhar
     e melhor que interpolar uma janela horaria que o lote nao tem.
     """
     with pytest.raises(ValueError, match="ritmo de chegada"):
@@ -337,7 +337,7 @@ def test_the_ostensive_end_breaks_the_legitimate_ceiling_and_the_furtive_does_no
 
     **O teto sai da propria semente, e nao de um numero fixo** (D-098). Ele era
     15 enquanto a amplitude legitima tinha teto rigido, e fixa-lo aqui faria o
-    teste falhar por mudanca legitima da distribuicao em vez de por regressao —
+    teste falhar por mudanca legitima da distribuicao em vez de por regressao,
     que foi exatamente o que aconteceu quando a cauda entrou.
     """
     legitimate = traffic(seed)

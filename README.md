@@ -43,7 +43,7 @@ tests/             verificacao de determinismo e de formato
 ```
 
 A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
-semanas 5 a 8, tudo que deriva do aquecimento e independente de sigma — e o
+semanas 5 a 8, tudo que deriva do aquecimento e independente de sigma, e o
 pipeline tem dois ramos. M4, M5 e M7 aparecem nos dois.
 
 ```
@@ -56,14 +56,14 @@ data/
   seed-01/                        ---- ramo da semente, 30 execucoes ----
     operators.csv  keys.csv       M1
     requests.csv                  M2, oito semanas, so legitimo
-    outcomes.csv  log.csv         M4, M5 — semanas 1 a 4
+    outcomes.csv  log.csv         M4, M5, semanas 1 a 4
     historical_profiles.csv       M6, do aquecimento inteiro
     sessions.csv                  M7, semanas 1 a 4
     thresholds.csv                M8, do aquecimento inteiro
     sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
       requests.csv                M3, semanas 5 a 8, legitimo + ataque
       compromised_sessions.csv    M3
-      outcomes.csv  log.csv       M4, M5 — semanas 5 a 8
+      outcomes.csv  log.csv       M4, M5, semanas 5 a 8
       sessions.csv                M7, semanas 5 a 8
       train.csv  holdout.csv      M9
       predictions_rules.csv       M10
@@ -99,21 +99,21 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 | M11 | `models` | `train.csv`, `holdout.csv`, config | `predictions_ml.csv` |
 | M12 | `evaluation` | predictions | `metrics.csv` |
 
-As oito semanas simuladas têm dois papéis. As semanas 1 a 4 constroem a **régua** — o
-perfil histórico de cada operador **e** os limiares do baseline, do mesmo período — e as
+As oito semanas simuladas têm dois papéis. As semanas 1 a 4 constroem a **régua** (o
+perfil histórico de cada operador **e** os limiares do baseline, do mesmo período) e as
 semanas 5 a 8 são o período avaliado, o único em que o atacante age. A história é a de
 uma implantação: uma empresa com quatro semanas de log constrói o baseline e o põe em
 produção.
 
 O M3 lê o `requests.csv` do M2 e escreve outro, mesclando a campanha às semanas 5 a 8
-do tráfego legítimo — nunca acrescentando linhas ao arquivo do M2. Já `fase` não é
+do tráfego legítimo, nunca acrescentando linhas ao arquivo do M2. Já `fase` não é
 arquivo: é o parâmetro obrigatório de M4, M5 e M7, que diz qual arquivo o módulo lê e
 em qual dos dois ramos escreve.
 
 O rótulo de sessão comprometida **não é coluna do `log.csv`**: ele viaja em
 `compromised_sessions.csv` e o M7 o junta só na fase `evaluated`. Um log de auditoria
 que carrega verdade de fundo deixa de ser um log, e coluna que não existe no arquivo
-não pode vazar. Por isso o `sessions.csv` do aquecimento não tem rótulo — ele alimenta
+não pode vazar. Por isso o `sessions.csv` do aquecimento não tem rótulo: ele alimenta
 só a calibração, que não usa rótulo.
 
 Nomes de código e de arquivo em inglês; o texto da monografia é em português e traz uma
@@ -142,7 +142,7 @@ python -m src.population --seed 7
 python -m src.traffic    --seed 7
 ```
 
-O M2 lê as tabelas que o M1 escreveu naquela semente, então a ordem importa — ele
+O M2 lê as tabelas que o M1 escreveu naquela semente, então a ordem importa, e ele
 falha com mensagem clara se elas não existirem.
 
 ## Testes
@@ -159,7 +159,7 @@ chave nunca sequenciais.
 Do M2: nenhuma coluna carrega o desfecho, a origem de rede e sempre uma das
 habituais, os dois caminhos de falha legitima ocorrem, e o ritmo de cada regime
 respeita o que foi fixado. As invariantes rodam nas 30 sementes da grade, nao
-numa so — falha especifica de semente e o que passa despercebido.
+numa so, porque falha especifica de semente e o que passa despercebido.
 
 O `test_reference_output_has_not_changed` e detector de mudanca, nao teste de
 correcao: falha sempre que o gerador mudar, inclusive de proposito. Quando
@@ -174,15 +174,15 @@ Semente mais código determinam a saída inteira. É por isso que `data/` não �
 apagar a pasta e reexecutar reproduz os CSVs byte a byte, e é assim que o determinismo é
 conferido.
 
-Fluxos de aleatoriedade são separados por subsistema — população e chaves, tráfego
-legítimo, campanha de ataque — todos derivados da mesma semente. A grade experimental é
+Fluxos de aleatoriedade são separados por subsistema (população e chaves, tráfego
+legítimo, campanha de ataque), todos derivados da mesma semente. A grade experimental é
 de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuções.
 
 ## Estado
 
 Em construção. **M1 a M8 implementados, e o orquestrador**; M9 a M12 pendentes. O ramo da
-semente já produz a régua inteira — o perfil histórico e os limiares do baseline, das
-quatro semanas de aquecimento — e o ramo de sigma já produz o conjunto rotulado das
+semente já produz a régua inteira (o perfil histórico e os limiares do baseline, das
+quatro semanas de aquecimento) e o ramo de sigma já produz o conjunto rotulado das
 semanas 5 a 8.
 
 O M2 produz cerca de 74 mil requisições em 3,8 mil sessões por semente. Os três itens que

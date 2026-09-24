@@ -3,7 +3,7 @@
 A invariante que importa aqui e a separacao entre as sementes das replicas e as
 das preparacoes. Se ela se romper, o baseline passa a ser calibrado sobre dado
 que depois julga, e a configuracao de hiperparametros passa a ser escolhida sobre
-uma populacao que reaparece entre as avaliadas — as duas sem erro em lugar nenhum.
+uma populacao que reaparece entre as avaliadas, as duas sem erro em lugar nenhum.
 """
 
 from __future__ import annotations

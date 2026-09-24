@@ -3,8 +3,8 @@
 Todo numero que o M1 usa mora aqui. E este arquivo que se le para saber o que o
 gerador faz, e e nele que se mexe para mudar.
 
-A escala da populacao — quantos operadores de cada perfil, quantos escopos e
-quantas origens de rede — mora em `profiles.py`, junto da estrutura que a
+A escala da populacao (quantos operadores de cada perfil, quantos escopos e
+quantas origens de rede) mora em `profiles.py`, junto da estrutura que a
 descreve.
 
 A referencia `D-xxx` de cada valor aponta a entrada de `decisoes.md` que o fixou

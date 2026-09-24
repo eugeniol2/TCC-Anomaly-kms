@@ -1,7 +1,7 @@
 """Testes do M6, do M7 e do M8: perfil, conjunto de sessoes e limiares.
 
 Sao os tres modulos do aquecimento e da calibracao. O que eles produzem nao e
-resultado nenhum — e a base contra a qual o periodo avaliado sera lido — e por
+resultado nenhum (e a base contra a qual o periodo avaliado sera lido), e por
 isso os testes aqui guardam sobretudo **o que nao pode vazar de um periodo para
 outro**.
 
@@ -125,8 +125,8 @@ def within_ruler_weeks(sessions: pd.DataFrame) -> pd.DataFrame:
 def test_every_operator_has_a_profile(seed: int) -> None:
     """Operador sem perfil deixaria o M7 sem contra o que comparar.
 
-    Nesta escala nao acontece — todo operador abre sessao nas duas primeiras
-    semanas —, e o teste existe para que deixar de acontecer seja visivel se a
+    Nesta escala nao acontece, porque todo operador abre sessao nas duas
+    primeiras semanas, e o teste existe para que deixar de acontecer seja visivel se a
     escala da populacao ou o ritmo mudarem (D-006, D-058).
     """
     assert tuple(profiles(seed).columns) == PROFILE_COLUMNS

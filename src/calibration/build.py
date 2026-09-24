@@ -19,7 +19,7 @@ nao teria.
 tem coluna de rotulo (D-063). A cegueira e estrutural, nao disciplina.
 
 **O limiar e global, nao por operador.** As duas regras que comparam contra o
-historico de cada operador — `atypical_hour` e `new_source_ip` — ja vem prontas
+historico de cada operador (`atypical_hour` e `new_source_ip`) ja vem prontas
 do M7, lidas contra o perfil. As seis daqui sao de grandeza absoluta e saem do
 percentil sobre todas as sessoes do aquecimento juntas.
 
@@ -40,8 +40,8 @@ from src.globals.phases import WARMUP, belongs_to
 COLUMNS = ("attribute", "threshold", "percentile", "sessions")
 """As colunas de `thresholds.csv` (D-087).
 
-`percentile` e `sessions` sao redundantes na mesma execucao — valem 99 e o
-mesmo numero em todas as linhas — e existem para a **dispersao entre as 30
+`percentile` e `sessions` sao redundantes na mesma execucao (valem 99 e o
+mesmo numero em todas as linhas) e existem para a **dispersao entre as 30
 sementes** ser lida do disco sem reexecutar nada. A D-043 deixou essa medicao
 como pendencia explicita: limiares muito instaveis entre sementes seriam achado
 sobre a fragilidade do baseline, e material da Discussao.
@@ -53,8 +53,8 @@ def ruler_period(sessions: pd.DataFrame) -> pd.DataFrame:
 
     Ate 23/09 so a semana 3 entrava, e as semanas 1 e 2 ficavam de fora porque
     tinham construido o perfil. O argumento nao se sustentava: **as seis
-    regras de grandeza nao usam o perfil** — `events`, `duration_minutes` e as
-    outras quatro se calculam do log cru —, entao nao havia acoplamento a
+    regras de grandeza nao usam o perfil**: `events`, `duration_minutes` e as
+    outras quatro se calculam do log cru, entao nao havia acoplamento a
     evitar. O que a divisao produzia era um limiar estimado de um terco dos
     dados disponiveis.
 
@@ -69,7 +69,7 @@ def threshold_of(values: pd.Series) -> float:
 
     A comparacao no M10 e `> limiar`, estrita. Com `>=`, uma regra cujo
     percentil encoste no maximo observado marcaria toda sessao que atingisse o
-    teto — foi assim que a razao `chaves_por_evento` marcava 9,4 % das sessoes
+    teto. Foi assim que a razao `chaves_por_evento` marcava 9,4 % das sessoes
     ao trocar o operador, medindo tamanho de sessao e nao varredura (D-080).
     """
     return float(np.percentile(values, PERCENTILE))

@@ -74,7 +74,7 @@ def build_keys(rng: Generator, sizes: dict[str, int]) -> pd.DataFrame:
     """Repositorio de chaves, todas ativas, agrupadas por escopo.
 
     **A chave nao tem dono** (D-099). Quem alcanca uma chave e quem detem o
-    escopo dela, e o escopo e detido por varios operadores — entao propriedade
+    escopo dela, e o escopo e detido por varios operadores, entao propriedade
     nao decide acesso, nem aqui nem no M4. A tabela teve uma coluna `owner` ate
     24/09; ela nunca foi consumida por modulo nenhum.
     """

@@ -7,7 +7,7 @@ com a semente escolhida, e mostra o que entrou e o que saiu.
 
 A unidade da tela e o **passo do diagrama**, nao a funcao. Quem esta
 conhecendo o trabalho precisa ver que dados entraram, que entidade os
-processou e que dados sairam — `scope_pool` e `split_keys_by_scope` sao
+processou e que dados sairam: `scope_pool` e `split_keys_by_scope` sao
 granularidade de implementacao e ficam guardados atras de "por dentro", para
 quem quiser.
 """
@@ -64,7 +64,7 @@ from src.viewer.steps import (
 TITULO = "Pipeline em tres fases"
 
 # ATENCAO: nada de docstring de constante neste arquivo. O streamlit tem
-# "magic" — uma string solta no nivel do modulo e renderizada como conteudo
+# "magic": uma string solta no nivel do modulo e renderizada como conteudo
 # da pagina, e as explicacoes apareciam acima do titulo. Aqui, comentario.
 
 # Altura em pixels das tabelas, para caberem duas lado a lado sem rolar a
@@ -86,7 +86,7 @@ EXEMPLO_DE_FILTRO = 'outcome != "success"'
 ALTURA_DAS_VARIAVEIS = 420
 
 # Altura dos graficos de teoria. Baixa: eles ilustram uma forma, nao
-# servem para ler valor — quem quiser o numero passa o mouse.
+# servem para ler valor, e quem quiser o numero passa o mouse.
 ALTURA_DO_GRAFICO = 260
 
 # Os tres primeiros slots da paleta categorica de referencia, um par por
@@ -118,7 +118,7 @@ def aquecimento(seed: int) -> dict[str, pd.DataFrame]:
     """Tudo que a fase 2 produz, de uma vez.
 
     Num dicionario porque os quadros da fase 2 e da fase 3 consomem pedacos
-    diferentes, e recalcular o perfil na fase 3 violaria a D-044 — que manda
+    diferentes, e recalcular o perfil na fase 3 violaria a D-044, que manda
     usar o mesmo, nunca um recalculado.
     """
     operators, keys = tabelas(seed)
@@ -239,7 +239,7 @@ def filtrar(quadro: pd.DataFrame, chave: str) -> pd.DataFrame:
 
     A expressao vai para o `DataFrame.query` do pandas, entao aceita `and`,
     `or`, `not in` e comparacao. Expressao invalida vira aviso, nunca tela
-    quebrada — quem esta apresentando nao pode perder a tela por um parentese.
+    quebrada: quem esta apresentando nao pode perder a tela por um parentese.
     """
     escolhido, expressao = controles_do_filtro(quadro, chave)
 
@@ -309,7 +309,7 @@ def mostrar_lado(
     """As entradas ou as saidas, empilhadas e em largura cheia.
 
     Em largura cheia, e nao em duas colunas lado a lado, porque as tabelas tem
-    muitas colunas — `log.csv` tem oito, `sessions.csv` tem doze — e metade da
+    muitas colunas (`log.csv` tem oito, `sessions.csv` tem doze), e metade da
     tela cortava as ultimas. Quem precisa comparar entrada com saida rola a
     pagina; quem precisa filtrar uma coluna nao consegue se ela estiver
     escondida.
@@ -357,7 +357,7 @@ def slots_do_tema() -> tuple[str, ...]:
     """Os passos da paleta que servem ao tema em vigor.
 
     O streamlit resolve o tema no navegador, entao ele so e conhecido em tempo
-    de execucao. Faltando a informacao, o claro e o padrao — e o padrao do
+    de execucao. Faltando a informacao, o claro e o padrao, que e tambem o do
     proprio streamlit.
     """
     is_escuro = st.context.theme.get("type") == "dark"
@@ -368,7 +368,7 @@ def slots_do_tema() -> tuple[str, ...]:
 def mostrar_grafico(teoria: Teoria) -> None:
     """O grafico da distribuicao, na forma que o dominio pede.
 
-    Barras para dominio discreto — nao existe meia sessao —, linha para
+    Barras para dominio discreto (nao existe meia sessao), linha para
     continuo. Trocar os dois faria o grafico afirmar algo falso sobre o dado:
     linha entre inteiros sugere que os valores entre eles existem.
     """
@@ -487,7 +487,7 @@ def escolher_fase() -> Fase:
 
 
 def barra_lateral(fase: Fase) -> tuple[int, str, float]:
-    """Semente, operador em foco e — so na fase 3 — sigma."""
+    """Semente, operador em foco e, so na fase 3, sigma."""
     st.sidebar.divider()
     st.sidebar.subheader("Controles")
 
@@ -521,7 +521,7 @@ def barra_lateral(fase: Fase) -> tuple[int, str, float]:
 
 # Chave do seletor de passo, que e a unica fonte da verdade da navegacao. Os
 # botoes nao guardam estado proprio: escrevem nesta chave, e o seletor a le.
-# Com duas fontes — um contador e um seletor — elas se dessincronizavam, e
+# Com duas fontes (um contador e um seletor) elas se dessincronizavam, e
 # era dai que vinha o botao que sumia.
 PASSO_ESCOLHIDO = "passo_escolhido"
 
@@ -537,7 +537,7 @@ def andar(rotulos: list[str], passos: int) -> None:
     Callback de `on_click`, e nao codigo no corpo da funcao, de proposito. O
     callback roda **antes** do redesenho, entao o seletor e os botoes ja veem
     o valor novo. Incrementando no corpo, o botao era desenhado com o valor
-    velho e so se corrigia no clique seguinte — que era o bug de o `Avancar`
+    velho e so se corrigia no clique seguinte, que era o bug de o `Avancar`
     aparecer desabilitado depois de voltar.
     """
     atual = rotulos.index(st.session_state[PASSO_ESCOLHIDO])

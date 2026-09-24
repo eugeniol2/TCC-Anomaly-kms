@@ -13,7 +13,7 @@ contagens, e ali sigma regula o **valor**.
 A propriedade que este arquivo garante, e que o teste confere, e que em
 **sigma 1 toda dimensao vale exatamente o que o M2 usaria** para aquele
 administrador. A sessao comprometida passa a sair da mesma distribuicao da
-legitima, e nenhum mecanismo pode separa-las — e o piso declarado da varredura.
+legitima, e nenhum mecanismo pode separa-las. E o piso declarado da varredura.
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ def between(sigma: float, ostensive: float, furtive: float) -> float:
     ostensive)`, e deliberada. A segunda e algebricamente identica mas nao
     devolve o extremo **exato** em ponto flutuante: com 0,30 e 0,005 ela da
     0,005000000000000004 em sigma 1. A diferenca nao muda sorteio nenhum, mas
-    desfaz a igualdade exata contra os parametros do M2 — que e a propriedade
+    desfaz a igualdade exata contra os parametros do M2, que e a propriedade
     que o teste de convergencia verifica, e a unica prova barata de que
     sigma 1 e mesmo o piso.
     """

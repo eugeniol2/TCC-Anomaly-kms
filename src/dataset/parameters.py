@@ -12,7 +12,7 @@ SHORTEST_MEASURABLE_MINUTES = 1 / 60
 
 Uma sessao cujos eventos caem todos no mesmo segundo tem duracao zero, e
 `eventos / 0` e infinito. Um segundo e a menor duracao que o `timestamp`
-consegue representar — ele e ISO com segundos (D-066) —, entao o piso nao
+consegue representar (ele e ISO com segundos, D-066), entao o piso nao
 inventa resolucao que o log nao tem: ele apenas recusa afirmar que o intervalo
 foi menor do que o formato sabe medir.
 

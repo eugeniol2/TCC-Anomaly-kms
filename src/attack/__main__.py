@@ -2,7 +2,7 @@
 
     python -m src.attack --seed 1 --sigma 0.5
 
-Nao recebe `--fase`. O M3 roda num ramo so — o de sigma —, porque o
+Nao recebe `--fase`. O M3 roda num ramo so, o de sigma, porque o
 aquecimento e anterior ao ataque (D-048). Fase obrigatoria existe nos modulos
 que rodam nos dois ramos, e aqui ela nao teria segundo valor.
 """
