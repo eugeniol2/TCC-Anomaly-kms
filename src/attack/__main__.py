@@ -1,4 +1,4 @@
-"""Linha de comando do M3: mescla a campanha ao trafego das semanas 4 a 7.
+"""Linha de comando do M3: mescla a campanha ao trafego das semanas 5 a 8.
 
     python -m src.attack --seed 1 --sigma 0.5
 

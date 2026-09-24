@@ -1,4 +1,4 @@
-"""Quando as sessoes comprometidas acontecem, dentro das semanas 4 a 7.
+"""Quando as sessoes comprometidas acontecem, dentro das semanas 5 a 8.
 
 O numero de sessoes e **fixo nas onze condicoes** (D-081): o que sigma move e
 o comportamento dentro delas, nunca quantas sao. Se sigma mexesse na contagem,
@@ -25,7 +25,7 @@ from src.traffic.calendar import business_days_among
 
 
 def evaluated_days() -> list[date]:
-    """Os dias corridos das semanas 4 a 7, que e onde a campanha cabe."""
+    """Os dias corridos das semanas 5 a 8, que e onde a campanha cabe."""
     first_week, last_week = WEEKS_OF[EVALUATED]
 
     opens = first_day_of(first_week)

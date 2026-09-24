@@ -74,7 +74,7 @@ def read_inputs(
     """O log da fase, o perfil historico e, so na fase avaliada, o rotulo.
 
     O perfil mora sempre no ramo da semente, mesmo quando o log vem de uma
-    pasta de sigma: ele sai das semanas 1 e 2 e nunca e recalculado (D-044).
+    pasta de sigma: ele sai do aquecimento e nunca e recalculado (D-044).
     """
     needed = {
         "log.csv": destination / "log.csv",

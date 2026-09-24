@@ -19,7 +19,7 @@ from dataclasses import dataclass
 # Tamanho da campanha (D-081). Fixo nas 11 condicoes de sigma.
 
 CAMPAIGN_SESSIONS = 58
-"""Sessoes que o atacante abre nas semanas 4 a 7.
+"""Sessoes que o atacante abre nas semanas 5 a 8.
 
 Sao 1,5x as 39 sessoes legitimas que o administrador alvo tem na mediana do
 periodo avaliado. Com a particao 60/40 da D-070, rendem **23 positivas no

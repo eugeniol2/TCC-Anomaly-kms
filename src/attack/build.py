@@ -1,4 +1,4 @@
-"""Composicao do M3: mescla a campanha as semanas 4 a 7 do trafego legitimo.
+"""Composicao do M3: mescla a campanha as semanas 5 a 8 do trafego legitimo.
 
 O M3 **le o `requests.csv` do M2 e escreve outro**, na pasta de sigma. Nao
 acrescenta linhas ao arquivo do M2, porque cada arquivo tem um unico modulo
@@ -113,9 +113,9 @@ def known_addresses_of(operators: list[Operator]) -> frozenset[str]:
 
 
 def legitimate_of_evaluated(requests: pd.DataFrame) -> pd.DataFrame:
-    """As semanas 4 a 7 do trafego legitimo, que e onde a campanha entra.
+    """As semanas 5 a 8 do trafego legitimo, que e onde a campanha entra.
 
-    O arquivo do M2 tem as sete semanas; as tres primeiras ficam no ramo da
+    O arquivo do M2 tem as oito semanas; as quatro primeiras ficam no ramo da
     semente e nao podem aparecer aqui, porque o aquecimento e anterior ao
     ataque (D-048).
     """
@@ -157,7 +157,7 @@ def build_attack(
     traffic: TrafficSpecification,
     attack: AttackSpecification,
 ) -> AttackOutput:
-    """Do trafego legitimo das semanas 4 a 7 ao arquivo com a campanha dentro.
+    """Do trafego legitimo das semanas 5 a 8 ao arquivo com a campanha dentro.
 
     Emite tentativas, nunca desfechos (D-013), e nao marca as linhas do
     atacante de forma nenhuma: quem sabe quais sao e o

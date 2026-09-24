@@ -1,4 +1,4 @@
-"""Quando cada operador abre sessao, ao longo das sete semanas.
+"""Quando cada operador abre sessao, ao longo das oito semanas.
 
 Dois tipos de ritmo, e a diferenca entre eles e o que faz maquina e humano se
 distinguirem no log sem que nada consulte o rotulo do perfil: o lote chega em

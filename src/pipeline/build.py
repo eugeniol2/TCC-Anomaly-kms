@@ -10,7 +10,7 @@ coisas acontecem lê as duas funções do fim, que são listas lineares de chama
 
 Duas propriedades vêm de decisão e não de conveniência:
 
-**Os dois ramos existem porque o atacante só age nas semanas 4 a 7** (D-049).
+**Os dois ramos existem porque o atacante só age nas semanas 5 a 8** (D-049).
 O ramo da semente roda 30 vezes e produz tudo que é anterior ao ataque; o ramo
 de sigma roda 330 e produz o período avaliado. Rodar o primeiro dentro do
 segundo recomputaria onze vezes o mesmo aquecimento, e bastaria um sorteio
@@ -90,7 +90,7 @@ def emit(frame: pd.DataFrame, directory: Path, name: str) -> pd.DataFrame:
 
 
 def run_seed_branch(seed: int, root: Path, specifications: Specifications) -> SeedBranch:
-    """As semanas 1 a 3, e tudo que delas deriva. Roda 30 vezes, não 330.
+    """As semanas 1 a 4, e tudo que delas deriva. Roda 30 vezes, não 330.
 
     A ordem abaixo é a ordem. Cada linha depende do que as anteriores
     produziram, e nenhuma depende de sigma.
@@ -127,7 +127,7 @@ def run_sigma_branch(
     branch: SeedBranch,
     specifications: Specifications,
 ) -> SigmaBranch:
-    """As semanas 4 a 7 de uma condição. Roda 330 vezes.
+    """As semanas 5 a 8 de uma condição. Roda 330 vezes.
 
     Recebe o ramo da semente pronto em vez de recomputá-lo: é o que garante
     que as onze condições compartilhem exatamente o mesmo aquecimento.

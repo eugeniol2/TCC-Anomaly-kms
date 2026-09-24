@@ -3,8 +3,8 @@
 A hierarquia espelha a dependencia. O que depende so da semente fica no nivel da
 semente; o que depende tambem de sigma fica um nivel abaixo.
 
-Como o atacante age apenas nas semanas 4 a 7 (D-048, D-069), tudo que deriva das
-semanas 1 a 3 e independente de sigma. O pipeline tem portanto **dois ramos**, e
+Como o atacante age apenas nas semanas 5 a 8 (D-048, D-096), tudo que deriva do
+aquecimento e independente de sigma. O pipeline tem portanto **dois ramos**, e
 M4, M5 e M7 aparecem nos dois: rodam 30 vezes sobre o aquecimento e 330 vezes
 sobre o periodo avaliado (D-049).
 
@@ -17,18 +17,18 @@ sobre o periodo avaliado (D-049).
       seed-01/                        ---- ramo da semente, 30 execucoes ----
         operators.csv                 M1
         keys.csv                      M1
-        requests.csv                  M2, sete semanas, so trafego legitimo
-        outcomes.csv                  M4, semanas 1 a 3
-        log.csv                       M5, semanas 1 a 3
-        historical_profiles.csv       M6, das semanas 1 e 2
-        sessions.csv                  M7, da semana 3
-        thresholds.csv                M8, da semana 3
+        requests.csv                  M2, oito semanas, so trafego legitimo
+        outcomes.csv                  M4, semanas 1 a 4
+        log.csv                       M5, semanas 1 a 4
+        historical_profiles.csv       M6, do aquecimento inteiro
+        sessions.csv                  M7, semanas 1 a 4
+        thresholds.csv                M8, do aquecimento inteiro
         sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
-          requests.csv                M3, semanas 4 a 7, legitimo + ataque
+          requests.csv                M3, semanas 5 a 8, legitimo + ataque
           compromised_sessions.csv    M3
-          outcomes.csv                M4, semanas 4 a 7
-          log.csv                     M5, semanas 4 a 7
-          sessions.csv                M7, semanas 4 a 7
+          outcomes.csv                M4, semanas 5 a 8
+          log.csv                     M5, semanas 5 a 8
+          sessions.csv                M7, semanas 5 a 8
           train.csv, holdout.csv      M9
           predictions_rules.csv       M10
           predictions_ml.csv          M11
@@ -65,8 +65,8 @@ METRICS = "metrics.csv"
 def seed_directory(root: Path, seed: int) -> Path:
     """Ramo da semente: o aquecimento e tudo que dele deriva.
 
-    Semanas 1 a 3, independentes de sigma porque o atacante nao age nelas. Aqui
-    moram a populacao, o trafego legitimo das sete semanas, o log do
+    Semanas 1 a 4, independentes de sigma porque o atacante nao age nelas. Aqui
+    moram a populacao, o trafego legitimo das oito semanas, o log do
     aquecimento, os perfis historicos e os limiares.
     """
     return root / f"seed-{seed:02d}"
@@ -75,7 +75,7 @@ def seed_directory(root: Path, seed: int) -> Path:
 def run_directory(root: Path, seed: int, sigma: float) -> Path:
     """Ramo de sigma: o periodo avaliado de uma execucao.
 
-    Semanas 4 a 7, onde a campanha transcorre (D-069). Um decimal em sigma
+    Semanas 5 a 8, onde a campanha transcorre (D-096). Um decimal em sigma
     basta para os 11 valores da grade, e mantem a ordem alfabetica igual a
     ordem numerica: sigma-0.0 ate sigma-1.0.
     """
@@ -90,7 +90,7 @@ def preparation_directory(root: Path, seed: int) -> Path:
     trivialidade (D-052). Ficam separadas porque servem a propositos diferentes e
     porque reaproveitar o holdout da 902 conflitaria com a D-045.
 
-    Os limiares do baseline nao passam por aqui: saem da semana 3 de cada
+    Os limiares do baseline nao passam por aqui: saem do aquecimento de cada
     execucao, no ramo da semente (D-043).
     """
     return root / "preparation" / f"seed-{seed}"
