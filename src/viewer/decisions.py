@@ -35,20 +35,13 @@ from src.historical_profiles.build import HOUR_FORMAT
 from src.kms.policy import OUTCOMES
 from src.population.parameters import KeyRepositorySpecification
 from src.population.profiles import PROFILES
-from src.traffic.parameters import (
-    PRIMARY_ADDRESS_SHARE,
-    ADMIN_OPERATION_MIX,
-    TrafficSpecification,
-)
+from src.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
 from src.traffic.regimes import REGIMES
 from src.viewer.theory import (
     Teoria,
     teoria_da_cauda,
     teoria_da_dirichlet,
-    teoria_da_exponencial,
     teoria_da_geometrica,
-    teoria_da_pascal,
-    teoria_da_poisson,
 )
 
 COLUNAS = ("variável", "valor", "o que é")
@@ -131,61 +124,32 @@ def variaveis_do_m1(
 
 
 def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
-    """O ritmo de cada regime e os dois desvios que produzem falha legítima."""
-    lote = REGIMES["periodic_batch"]
-    rotina = REGIMES["routine"]
-    custodia = REGIMES["occasional_custody"]
+    """O que vale para o tráfego inteiro, qualquer que seja o regime.
 
-    return (
-        Variavel("profile → regime",
-                 "end_user → routine; "
-                 "automated_service → periodic_batch; "
-                 "administrator → occasional_custody",
-                 "Derivado do perfil, um para um. O regime decide o ritmo e o "
-                 "volume das sessões; o perfil decide a mistura de operações.",
-                 "D-007, D-055"),
+    **O que é de um regime só não mora aqui**, e sim na página Comportamentos
+    (`behaviors.py`): horas do lote, média e lei da contagem diária, janela,
+    faixa de requisições, passo entre requisições e mistura de operações.
+    Mostrados nos dois lugares, eles eram duas explicações do mesmo número, e
+    a da página Comportamentos é a completa, com o dado medido ao lado.
+    """
+    lote = REGIMES["periodic_batch"]
+    # Uma linha por regime: os tres numa celula so ficavam longos demais
+    # para ler, e a coluna de valor cortava o ultimo.
+    regimes = tuple(
+        Variavel(f"regime {perfil.regime}", perfil.name,
+                 f"Regime do perfil {perfil.name}. O ritmo, o tamanho e o "
+                 "passo dele estão na página Comportamentos.",
+                 "D-007, D-058")
+        for perfil in PROFILES
+    )
+
+    return regimes + (
         Variavel("week_count", trafego.week_count,
                  f"Semanas simuladas: {RULER_WEEKS} de régua (o perfil e os "
                  f"limiares, do mesmo período) e {EVALUATED_WEEKS} avaliadas.",
                  "D-096"),
         Variavel("first_day", trafego.first_day,
                  "Primeiro dia simulado. Segunda-feira, fixa.", "D-067"),
-        Variavel("BATCH_HOURS", lote.rhythm.hours,
-                 "Horas em que o automated_service roda, todos os dias.",
-                 "D-058"),
-        Variavel("BATCH_JITTER_MINUTES", lote.rhythm.jitter_minutes,
-                 "Desvio em torno da hora cheia do automated_service.",
-                 "D-058"),
-        Variavel("ROUTINE_SESSIONS_PER_BUSINESS_DAY",
-                 rotina.rhythm.sessions_per_business_day,
-                 "Sessões por dia útil do regime routine (perfil end_user), em "
-                 "média. Poisson.",
-                 "D-058",
-                 teoria_da_poisson(
-                     rotina.rhythm.sessions_per_business_day)),
-        Variavel("CUSTODY_SESSIONS_PER_BUSINESS_DAY",
-                 custodia.rhythm.sessions_per_business_day,
-                 "Sessões por dia útil do regime occasional_custody (perfil "
-                 "administrator), em média.", "D-058"),
-        Variavel("CUSTODY_DISPERSION", custodia.rhythm.dispersion,
-                 "Parâmetro da Pascal que dá ritmo irregular ao regime "
-                 "occasional_custody.",
-                 "D-071",
-                 teoria_da_pascal(
-                     custodia.rhythm.sessions_per_business_day,
-                     custodia.rhythm.dispersion)),
-        Variavel("janelas de horário",
-                 f"automated_service: qualquer hora; end_user: "
-                 f"{rotina.rhythm.opens_at}–{rotina.rhythm.closes_at} h; "
-                 f"administrator: "
-                 f"{custodia.rhythm.opens_at}–{custodia.rhythm.closes_at} h",
-                 "Em que faixa do dia cada regime abre sessão.", "D-058"),
-        Variavel("requisições por sessão, típico",
-                 f"end_user: {rotina.requests_range}; "
-                 f"automated_service: {lote.requests_range}; "
-                 f"administrator: {custodia.requests_range}",
-                 "Faixa típica de requisições por sessão. **Não é teto**: acima "
-                 "dela vem a cauda da D-097.", "D-058"),
         Variavel("LONG_SESSION_CHANCE", trafego.long_session_chance,
                  "Fração das sessões que se estendem além do típico.", "D-097",
                  teoria_da_cauda(
@@ -197,16 +161,6 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
         Variavel("LONG_SESSION_EXCESS", trafego.long_session_excess,
                  "Requisições a mais na sessão que se estende, média da "
                  "geométrica.", "D-097"),
-        Variavel("segundos entre requisições",
-                 f"end_user: {rotina.seconds_between_requests}; "
-                 f"automated_service: {lote.seconds_between_requests}; "
-                 f"administrator: {custodia.seconds_between_requests}",
-                 "Média do intervalo exponencial dentro da sessão.", "D-067",
-                 teoria_da_exponencial({
-                     "end_user": rotina.seconds_between_requests,
-                     "automated_service": lote.seconds_between_requests,
-                     "administrator": custodia.seconds_between_requests,
-                 })),
         Variavel("DEFAULT_DISTINCT_KEYS_RANGE", trafego.distinct_keys_range,
                  "Chaves distintas que uma sessão toca, se couberem no alcance. "
                  "É a amplitude **típica**: a sessão que se estende também se "
@@ -222,9 +176,6 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
         Variavel("DEFAULT_ABSENT_IDENTIFIER_RATE",
                  f"{trafego.absent_identifier_rate:.1%}",
                  "Fração que pede identificador que não existe.", "D-076"),
-        Variavel("ADMIN_OPERATION_MIX", ADMIN_OPERATION_MIX,
-                 "Mistura de operações do administrador. Nenhuma célula é zero.",
-                 "D-055"),
     )
 
 
