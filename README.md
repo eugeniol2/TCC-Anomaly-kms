@@ -15,32 +15,29 @@ documentação do gerador é parte do trabalho.
 
 ```
 src/
-  globals/         auxiliares comuns a M1..M12
-    rng.py         fluxos de aleatoriedade derivados da semente
-    tables.py      escrita de CSV e embaralhamento de linhas
-    layout.py      onde cada arquivo mora dentro de data/
-    experiment.py  a grade: sementes 1 a 30, sigma de 0,0 a 1,0
-  population/      M1, um arquivo por conceito
-    __main__.py    linha de comando e fluxo principal
-    parameters.py  todos os numeros que governam o M1
-    scopes.py      escopos, compartilhados por operadores e chaves
-    profiles.py    perfis comportamentais da populacao
-    operators.py   construcao de operators.csv
-    keys.py        construcao de keys.csv
-  traffic/         M2, o trafego legitimo das oito semanas
-    __main__.py    linha de comando e fluxo principal
-    parameters.py  todos os numeros que governam o M2
-    regimes.py     a forma dos tres regimes, preenchida por parameters.py
-    operators.py   leitura de operators.csv
-    repository.py  leitura de keys.csv: alcance de cada operador
-    calendar.py    quando cada operador abre sessao
-    sessions.py    o que acontece dentro de uma sessao
-    operations.py  a mistura de operacoes por perfil
-    targets.py     que chave cada requisicao endereca
-    build.py       composicao
-data/              saida CSV de todos os modulos (nao versionada)
-tests/             verificacao de determinismo e de formato
+  globals/              auxiliares comuns a todos os módulos
+    rng.py              fluxos de aleatoriedade derivados da semente
+    tables.py           escrita de CSV e embaralhamento de linhas
+    layout.py           onde cada arquivo mora dentro de data/
+    phases.py           o calendário: âncora, semanas e as duas fases
+    experiment.py       a grade: sementes 1 a 30, sigma de 0,0 a 1,0
+  population/           M1  operadores, escopos e chaves
+  traffic/              M2  o tráfego legítimo das oito semanas
+  attack/               M3  a campanha de ataque, interpolada por sigma
+  kms/                  M4  o desfecho de cada requisição, pela política
+  audit_logger/         M5  o log de auditoria
+  historical_profiles/  M6  o perfil histórico de cada operador, da régua
+  dataset/              M7  uma linha por sessão, com os oito atributos
+  calibration/          M8  os limiares do baseline, da régua
+  pipeline/             o orquestrador: a ordem de execução, em código
+  viewer/               a tela do Streamlit que mostra o pipeline por dentro
+  examples/             demonstração dos fluxos de aleatoriedade
+data/                   saída CSV de todos os módulos (não versionada)
+tests/                  determinismo, formato e invariantes, nas 30 sementes
 ```
+
+Cada módulo é um pacote com o fluxo principal em `__main__.py`, os números que o
+governam em `parameters.py` quando os tem, e um arquivo por conceito.
 
 A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
 semanas 5 a 8, tudo que deriva do aquecimento e independente de sigma, e o
@@ -63,6 +60,7 @@ data/
     sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
       requests.csv                M3, semanas 5 a 8, legitimo + ataque
       compromised_sessions.csv    M3
+      run.csv                     M3, qual administrador foi comprometido
       outcomes.csv  log.csv       M4, M5, semanas 5 a 8
       sessions.csv                M7, semanas 5 a 8
       train.csv  holdout.csv      M9
@@ -88,8 +86,8 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 |---|---|---|---|
 | M1 | `population` | seed | `operators.csv`, `keys.csv` |
 | M2 | `traffic` | seed, tabelas | `requests.csv` |
-| M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 5 a 8, legítimo + ataque), `compromised_sessions.csv` |
-| M4 | `kms` | fase, `requests.csv`, `keys.csv` | `outcomes.csv` |
+| M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 5 a 8, legítimo + ataque), `compromised_sessions.csv`, `run.csv` |
+| M4 | `kms` | fase, `requests.csv`, `keys.csv`, `operators.csv` | `outcomes.csv` |
 | M5 | `audit_logger` | fase, requests, outcomes | `log.csv` |
 | M6 | `historical_profiles` | `log.csv` (aquecimento inteiro) | `historical_profiles.csv` |
 | M7 | `dataset` | fase, `log.csv`, profiles, `compromised_sessions.csv` (só em `evaluated`) | `sessions.csv` |
@@ -134,16 +132,34 @@ congelamento completo, para recriar o ambiente exatamente.
 
 ## Execução
 
-Cada módulo roda sozinho pela linha de comando e recebe a semente como parâmetro
-explícito. Na ordem do pipeline:
+O orquestrador roda os módulos na ordem certa, que mora em `src/pipeline/build.py`:
+
+```
+python -m src.pipeline --seed 1                # varredura: aquecimento + 11 sigmas
+python -m src.pipeline --seed 1 --sigma 0.5    # só uma condição
+python -m src.pipeline --warmup --seed 1       # só o ramo da semente
+python -m src.pipeline --grade                 # as 330, e o runs.csv
+```
+
+`--out` aceita outra raiz para `data/`. A grade inteira ocupa cerca de 3,8 GB.
+
+Cada módulo também roda sozinho, com a semente como parâmetro explícito, e os que rodam
+nos dois ramos (M4, M5, M7) exigem `--fase warmup` ou `--fase evaluated`:
 
 ```
 python -m src.population --seed 7
 python -m src.traffic    --seed 7
+python -m src.kms        --seed 7 --fase warmup
 ```
 
-O M2 lê as tabelas que o M1 escreveu naquela semente, então a ordem importa, e ele
-falha com mensagem clara se elas não existirem.
+O módulo lê os arquivos que o anterior escreveu naquela semente, então a ordem importa, e
+ele falha com mensagem clara se eles não existirem.
+
+A tela que mostra o pipeline por dentro, passo a passo e com os dados de verdade:
+
+```
+streamlit run src/viewer/app.py
+```
 
 ## Testes
 
@@ -151,22 +167,27 @@ falha com mensagem clara se elas não existirem.
 python -m pytest
 ```
 
-Cobrem determinismo e as invariantes de que os modulos seguintes dependem.
+São 1527 testes, em cerca de sete minutos. Cobrem determinismo e as invariantes de que os
+módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
+específica de semente é o que passa despercebido.
 
-Do M1: todo escopo tem detentor, a chave nao tem dono, identificadores de
-chave nunca sequenciais.
-
-Do M2: nenhuma coluna carrega o desfecho, a origem de rede e sempre uma das
-habituais, os dois caminhos de falha legitima ocorrem, e o ritmo de cada regime
-respeita o que foi fixado. As invariantes rodam nas 30 sementes da grade, nao
-numa so, porque falha especifica de semente e o que passa despercebido.
+| Arquivo | Testes | O que garante |
+|---|---|---|
+| `test_population.py` | 334 | todo escopo tem detentor, a chave não tem dono, identificador nunca sequencial |
+| `test_traffic.py` | 547 | nenhuma coluna carrega o desfecho, origem sempre habitual, as duas falhas legítimas ocorrem, o ritmo de cada regime |
+| `test_kms.py` | 307 | a ordem de avaliação dos desfechos, o log com oito colunas e sem rótulo, os quatro desfechos no tráfego limpo |
+| `test_attack.py` | 147 | sigma 0 e sigma 1 reproduzem os dois extremos, a campanha só nas semanas 5 a 8, o mesmo administrador em todo sigma |
+| `test_dataset.py` | 140 | perfis, sessões e limiares, e o rótulo só no período avaliado |
+| `test_viewer.py` | 39 | a tela mostra o que o pipeline produz, e as curvas batem com o gerador |
+| `test_pipeline.py` | 8 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
+| `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |
 
 O `test_reference_output_has_not_changed` e detector de mudanca, nao teste de
 correcao: falha sempre que o gerador mudar, inclusive de proposito. Quando
 falhar, confirme se a mudanca era intencional, registre a decisao e atualize o
 valor de referencia. O do M1 compara o CSV inteiro; o do M2 compara um resumo
-SHA-256, porque o arquivo tem 67 mil linhas e versiona-lo pesaria mais que o
-codigo.
+SHA-256, porque o arquivo tem cerca de 77 mil linhas e versiona-lo pesaria mais
+que o codigo.
 
 ## Reprodutibilidade
 
@@ -185,7 +206,7 @@ semente já produz a régua inteira (o perfil histórico e os limiares do baseli
 quatro semanas de aquecimento) e o ramo de sigma já produz o conjunto rotulado das
 semanas 5 a 8.
 
-O M2 produz cerca de 74 mil requisições em 3,8 mil sessões por semente. Os três itens que
+O M2 produz cerca de 77 mil requisições em 3,8 mil sessões por semente. Os três itens que
 as convenções do projeto mandam conferir antes do M3 estão cobertos por teste: o serviço
 automatizado abre lote nas quatro horas fixas, o administrador tem ritmo mais disperso que
 o regime `routine`, e os dois caminhos de falha legítima ocorrem nas 30 sementes.
