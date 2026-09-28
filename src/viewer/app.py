@@ -10,6 +10,10 @@ conhecendo o trabalho precisa ver que dados entraram, que entidade os
 processou e que dados sairam: `scope_pool` e `split_keys_by_scope` sao
 granularidade de implementacao e ficam guardados atras de "por dentro", para
 quem quiser.
+
+A pagina **Comportamentos**, no topo, trata os tres regimes como assunto
+proprio (`behaviors.py`). Eles aparecem aos pedacos nas variaveis de decisao
+de cada quadro, e o que cada um e so se entende visto inteiro.
 """
 
 from __future__ import annotations
@@ -42,6 +46,14 @@ from src.population.build import build_population
 from src.population.parameters import KeyRepositorySpecification
 from src.traffic.build import build_traffic
 from src.traffic.parameters import TrafficSpecification
+from src.traffic.regimes import REGIMES
+from src.viewer.behaviors import (
+    Comportamento,
+    Pagina,
+    montar_pagina,
+    tabela_do_atacante,
+    tamanhos_da_sessao,
+)
 from src.viewer.decisions import como_tabela
 from src.viewer.frames import (
     Painel,
@@ -50,6 +62,7 @@ from src.viewer.frames import (
     frames_da_fase_2,
     frames_da_fase_3,
 )
+from src.viewer.formatting import porcento
 from src.viewer.theory import Teoria
 from src.viewer.steps import (
     FASES,
@@ -99,14 +112,14 @@ SLOTS_CLARO = ("#2a78d6", "#eb6834", "#1baf7a")
 SLOTS_ESCURO = ("#3987e5", "#d95926", "#199e70")
 
 
-@st.cache_data(show_spinner="rodando o M1...")
+@st.cache_data(show_spinner="rodando a População...")
 def tabelas(seed: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     populacao = build_population(seed, KeyRepositorySpecification())
 
     return populacao.operators, populacao.keys
 
 
-@st.cache_data(show_spinner="rodando o M2...")
+@st.cache_data(show_spinner="rodando o Scenario Engine...")
 def trafego(seed: int) -> pd.DataFrame:
     operators, keys = tabelas(seed)
 
@@ -157,6 +170,15 @@ def avaliado(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
         "log": log,
         "sessoes": build_dataset(log, perfis, EVALUATED, campanha.compromised),
     }
+
+
+@st.cache_data(show_spinner="medindo os regimes...")
+def comportamentos(seed: int) -> Pagina:
+    operators, _ = tabelas(seed)
+
+    return montar_pagina(
+        trafego(seed), operators, TrafficSpecification(), AttackSpecification()
+    )
 
 
 @st.cache_data(show_spinner="detalhando por funcao...")
@@ -297,7 +319,7 @@ def relatar_filtro(inteiro: pd.DataFrame, filtrado: pd.DataFrame) -> pd.DataFram
     if mudou:
         st.caption(
             f"**{len(filtrado)}** de {len(inteiro)} linhas "
-            f"({len(filtrado) / len(inteiro):.1%})"
+            f"({porcento(len(filtrado) / len(inteiro))})"
         )
 
     return filtrado
@@ -384,10 +406,24 @@ def mostrar_grafico(teoria: Teoria) -> None:
     is_discreto = teoria.forma == "barras"
 
     if is_discreto:
-        st.bar_chart(stack=False, **comum)
+        st.bar_chart(stack=False, horizontal=teoria.horizontal, **comum)
         return
 
     st.line_chart(**comum)
+
+
+def mostrar_secao(teoria: Teoria) -> None:
+    """Titulo, texto, grafico quando houver, e o que ler nele."""
+    st.markdown(f"### {teoria.titulo}")
+    st.markdown(teoria.texto)
+
+    tem_grafico = teoria.dados is not None
+
+    if tem_grafico:
+        mostrar_grafico(teoria)
+
+    if teoria.leitura:
+        st.caption(f"**O que ler no gráfico.** {teoria.leitura}")
 
 
 def mostrar_teoria(nome: str, teoria: Teoria) -> None:
@@ -398,13 +434,7 @@ def mostrar_teoria(nome: str, teoria: Teoria) -> None:
     'clique para abrir' sem essa restricao.
     """
     with st.popover(f"Teoria · {nome}", use_container_width=True):
-        st.markdown(f"### {teoria.titulo}")
-        st.markdown(teoria.texto)
-
-        mostrar_grafico(teoria)
-
-        if teoria.leitura:
-            st.caption(f"**O que ler no gráfico.** {teoria.leitura}")
+        mostrar_secao(teoria)
 
 
 def mostrar_detalhes(quadro: Quadro) -> None:
@@ -435,8 +465,14 @@ def mostrar_detalhes(quadro: Quadro) -> None:
             st.divider()
 
 
-def mostrar_quadro(quadro: Quadro, total: int, titular: bool) -> None:
-    """Entrada a esquerda, entidade no meio, saida a direita.
+def mostrar_quadro(quadro: Quadro, titular: bool) -> None:
+    """Titulo, uma descricao curta, e depois as tabelas.
+
+    So isso de texto, de proposito. O quadro tinha ainda uma legenda de passo,
+    uma caixa "Por que e assim" e, acima dele, o objetivo e a descricao da
+    fase: prosa demais para uma tela de apresentacao, e o porque de cada
+    decisao ja mora no registro. Numero do passo e modulo estao na barra
+    lateral.
 
     `titular` diz se este quadro leva o titulo grande da pagina. So o primeiro
     da tela leva: quando os anteriores ficam empilhados, os de cima viram
@@ -447,30 +483,43 @@ def mostrar_quadro(quadro: Quadro, total: int, titular: bool) -> None:
     else:
         st.markdown(f"## {quadro.entidade}")
 
-    st.caption(
-        f"Passo {quadro.numero} de {total}  ·  `{quadro.modulos}`  ·  {quadro.fase}"
-    )
-
     st.markdown(quadro.resumo)
 
     if quadro.pendente:
         st.warning(quadro.pendente, icon=":material/schedule:")
 
-    if quadro.porque:
-        with st.container(border=True):
-            st.markdown("**Por que e assim**")
-            st.markdown(quadro.porque)
-
     mostrar_variaveis(quadro)
 
-    mostrar_lado("Entra", quadro.entradas,
+    mostrar_lado("Input", quadro.entradas,
                  "Nada: esta entidade abre a sequência.",
                  f"entra{quadro.numero}")
-    mostrar_lado("Sai", quadro.saidas,
+    mostrar_lado("Output", quadro.saidas,
                  "Nada ainda: a entidade não foi escrita.",
                  f"sai{quadro.numero}")
 
     mostrar_detalhes(quadro)
+
+
+# Chaves dos controles da barra lateral. Cada uma e a unica fonte do valor
+# daquele controle: o widget a le e escreve, e ninguem mais guarda copia.
+FASE_ESCOLHIDA = "fase_escolhida"
+SEMENTE_ESCOLHIDA = "semente_escolhida"
+FOCO_ESCOLHIDO = "foco_escolhido"
+SIGMA_ESCOLHIDO = "sigma_escolhido"
+PASSO_ESCOLHIDO = "passo_escolhido"
+EMPILHAR = "empilhar"
+SIGMA_DO_ATACANTE = "sigma_do_atacante"
+
+# Todos os controles usam `persist_state="session"`. Sem isso o Streamlit
+# apaga o valor de um widget na execucao em que ele nao e desenhado, e trocar
+# de pagina e exatamente isso: ao voltar de Comportamentos, tudo recomecava
+# da fase 1, passo 1. A primeira correcao guardava copias a mao, e o seletor
+# de passo continuava voltando ao inicio no navegador; o mecanismo nativo e o
+# que o proprio Streamlit restaura.
+PERSISTE = "session"
+
+SIGMA_PADRAO = 0.5
+FOCO_PADRAO = "admin_02"
 
 
 def escolher_fase() -> Fase:
@@ -481,9 +530,41 @@ def escolher_fase() -> Fase:
         f"{fase.nome}  (parcial)" if fase.pendencia else fase.nome
         for fase in FASES
     ]
-    escolhido = st.sidebar.radio("Fase", rotulos, index=0, label_visibility="collapsed")
+    st.session_state.setdefault(FASE_ESCOLHIDA, rotulos[0])
+
+    escolhido = st.sidebar.radio(
+        "Fase", rotulos, key=FASE_ESCOLHIDA, label_visibility="collapsed",
+        persist_state=PERSISTE,
+    )
 
     return FASES[rotulos.index(escolhido)]
+
+
+def escolher_semente() -> int:
+    """O seletor de semente, o mesmo nas duas paginas."""
+    st.session_state.setdefault(SEMENTE_ESCOLHIDA, 1)
+
+    return int(st.sidebar.number_input(
+        "Semente", min_value=1, max_value=30, key=SEMENTE_ESCOLHIDA,
+        persist_state=PERSISTE,
+    ))
+
+
+def escolher_foco(nomes: list[str]) -> str:
+    """O operador que o 'por dentro' segue.
+
+    Se o guardado nao existir nesta semente, volta ao padrao em vez de
+    levantar erro: o seletor nao aceita valor fora das opcoes.
+    """
+    padrao = FOCO_PADRAO if FOCO_PADRAO in nomes else nomes[0]
+    is_invalido = st.session_state.get(FOCO_ESCOLHIDO) not in nomes
+
+    if is_invalido:
+        st.session_state[FOCO_ESCOLHIDO] = padrao
+
+    return str(st.sidebar.selectbox(
+        "Operador em foco", nomes, key=FOCO_ESCOLHIDO, persist_state=PERSISTE
+    ))
 
 
 def barra_lateral(fase: Fase) -> tuple[int, str, float]:
@@ -491,23 +572,23 @@ def barra_lateral(fase: Fase) -> tuple[int, str, float]:
     st.sidebar.divider()
     st.sidebar.subheader("Controles")
 
-    seed = int(st.sidebar.number_input("Semente", min_value=1, max_value=30, value=1))
+    seed = escolher_semente()
 
     operators, _ = tabelas(seed)
-    nomes = sorted(operators["operator_id"])
-    padrao = nomes.index("admin_02") if "admin_02" in nomes else 0
-    foco = str(st.sidebar.selectbox("Operador em foco", nomes, index=padrao))
+    foco = escolher_foco(sorted(operators["operator_id"]))
 
     st.sidebar.caption(
         "O operador em foco so afeta o 'por dentro' de cada quadro, que segue "
         "um sujeito so. Os arquivos sao sempre os inteiros."
     )
 
-    sigma = 0.5
+    sigma = SIGMA_PADRAO
 
     if fase.nome == FASES[2].nome:
+        st.session_state.setdefault(SIGMA_ESCOLHIDO, SIGMA_PADRAO)
         sigma = float(st.sidebar.select_slider(
-            "Furtividade σ", options=list(SIGMAS), value=0.5,
+            "Furtividade σ", options=list(SIGMAS), key=SIGMA_ESCOLHIDO,
+            persist_state=PERSISTE,
             help="0,0 e ostensivo; 1,0 e indistinguivel de uma sessao legitima.",
         ))
 
@@ -519,16 +600,20 @@ def barra_lateral(fase: Fase) -> tuple[int, str, float]:
     return seed, foco, sigma
 
 
-# Chave do seletor de passo, que e a unica fonte da verdade da navegacao. Os
-# botoes nao guardam estado proprio: escrevem nesta chave, e o seletor a le.
-# Com duas fontes (um contador e um seletor) elas se dessincronizavam, e
-# era dai que vinha o botao que sumia.
-PASSO_ESCOLHIDO = "passo_escolhido"
+# O seletor de passo (PASSO_ESCOLHIDO) e a unica fonte da verdade da
+# navegacao. Os botoes nao guardam estado proprio: escrevem nesta chave, e o
+# seletor a le. Com duas fontes (um contador e um seletor) elas se
+# dessincronizavam, e era dai que vinha o botao que sumia.
 
 
-def rotulo_do_passo(quadro: Quadro, total: int) -> str:
-    """Como o passo aparece no seletor: numero, total e entidade."""
-    return f"{quadro.numero} de {total}  ·  {quadro.entidade}"
+def rotulo_do_passo(posicao: int, total: int, quadro: Quadro) -> str:
+    """Como o passo aparece no seletor: posicao na fase, total e entidade.
+
+    A posicao e contada dentro da fase, e nao pelo numero do passo no
+    diagrama: com o numero do diagrama o seletor dizia "6 de 4", porque o
+    total e o da fase.
+    """
+    return f"{posicao} de {total}  ·  {quadro.entidade}"
 
 
 def andar(rotulos: list[str], passos: int) -> None:
@@ -549,7 +634,10 @@ def andar(rotulos: list[str], passos: int) -> None:
 def navegacao(quadros: list[Quadro]) -> tuple[int, bool]:
     """Seletor de passo, botoes e progresso, na barra lateral."""
     total = len(quadros)
-    rotulos = [rotulo_do_passo(quadro, total) for quadro in quadros]
+    rotulos = [
+        rotulo_do_passo(posicao, total, quadro)
+        for posicao, quadro in enumerate(quadros, start=1)
+    ]
 
     st.sidebar.divider()
     st.sidebar.subheader("Passo")
@@ -562,7 +650,8 @@ def navegacao(quadros: list[Quadro]) -> tuple[int, bool]:
         st.session_state[PASSO_ESCOLHIDO] = rotulos[0]
 
     escolhido = st.sidebar.selectbox(
-        "Ir para", rotulos, key=PASSO_ESCOLHIDO, label_visibility="collapsed"
+        "Ir para", rotulos, key=PASSO_ESCOLHIDO, label_visibility="collapsed",
+        persist_state=PERSISTE,
     )
     atual = rotulos.index(escolhido) + 1
 
@@ -582,55 +671,133 @@ def navegacao(quadros: list[Quadro]) -> tuple[int, bool]:
     quadro = quadros[atual - 1]
     st.sidebar.caption(f"**{quadro.entidade}**  ·  `{quadro.modulos}`")
 
-    empilhar = st.sidebar.checkbox("Manter os anteriores na tela", value=False)
+    st.session_state.setdefault(EMPILHAR, False)
+    empilhar = st.sidebar.checkbox(
+        "Manter os anteriores na tela", key=EMPILHAR, persist_state=PERSISTE
+    )
 
     return atual, empilhar
 
 
-def descrever_fase(fase: Fase) -> None:
-    """A fase e o objetivo dela, no topo da pagina, antes dos quadros.
+@st.cache_data(show_spinner="sorteando sessoes...")
+def tamanhos_no_sigma(regime: str, sigma: float) -> pd.DataFrame:
+    return tamanhos_da_sessao(
+        sigma, REGIMES[regime], TrafficSpecification(), AttackSpecification()
+    )
 
-    Estiveram na barra lateral por uma versao, e foi erro: sem saber o que a
-    fase 2 quer, "o KMS decide o desfecho e o Audit Logger registra" e uma
-    frase sobre encanamento. Com o objetivo a vista, o mesmo passo vira um meio
-    para alguma coisa.
 
-    Aparece **uma vez por tela**, e nao dentro de cada quadro, porque e
-    contexto da fase inteira. O quadro traz o titulo da entidade, que e o que
-    muda de passo para passo.
+def mostrar_sigma_do_atacante(regime: str) -> None:
+    """O slider de σ, e o que o atacante faz naquela condição.
+
+    A tabela e o grafico sao recalculados a cada posicao do slider, pelas
+    mesmas funcoes que a campanha de ataque usa. O grafico mostra so o
+    tamanho da sessao porque e a dimensao em que a sobreposicao com o
+    legitimo se ve melhor: em sigma 0 as duas nuvens nao se tocam, em sigma 1
+    sao a mesma.
     """
-    st.caption(f"{fase.nome.upper()}   ·   `{fase.modulos}`   ·   {fase.execucoes}")
+    st.markdown("### O atacante em cada σ")
+
+    st.session_state.setdefault(SIGMA_DO_ATACANTE, SIGMA_PADRAO)
+    sigma = float(st.select_slider(
+        "Furtividade σ", options=list(SIGMAS), key=SIGMA_DO_ATACANTE,
+        persist_state=PERSISTE,
+        format_func=lambda valor: f"{valor:.1f}".replace(".", ","),
+        help="0,0 e ostensivo; 1,0 e indistinguivel de uma sessao legitima.",
+    ))
+
+    tabela = tabela_do_atacante(
+        sigma, REGIMES[regime], TrafficSpecification(), AttackSpecification()
+    )
+    st.dataframe(tabela, use_container_width=True, hide_index=True)
+
+    tamanhos = tamanhos_no_sigma(regime, sigma)
+    mostrar_grafico(Teoria(
+        titulo="", texto="", dados=tamanhos,
+        rotulo_x="requisições na sessão", rotulo_y="fração das sessões",
+    ))
+    st.caption(
+        "**O que ler no gráfico.** Quanto mais as duas cores se sobrepõem, "
+        "menos o tamanho da sessão sozinho denuncia o atacante."
+    )
+
+
+def mostrar_comportamento(comportamento: Comportamento) -> None:
+    """Um regime, numa aba: quem usa, o resumo, e as secoes em ordem."""
+    st.caption(
+        f"regime `{comportamento.regime}`  ·  perfil `{comportamento.perfil}`  ·  "
+        f"{comportamento.operadores} operadores nesta semente"
+    )
 
     with st.container(border=True):
-        st.markdown(f"**Objetivo.** {fase.objetivo}")
+        st.markdown(comportamento.resumo)
 
-    if fase.pendencia:
-        st.info(fase.pendencia, icon=":material/schedule:")
+    for secao in comportamento.secoes:
+        mostrar_secao(secao)
+        st.divider()
 
-    with st.expander("Mais sobre esta fase"):
-        st.markdown(fase.descricao)
-
-    st.divider()
+    if comportamento.personificado:
+        mostrar_sigma_do_atacante(comportamento.regime)
 
 
-def main() -> None:
-    st.set_page_config(page_title=TITULO, layout="wide")
+def pagina_dos_comportamentos() -> None:
+    """Os tres regimes em detalhe, com o trafego da semente escolhida."""
+    st.sidebar.subheader("Controles")
+    seed = escolher_semente()
 
+    st.sidebar.caption(
+        "Tudo nesta página é medido no tráfego legítimo desta semente (as oito "
+        "semanas do Scenario Engine) ou lido dos parâmetros do gerador."
+    )
+
+    st.title("Comportamento dos operadores")
+    st.markdown(
+        "Como cada um dos três regimes usa o KMS: quando abre sessão, quanto "
+        "ela dura, o que pede e de onde vem. Os gráficos mostram a distribuição "
+        "que o gerador usa e, em alguns, a frequência medida nesta semente."
+    )
+
+    pagina = comportamentos(seed)
+    nomes = ["Visão geral"] + [comportamento.regime for comportamento in pagina.comportamentos]
+    abas = st.tabs(nomes)
+
+    with abas[0]:
+        st.dataframe(pagina.quadro, use_container_width=True, hide_index=True)
+
+        for secao in pagina.gerais:
+            mostrar_secao(secao)
+
+    for aba, comportamento in zip(abas[1:], pagina.comportamentos):
+        with aba:
+            mostrar_comportamento(comportamento)
+
+
+def pagina_do_pipeline() -> None:
+    """As tres fases, um passo do diagrama por vez."""
     fase = escolher_fase()
     seed, foco, sigma = barra_lateral(fase)
 
     quadros = quadros_da_fase(fase, seed, foco, sigma)
     atual, empilhar = navegacao(quadros)
 
-    descrever_fase(fase)
-
     primeiro = 1 if empilhar else atual
 
     for numero in range(primeiro, atual + 1):
-        mostrar_quadro(quadros[numero - 1], len(quadros), numero == primeiro)
+        mostrar_quadro(quadros[numero - 1], numero == primeiro)
 
         if numero < atual:
             st.divider()
+
+
+def main() -> None:
+    """Duas paginas, escolhidas no topo da tela."""
+    st.set_page_config(page_title=TITULO, layout="wide")
+
+    paginas = [
+        st.Page(pagina_do_pipeline, title="Pipeline", default=True),
+        st.Page(pagina_dos_comportamentos, title="Comportamentos"),
+    ]
+
+    st.navigation(paginas, position="top").run()
 
 
 main()

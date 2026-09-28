@@ -26,25 +26,40 @@ from typing import Any
 import pandas as pd
 
 from src.attack.parameters import AttackSpecification
+from src.attack.stealth import stealth_of
+from src.audit_logger.build import COLUMNS as LOG_COLUMNS
 from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.dataset.build import ATTRIBUTES
+from src.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
 from src.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
 from src.globals.experiment import SEEDS, SIGMAS
 from src.globals.phases import EVALUATED_WEEKS, RULER_WEEKS, WEEK_COUNT
 from src.historical_profiles.build import HOUR_FORMAT
-from src.kms.policy import OUTCOMES
+from src.kms.policy import COLUMNS as OUTCOME_COLUMNS, OUTCOMES
 from src.population.parameters import KeyRepositorySpecification
 from src.population.profiles import PROFILES
-from src.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
+from src.traffic.parameters import (
+    IDENTIFIER_DIGITS,
+    IDENTIFIER_PREFIX,
+    PRIMARY_ADDRESS_SHARE,
+    TrafficSpecification,
+)
 from src.traffic.regimes import REGIMES
+from src.viewer.behaviors import linhas_do_atacante
+from src.viewer.formatting import com_virgula, porcento, valor_escrito
 from src.viewer.theory import (
     Teoria,
     teoria_da_cauda,
     teoria_da_dirichlet,
-    teoria_da_geometrica,
 )
 
 COLUNAS = ("variável", "valor", "o que é")
+
+MODELOS = ("Random Forest", "XGBoost")
+"""Os dois modelos supervisionados (D-051). Ainda nao existem no codigo, e a
+contagem de comparacoes da tela sai daqui, e nao de um 22 escrito a mao."""
+
+REGRAS_DE_GRANDEZA = len(THRESHOLD_ATTRIBUTES)
+REGRAS_DE_PERFIL = len(ATTRIBUTES) - REGRAS_DE_GRANDEZA
 
 
 @dataclass(frozen=True)
@@ -68,7 +83,7 @@ def como_tabela(variaveis: tuple[Variavel, ...]) -> pd.DataFrame:
     linhas = [
         {
             "variável": variavel.nome,
-            "valor": str(variavel.valor),
+            "valor": valor_escrito(variavel.valor),
             "o que é": variavel.significado,
         }
         for variavel in variaveis
@@ -114,10 +129,11 @@ def variaveis_do_m1(
                  if chaves is not None else None),
         Variavel("scope_floor", repositorio.scope_floor,
                  "Mínimo de chaves por escopo.", "D-037"),
-        Variavel("disabled_rate", f"{repositorio.disabled_rate:.0%}",
+        Variavel("disabled_rate", porcento(repositorio.disabled_rate, 0),
                  "Fração das chaves que nasce desabilitada, sorteada por chave.",
                  "D-038"),
-        Variavel("formato do key_id", "k_ + 12 hexadecimais, aleatório",
+        Variavel("formato do key_id",
+                 f"{IDENTIFIER_PREFIX} + {IDENTIFIER_DIGITS} hexadecimais, aleatório",
                  "Como o identificador de chave é gerado. Nunca sequencial.",
                  "D-009"),
     )
@@ -163,38 +179,43 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                  "geométrica.", "D-097"),
         Variavel("DEFAULT_DISTINCT_KEYS_RANGE", trafego.distinct_keys_range,
                  "Chaves distintas que uma sessão toca, se couberem no alcance. "
-                 "É a amplitude **típica**: a sessão que se estende também se "
-                 "alarga, pela mesma cauda.", "D-058, D-098"),
+                 "É a amplitude **típica**: uma sessão em vinte passa dela, "
+                 "sorteada à parte da cauda do comprimento.",
+                 "D-058, D-098, D-100"),
         Variavel("PRIMARY_ADDRESS_SHARE", PRIMARY_ADDRESS_SHARE,
                  "Chance de a sessão vir do endereço principal; os demais decaem "
-                 "geometricamente.",
-                 "D-040",
-                 teoria_da_geometrica(PRIMARY_ADDRESS_SHARE, 4)),
-        Variavel("DEFAULT_STALE_SCOPE_RATE", f"{trafego.stale_scope_rate:.1%}",
+                 "geometricamente. A explicação está na página Comportamentos.",
+                 "D-040"),
+        Variavel("DEFAULT_STALE_SCOPE_RATE", porcento(trafego.stale_scope_rate),
                  "Fração das requisições que aponta para escopo obsoleto.",
                  "D-056"),
         Variavel("DEFAULT_ABSENT_IDENTIFIER_RATE",
-                 f"{trafego.absent_identifier_rate:.1%}",
-                 "Fração que pede identificador que não existe.", "D-076"),
+                 porcento(trafego.absent_identifier_rate),
+                 "Fração das requisições que pede uma chave inexistente: um key_id "
+                 "que não corresponde a chave nenhuma.", "D-076"),
     )
 
 
-def variaveis_do_m4_m5() -> tuple[Variavel, ...]:
+def variaveis_do_kms() -> tuple[Variavel, ...]:
     """O KMS quase não tem número: o que ele tem é ordem."""
     return (
         Variavel("ordem de avaliação",
-                 "1 identificador inexistente, 2 fora de escopo, "
+                 "1 chave inexistente, 2 fora de escopo, "
                  "3 chave desabilitada, 4 sucesso",
                  "Em que ordem o KMS testa cada condição. O primeiro caso que se "
                  "aplica decide.",
                  "D-077"),
         Variavel("OUTCOMES", OUTCOMES, "Os quatro desfechos possíveis.", "D-064"),
-        Variavel("colunas do outcomes.csv", "event_id, outcome",
+        Variavel("colunas do outcomes.csv", OUTCOME_COLUMNS,
                  "O que o KMS devolve ao Audit Logger.", "D-078"),
-        Variavel("colunas do log.csv",
-                 "event_id, session_id, operator_id, timestamp, "
-                 "source_ip, operation, key_id, outcome",
-                 "As oito colunas do log. Sem escopo, perfil nem proprietário.",
+    )
+
+
+def variaveis_do_audit_logger() -> tuple[Variavel, ...]:
+    """O que vai para o log, e o que fica de fora dele de propósito."""
+    return (
+        Variavel("colunas do log.csv", LOG_COLUMNS,
+                 f"As {len(LOG_COLUMNS)} colunas do log. Sem escopo nem perfil.",
                  "D-064"),
         Variavel("key_id registrado", "o requisitado, não o resolvido",
                  "Qual identificador vai para o log.", "D-064"),
@@ -202,6 +223,11 @@ def variaveis_do_m4_m5() -> tuple[Variavel, ...]:
                  "Onde a marca de comprometimento fica: em arquivo separado.",
                  "D-063"),
     )
+
+
+def variaveis_do_m4_m5() -> tuple[Variavel, ...]:
+    """As duas juntas, para o passo da fase 3 que roda as duas de novo."""
+    return variaveis_do_kms() + variaveis_do_audit_logger()
 
 
 def variaveis_do_m6() -> tuple[Variavel, ...]:
@@ -217,11 +243,15 @@ def variaveis_do_m6() -> tuple[Variavel, ...]:
                  "Como a hora da janela é escrita. Texto de largura fixa, que "
                  "compara na ordem certa e não precisa de arredondamento.",
                  "D-095"),
-        Variavel("origens registradas", "só as que aparecem no log",
-                 "Subconjunto das habituais que o M1 sorteou, não a lista inteira.",
+        Variavel("observed_ips",
+                 f"só os IPs que aparecem no log das semanas 1 a {RULER_WEEKS}",
+                 "Os IPs de origem que o operador usou de fato na régua. É um "
+                 "subconjunto dos usual_ips que a População sorteou, não a "
+                 "lista inteira.",
                  "D-040"),
-        Variavel("recálculo", "nunca depois da semana 2",
-                 "Quando o perfil é atualizado.", "D-044"),
+        Variavel("recálculo", f"nunca depois da semana {RULER_WEEKS}",
+                 "Quando o perfil é atualizado: uma vez, no fim da régua, e "
+                 "congelado dali em diante.", "D-044, D-096"),
     )
 
 
@@ -231,19 +261,20 @@ def variaveis_do_m7() -> tuple[Variavel, ...]:
         Variavel("unidade de análise", "a sessão",
                  "O que vira uma linha. Não existe tamanho de janela.", "D-061"),
         Variavel("ATTRIBUTES", ", ".join(ATTRIBUTES),
-                 "Os oito atributos que os modelos recebem.", "D-074, D-080"),
+                 f"Os {len(ATTRIBUTES)} atributos que os modelos recebem.", "D-074, D-080"),
         Variavel("distinct_keys", "contagem bruta, não razão",
                  "Como as chaves distintas entram: contadas, acompanhadas de "
                  "`events`.",
                  "D-080"),
-        Variavel("identificadores preservados",
-                 "session_id, operator_id, opened_at",
-                 "Ficam no arquivo e não entram como atributo.", "D-015, D-088"),
-        Variavel("SHORTEST_MEASURABLE_MINUTES", f"{SHORTEST_MEASURABLE_MINUTES:.6f}",
+        Variavel("IDENTIFIERS", IDENTIFIERS,
+                 "Colunas que ficam no arquivo e não entram como atributo.",
+                 "D-015, D-088"),
+        Variavel("SHORTEST_MEASURABLE_MINUTES", SHORTEST_MEASURABLE_MINUTES,
                  "Piso da duração ao calcular a taxa, equivalente a um segundo.",
                  "D-088"),
-        Variavel("rótulo", "só na fase avaliada",
-                 "Quando a coluna `compromised` existe.", "D-063"),
+        Variavel(LABEL, "só na fase avaliada",
+                 "A coluna do rótulo: diz se a sessão é do atacante. Só existe "
+                 "no sessions.csv das semanas 5 a 8.", "D-063"),
     )
 
 
@@ -257,63 +288,73 @@ def variaveis_do_m8() -> tuple[Variavel, ...]:
         Variavel("PERCENTILE", PERCENTILE,
                  "Percentil de cada grandeza que vira limiar.", "D-031, D-043"),
         Variavel("THRESHOLD_ATTRIBUTES", ", ".join(THRESHOLD_ATTRIBUTES),
-                 "As seis regras de grandeza. As outras duas já vêm binárias.",
+                 f"As {REGRAS_DE_GRANDEZA} regras de grandeza. As outras "
+                 f"{REGRAS_DE_PERFIL} já vêm binárias.",
                  "D-080"),
         Variavel("comparação", "> limiar, estrita",
                  "Como a regra decide se disparou.", "D-080"),
         Variavel("limiares por semente", f"{len(SEEDS)} conjuntos",
-                 "Um por semente, compartilhado pelas 11 condições de σ.", "D-043"),
+                 f"Um por semente, compartilhado pelas {len(SIGMAS)} condições "
+                 "de σ.", "D-043"),
         Variavel("treino do baseline", "nenhum, em momento nenhum",
                  "Se o baseline aprende com rótulo em alguma etapa.",
                  "D-033, D-046"),
     )
 
 
+def dimensoes_do_atacante(
+    sigma: float, ataque: AttackSpecification, trafego: TrafficSpecification
+) -> tuple[Variavel, ...]:
+    """As dimensões de σ, dos dois extremos e deste σ.
+
+    Os nomes e os valores saem de `linhas_do_atacante`, a mesma função da
+    tabela do atacante na página Comportamentos. Até 28/09 esta tabela tinha
+    nomes próprios ("taxa, intervalo", "falhas de autorização") e não tinha a
+    linha da chave inexistente.
+    """
+    regime = REGIMES["occasional_custody"]
+    ostensivo, deste, legitimo = (
+        linhas_do_atacante(stealth_of(valor, regime, trafego, ataque))
+        for valor in (0.0, sigma, 1.0)
+    )
+
+    return tuple(
+        Variavel(nome, f"{zero}  →  {um}",
+                 f"Do ostensivo (σ 0,0) ao legítimo (σ 1,0). Neste σ: {meio}.",
+                 "D-082")
+        for (nome, zero), (_, meio), (_, um) in zip(ostensivo, deste, legitimo)
+    )
+
+
 def variaveis_do_m3(
     sigma: float, ataque: AttackSpecification, trafego: TrafficSpecification
 ) -> tuple[Variavel, ...]:
-    """As cinco dimensões de σ, com os dois extremos lado a lado."""
-    custodia = REGIMES["occasional_custody"]
+    """A campanha: quantas sessões, quem, e o que σ move."""
+    administradores = next(
+        perfil.operators for perfil in PROFILES if perfil.name == "administrator"
+    )
+    condicoes = len(SIGMAS)
 
     return (
-        Variavel("σ desta execução", sigma,
+        Variavel("σ desta execução", com_virgula(sigma),
                  "0,0 é ostensivo; 1,0 é indistinguível de uma sessão legítima.",
                  "D-004"),
         Variavel("campaign_sessions", ataque.campaign_sessions,
-                 "Sessões que o atacante abre, o mesmo número nas 11 condições.",
+                 f"Sessões que o atacante abre, o mesmo número nas {condicoes} "
+                 "condições.",
                  "D-081"),
         Variavel("positivas no holdout", 23,
-                 "Quantas sessões comprometidas caem no holdout.", "D-081, D-070"),
-        Variavel("taxa, intervalo",
-                 f"{ataque.ostensive_request_interval} s  →  "
-                 f"{custodia.seconds_between_requests} s",
-                 "Segundos entre requisições, do ostensivo ao furtivo.", "D-082"),
-        Variavel("taxa, requisições por sessão",
-                 f"{ataque.ostensive_requests_range}  →  {custodia.requests_range}",
-                 "Tamanho da sessão, do ostensivo ao furtivo.", "D-082"),
-        Variavel("chaves distintas",
-                 f"{ataque.ostensive_distinct_keys_range}  →  "
-                 f"{trafego.distinct_keys_range}",
-                 "Amplitude da varredura, do ostensivo ao furtivo. A faixa "
-                 "legítima é o típico, não um teto: a sessão que se estende "
-                 "também se alarga.",
-                 "D-082, D-080, D-098"),
-        Variavel("horário", "madrugada, qualquer dia  →  dia útil, 09–19 h",
-                 "Quando a sessão abre. É probabilidade, não grandeza: σ regula a "
-                 "chance de a sessão ter a marca.",
-                 "D-082"),
-        Variavel("origem de rede", "endereço nunca visto  →  um dos habituais",
-                 "De onde a sessão parte. Também probabilidade.", "D-082"),
-        Variavel("falhas de autorização",
-                 f"{ataque.ostensive_stale_scope_rate:.0%}  →  "
-                 f"{trafego.stale_scope_rate:.1%}",
-                 "Fração fora de escopo, do ostensivo ao furtivo.", "D-082"),
+                 "Quantas sessões comprometidas caem no holdout. Projeção: a "
+                 "partição ainda não existe.", "D-081, D-070"),
+    ) + dimensoes_do_atacante(sigma, ataque, trafego) + (
         Variavel("o que σ move", "o proveito, não o esforço",
                  "O atacante furtivo abre tantas sessões quanto o ostensivo e "
                  "consegue menos.",
                  "D-081"),
-        Variavel("administrador comprometido", "sorteado por semente, entre 8",
-                 "Quem tem a credencial comprometida. O mesmo nas 11 condições.",
+        Variavel("administrador comprometido",
+                 f"sorteado por semente, entre {administradores}",
+                 f"Quem tem a credencial comprometida. O mesmo nas {condicoes} "
+                 "condições.",
                  "D-010, D-011"),
         Variavel("mistura de operações", "a do administrador personificado",
                  "De onde saem as operações do atacante. Não é dimensão de σ.",
@@ -338,15 +379,20 @@ def variaveis_pendentes_do_m9() -> tuple[Variavel, ...]:
 def variaveis_pendentes_do_m10_m11() -> tuple[Variavel, ...]:
     """O baseline e os modelos: decididos, não implementados."""
     return (
-        Variavel("regras do baseline", "oito, uma por atributo",
-                 "Seis comparam contra limiar; duas leem o perfil histórico.",
+        Variavel("regras do baseline", f"{len(ATTRIBUTES)}, uma por atributo",
+                 f"{REGRAS_DE_GRANDEZA} comparam contra limiar; {REGRAS_DE_PERFIL} "
+                 "leem o perfil histórico.",
                  "D-080"),
         Variavel("ponto de operação", "duas ou mais regras disparadas",
                  "Quando o baseline emite alerta.", "D-075"),
-        Variavel("especificidade do baseline", "99,29 % contra tráfego limpo",
-                 "Alarme falso medido sem atacante: 0,67 % das sessões, nas 30 "
-                 "sementes.", "D-080, D-075"),
-        Variavel("modelos", "Random Forest, XGBoost",
+        # Medido em 28/09, nas 30 sementes, sobre as semanas 5 a 8 sem
+        # atacante e contra a regua. Escrito a mao porque o baseline ainda
+        # nao e modulo: quando o M10 existir, este numero sai dele.
+        Variavel("especificidade do baseline", "99,36 % contra tráfego limpo",
+                 "Alarme falso medido sem atacante, nas semanas 5 a 8: 0,64 % "
+                 "das sessões (0,26 % a 1,06 % entre as 30 sementes).",
+                 "D-080, D-075"),
+        Variavel("modelos", MODELOS,
                  "Os dois modelos supervisionados da comparação.",
                  "D-051, D-026"),
         Variavel("reamostragem", "nenhuma, nem SMOTE",
@@ -366,8 +412,10 @@ def variaveis_pendentes_do_m12() -> tuple[Variavel, ...]:
                  "acurácia, precisão, revocação, especificidade",
                  "O que mais é reportado em toda condição.", "D-022"),
         Variavel("teste estatístico",
-                 "Wilcoxon pareado, correção de Holm, 22 comparações",
-                 "11 condições de σ × 2 modelos, cada um contra o baseline.",
+                 "Wilcoxon pareado, correção de Holm, "
+                 f"{len(SIGMAS) * len(MODELOS)} comparações",
+                 f"{len(SIGMAS)} condições de σ × {len(MODELOS)} modelos, cada um "
+                 "contra o baseline.",
                  "D-027, D-051"),
         Variavel("grade", f"{len(SEEDS)} sementes × {len(SIGMAS)} σ = "
                           f"{len(SEEDS) * len(SIGMAS)} execuções",

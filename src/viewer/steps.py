@@ -20,8 +20,9 @@ from src.attack.parameters import AttackSpecification
 from src.attack.stealth import stealth_of
 from src.audit_logger.build import build_log
 from src.calibration.build import build_thresholds
+from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
 from src.calibration.build import ruler_period as ruler_sessions
-from src.dataset.build import build_dataset, per_session, with_rate_attributes
+from src.dataset.build import ATTRIBUTES, build_dataset, per_session, with_rate_attributes
 from src.globals.phases import EVALUATED, WARMUP
 from src.globals.rng import ATTACK, POPULATION, TRAFFIC, stream
 from src.historical_profiles.build import (
@@ -41,6 +42,8 @@ from src.traffic.build import chronological, plan_sessions, request_rows, with_e
 from src.traffic.operators import read_operators
 from src.traffic.parameters import TrafficSpecification
 from src.traffic.repository import build_repository, keys_by_scope, reach_of
+from src.viewer.behaviors import linhas_do_atacante
+from src.viewer.formatting import com_virgula, porcento
 
 
 @dataclass(frozen=True)
@@ -49,9 +52,6 @@ class Fase:
 
     nome: str
     modulos: str
-    execucoes: str
-    objetivo: str
-    descricao: str
     implementada: bool
     pendencia: str = ""
     """O que ainda falta na fase, quando ela esta so parcialmente implementada.
@@ -66,56 +66,21 @@ FASES = (
     Fase(
         nome="Fase 1 · Preparação dos dados",
         modulos="M1 · M2",
-        execucoes="30 execuções, uma por semente",
-        objetivo=(
-            "Produzir o mundo estático e as oito semanas de tráfego legítimo, "
-            "antes de qualquer atacante existir."
-        ),
-        descricao=(
-            "Constrói o mundo estático (quem existe e o que existe) e gera as "
-            "oito semanas de tráfego legítimo. Nada aqui depende de σ, porque o "
-            "atacante ainda não entrou."
-        ),
         implementada=True,
     ),
     Fase(
         nome="Fase 2 · Aquecimento e calibração",
         modulos="M4 · M5 · M6 · M7 · M8",
-        execucoes="30 execuções, uma por semente",
-        objetivo=(
-            "Construir a **régua** com que tudo será medido depois, a partir de "
-            "tráfego **limpo**: o **perfil histórico** de cada operador e os "
-            "**limiares do baseline**, os dois das mesmas quatro semanas. "
-            "Nenhum dos dois pode ver o atacante: se visse, o baseline "
-            "nasceria calibrado contra o comportamento que deveria detectar."
-        ),
-        descricao=(
-            "Constrói a régua a partir de tráfego limpo: o perfil histórico e os "
-            "limiares do baseline, os dois das semanas 1 a 4. Ficam congelados "
-            "daqui em diante."
-        ),
         implementada=True,
     ),
     Fase(
         nome="Fase 3 · Ataque, treino e comparação",
         modulos="M3 · M4 · M5 · M7 · M9 · M10 · M11 · M12",
-        execucoes="330 execuções, 11 condições de σ por semente",
-        objetivo=(
-            "Injetar a campanha de ataque, montar o conjunto rotulado e "
-            "comparar o baseline de regras contra os dois modelos "
-            "supervisionados, que é a pergunta de pesquisa do trabalho."
-        ),
-        descricao=(
-            "Injeta a campanha nas semanas 5 a 8, monta o dataset avaliado, "
-            "particiona por sessão e compara o baseline de regras contra os dois "
-            "modelos supervisionados. É a única fase que depende de σ, e por isso "
-            "a única que roda 330 vezes."
-        ),
         implementada=True,
         pendencia=(
             "Os passos abaixo param no `sessions.csv` rotulado, que é a **entrada** "
-            "dos modelos. O que falta é tudo que o consome: a partição (M9), o "
-            "baseline de regras (M10), os dois modelos (M11) e a avaliação (M12). "
+            "dos modelos. O que falta é tudo que o consome: a partição, o "
+            "baseline de regras, os dois modelos e a avaliação. "
             "Nenhum F1 foi calculado."
         ),
     ),
@@ -246,7 +211,7 @@ def population_steps(seed: int, specification: KeyRepositorySpecification) -> li
         funcao="shuffle_rows",
         explicacao=(
             "Embaralha as linhas antes de gravar, para que a ordem do arquivo nao "
-            "revele o escopo. E por isso que o M2 ordena de novo ao ler: o alcance "
+            "revele o escopo. E por isso que o Scenario Engine ordena de novo ao ler: o alcance "
             "de um operador nao pode depender da ordem de gravacao."
         ),
         entrada={"keys": f"{len(keys_with_status)} linhas em ordem de escopo"},
@@ -291,7 +256,7 @@ def traffic_steps(
         funcao="keys_by_scope",
         explicacao=(
             "Indice inverso das chaves: de cada escopo para as chaves dele. A "
-            "tabela responde 'qual o escopo desta chave?'; o M2 precisa do "
+            "tabela responde 'qual o escopo desta chave?'; o Scenario Engine precisa do "
             "contrario, porque operador detem escopo, nao chave (D-042)."
         ),
         entrada={"keys.csv": f"{len(keys_table)} linhas"},
@@ -313,7 +278,7 @@ def traffic_steps(
             "as chaves de cada escopo dele, e o total e o que ele **alcanca**.\n\n"
             "**A chave nao tem dono** (D-099). O escopo dela e detido por varios "
             "operadores ao mesmo tempo, entao alcance e o unico criterio, aqui "
-            "e no M4, que autoriza pela mesma regra. Ate 24/09 a tabela tinha "
+            "e no KMS, que autoriza pela mesma regra. Ate 24/09 a tabela tinha "
             "uma coluna `owner`, e nenhum modulo a consultava.\n\n"
             "O resultado e o `in_reach`; o que sobra do repositorio vira "
             "`out_of_reach`, alvo do desvio de escopo obsoleto da D-056."
@@ -338,7 +303,7 @@ def traffic_steps(
             "Monta os tres recortes do repositorio para cada operador, de uma "
             "vez. Cada recorte produz um desfecho diferente no log: `in_reach` "
             "vira `success`, `out_of_reach` vira `denied_by_policy`, e `existing` "
-            "serve para forjar identificador inexistente sem colidir."
+            "serve para forjar uma chave inexistente sem colidir com uma real."
         ),
         entrada={"operadores": len(operators), "chaves": len(keys_table)},
         saida=pd.DataFrame([
@@ -387,7 +352,7 @@ def traffic_steps(
         explicacao=(
             "Preenche cada sessao: escolhe a origem de rede, quantas requisicoes, "
             "os instantes, as operacoes e as chaves. Emite **tentativas**, nunca "
-            "desfechos: quem decide se foi autorizada e o M4 (D-013)."
+            "desfechos: quem decide se foi autorizada e o KMS (D-013)."
         ),
         entrada={"sessoes": len(planejadas)},
         saida=pd.DataFrame([
@@ -438,7 +403,7 @@ def warmup_steps(
     passos: list[Step] = []
 
     repositorio = read_repository(keys, operators)
-    do_foco = sorted(repositorio.scopes_of[foco])
+    do_foco = sorted(repositorio.scopes_by_operator[foco])
     passos.append(Step(
         fase=FASE_2,
         modulo="M4",
@@ -446,14 +411,14 @@ def warmup_steps(
         explicacao=(
             "Monta os tres indices contra os quais cada requisicao sera julgada: "
             "o escopo de cada chave, o conjunto de chaves desabilitadas e os "
-            "escopos de cada operador. **Tudo sai das duas tabelas do M1**, e o "
+            "escopos de cada operador. **Tudo sai das duas tabelas da Populacao**, e o "
             "que faz o desfecho ser derivado da politica em vez de inventado."
         ),
         entrada={"keys": len(keys), "operators": len(operators)},
         saida=pd.DataFrame([
-            {"indice": "scope_of", "tamanho": len(repositorio.scope_of)},
+            {"indice": "scope_by_key", "tamanho": len(repositorio.scope_by_key)},
             {"indice": "disabled", "tamanho": len(repositorio.disabled)},
-            {"indice": "scopes_of", "tamanho": len(repositorio.scopes_of)},
+            {"indice": "scopes_by_operator", "tamanho": len(repositorio.scopes_by_operator)},
         ]),
         legenda=f"{foco} detem os escopos {', '.join(do_foco)}",
     ))
@@ -481,12 +446,12 @@ def warmup_steps(
         modulo="M4",
         funcao="build_outcomes",
         explicacao=(
-            "O KMS julga cada requisicao, **nesta ordem**: identificador que nao "
-            "existe, depois fora de escopo, depois chave desabilitada, depois "
+            "O KMS julga cada requisicao, **nesta ordem**: chave inexistente, "
+            "depois fora de escopo, depois chave desabilitada, depois "
             "sucesso (D-077). Autorizacao antes de estado: quem nao detem o "
             "escopo recebe negacao, e nao a informacao de que a chave existe.\n\n"
             "Duas colunas so, `event_id` e `outcome`: o diagnostico de qual "
-            "regra disparou ficaria no arquivo e o M5 teria de lembrar de "
+            "regra disparou ficaria no arquivo e o Audit Logger teria de lembrar de "
             "descarta-lo (D-078)."
         ),
         entrada={"requisicoes": len(da_fase)},
@@ -503,7 +468,7 @@ def warmup_steps(
         explicacao=(
             "Casa tentativa com desfecho por `event_id` e fecha as **oito "
             "colunas** do log (D-064). O `key_id` e o **requisitado**, nao o "
-            "resolvido, para que identificador inexistente seja observavel.\n\n"
+            "resolvido, para que a chave inexistente seja observavel.\n\n"
             "Nao ha escopo, perfil nem proprietario aqui: qualquer um deles "
             "deixaria o modelo reconstruir a fronteira de autorizacao e aprender "
             "a politica em vez do comportamento. E nao ha rotulo: ele viaja em "
@@ -543,7 +508,7 @@ def warmup_steps(
         explicacao=(
             "Uma linha por sessao: quem abriu, quando e de onde. O instante e o "
             "do **primeiro evento**, e a origem e a dele, porque origem e uma so por "
-            "sessao desde o M2."
+            "sessao desde o Scenario Engine."
         ),
         entrada={"eventos": len(do_perfil)},
         saida=aberturas[aberturas["operator_id"] == foco],
@@ -564,7 +529,7 @@ def warmup_steps(
             "mandava descartar zero. A regua de quatro semanas dobrou esse numero, "
             "mas a forma ja tinha sido decidida, e minimo a maximo e livre de "
             "distribuicao, o que o percentil nao e.\n\n"
-            "`observed_ips` **nao** e `usual_ips`. Aquela e a lista que o M1 "
+            "`observed_ips` **nao** e `usual_ips`. Aquela e a lista que a Populacao "
             "sorteou; esta e o subconjunto que apareceu no log, e a diferenca "
             "entre as duas e o que produz origem inedita legitima depois (D-040)."
         ),
@@ -619,8 +584,8 @@ def warmup_steps(
             "aquecimento e atipica, porque a janela e o minimo e o maximo delas "
             "proprias, e nenhuma cai fora do que ela mesma delimitou. E a "
             "invariante que pegou o erro de arredondamento da D-090.\n\n"
-            "**Sem coluna de rotulo.** O conjunto do aquecimento alimenta so o "
-            "M8, e calibracao por percentil nao usa rotulo: se a coluna nao "
+            "**Sem coluna de rotulo.** O conjunto do aquecimento alimenta so a "
+            "Calibracao, e calibracao por percentil nao usa rotulo: se a coluna nao "
             "existe, ninguem a usa por engano (D-063)."
         ),
         entrada={"log": len(log), "perfis": len(perfis)},
@@ -635,7 +600,7 @@ def warmup_steps(
         modulo="M8",
         funcao="ruler_period",
         explicacao=(
-            "A mesma guarda do M6, do outro lado da regua: confere que as sessoes "
+            "A mesma guarda dos Perfis historicos, do outro lado da regua: confere que as sessoes "
             "sao as do aquecimento e devolve-as inteiras. O aquecimento e limpo e "
             "anterior ao ataque, e e por isso que os limiares podem ser os mesmos "
             "nas 11 condicoes de sigma (D-043).\n\n"
@@ -654,8 +619,9 @@ def warmup_steps(
         modulo="M8",
         funcao="build_thresholds",
         explicacao=(
-            "Percentil 99 de cada grandeza, sobre o aquecimento. **Seis regras, nao "
-            "oito**: `atypical_hour` e `new_source_ip` ja vem binarias do M7 e "
+            f"Percentil {PERCENTILE} de cada grandeza, sobre o aquecimento. "
+            f"**{len(THRESHOLD_ATTRIBUTES)} regras, nao {len(ATTRIBUTES)}**: "
+            "`atypical_hour` e `new_source_ip` ja vem binarias do Dataset Generator e "
             "disparam quando valem 1: percentil sobre uma coluna de zeros e uns "
             "daria 0 ou 1 e nao significaria nada.\n\n"
             "O baseline **nao recebe treino**: chega ao periodo avaliado com "
@@ -713,41 +679,34 @@ def attack_steps(
         funcao="stealth_of",
         explicacao=(
             f"Interpola as cinco dimensoes entre o ostensivo e o furtivo, em "
-            f"sigma **{sigma}**. A coluna da direita e o que o **M2 usaria** "
+            f"sigma **{com_virgula(sigma)}**. A coluna da direita e o que o "
+            "**trafego legitimo usaria** "
             "para este administrador: ela nao foi escolhida, foi importada.\n\n"
-            "Em sigma 1 as duas colunas coincidem e o M3 chama as mesmas funcoes "
-            "do M2: a sessao comprometida sai da mesma distribuicao que uma "
+            "Em sigma 1 as duas colunas coincidem e a campanha chama as mesmas "
+            "funcoes do Scenario Engine: a sessao comprometida sai da mesma "
+            "distribuicao que uma "
             "legitima, e nenhum mecanismo pode separa-las. E o piso declarado "
             "da varredura (D-082).\n\n"
             "**As duas primeiras linhas dizem o tipico, nao o teto** (D-097, "
             "D-098). A cauda e a mesma nos dois lados: ela vem da especificacao "
-            "de trafego, que o M2 e o M3 compartilham, entao a convergencia "
+            "de trafego, que o Scenario Engine e a campanha compartilham, entao a convergencia "
             "exata em sigma 1 vale com ela inclusive. Enquanto a faixa era teto, "
             "as duas classes nao se sobrepunham e `events` separava sozinho com "
             "F1 0,982 em sigma 0."
         ),
         entrada={"sigma": sigma, "regime": alvo.regime},
-        saida=pd.DataFrame([
-            {"dimensao": "segundos entre requisicoes",
-             "neste sigma": str(round(furtividade.seconds_between_requests, 2)),
-             "no legitimo": str(legitimo.seconds_between_requests)},
-            {"dimensao": "requisicoes por sessao (tipico)",
-             "neste sigma": str(furtividade.requests_range),
-             "no legitimo": str(legitimo.requests_range)},
-            {"dimensao": "chaves distintas (tipico)",
-             "neste sigma": str(furtividade.distinct_keys_range),
-             "no legitimo": str(trafego.distinct_keys_range)},
-            {"dimensao": "chance de hora atipica",
-             "neste sigma": f"{furtividade.atypical_hour_chance:.0%}",
-             "no legitimo": "0%"},
-            {"dimensao": "chance de origem inedita",
-             "neste sigma": f"{furtividade.novel_address_chance:.0%}",
-             "no legitimo": "0%"},
-            {"dimensao": "fracao fora de escopo",
-             "neste sigma": f"{furtividade.stale_scope_rate:.2%}",
-             "no legitimo": f"{trafego.stale_scope_rate:.2%}"},
-        ]),
-        legenda=f"sigma {sigma}: 0 e ostensivo, 1 e indistinguivel",
+        saida=pd.DataFrame(
+            [
+                {"dimensao": nome, "neste sigma": deste, "no legitimo": no_legitimo}
+                for (nome, deste), (_, no_legitimo) in zip(
+                    linhas_do_atacante(furtividade),
+                    linhas_do_atacante(
+                        stealth_of(1.0, legitimo, trafego, AttackSpecification())
+                    ),
+                )
+            ]
+        ),
+        legenda=f"sigma {com_virgula(sigma)}: 0 e ostensivo, 1 e indistinguivel",
     ))
 
     campanha = build_attack(
@@ -835,7 +794,7 @@ def attack_steps(
         saida=sessoes[sessoes["compromised"] == 1].head(10),
         completa=sessoes,
         legenda=(f"sessions.csv, {len(sessoes)} sessoes, {positivas} positivas "
-                 f"({positivas / len(sessoes):.2%}); abaixo, 10 comprometidas"),
+                 f"({porcento(positivas / len(sessoes), 2)}); abaixo, 10 comprometidas"),
     ))
 
     return passos

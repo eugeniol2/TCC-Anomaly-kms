@@ -1,14 +1,19 @@
 """A teoria por trás das variáveis que são distribuições, com gráfico.
 
 Algumas variáveis do gerador não são um número escolhido: são a **forma de uma
-distribuição**. `CUSTODY_DISPERSION = 2` não quer dizer "dois" de nada: quer
-dizer que as sessões do administrador chegam por uma Pascal em vez de uma
-Poisson, e a diferença entre as duas é o que produz o ritmo irregular que a
-lista de conferência exige.
+distribuição**. `PRIMARY_ADDRESS_SHARE = 0.80` não diz só quanto pesa a
+principal: diz que os endereços decaem geometricamente, e é o decaimento que
+faz o mais raro faltar no aquecimento.
 
 Isso não cabe numa célula de tabela, e não se demonstra em prosa. Cada função
 aqui devolve o texto **e os dados de um gráfico**, calculados na hora a partir
 da mesma distribuição que o gerador usa.
+
+**Só as distribuições globais moram aqui**: as que valem para o tráfego
+inteiro, qualquer que seja o regime. As de um regime só (a Poisson do
+`routine`, a Pascal do `occasional_custody`, o passo exponencial de cada um)
+estão na página Comportamentos, em `behaviors.py`, com a frequência medida ao
+lado da curva.
 
 Os gráficos são do Streamlit e não do matplotlib, de propósito: eles herdam o
 tema claro ou escuro da página e trazem tooltip ao passar o mouse, que numa
@@ -21,9 +26,9 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 from src.traffic.sessions import address_weights
+from src.viewer.formatting import com_virgula, porcento
 
 # A cor não mora aqui. Os passos da paleta mudam entre o tema claro e o
 # escuro (a versão clara reprovou na verificação contra fundo escuro), e
@@ -34,13 +39,18 @@ from src.traffic.sessions import address_weights
 
 @dataclass(frozen=True)
 class Teoria:
-    """A explicação de uma distribuição, com o gráfico que a sustenta."""
+    """A explicação de uma distribuição, com o gráfico que a sustenta.
+
+    O gráfico é opcional porque a aba de comportamentos usa o mesmo formato
+    para seções que se explicam só em texto. Nas variáveis de decisão ele está
+    sempre presente.
+    """
 
     titulo: str
     texto: str
-    dados: pd.DataFrame
-    rotulo_x: str
-    rotulo_y: str
+    dados: pd.DataFrame | None = None
+    rotulo_x: str = ""
+    rotulo_y: str = ""
 
     forma: str = "barras"
     """`barras` para domínio discreto, `linha` para contínuo."""
@@ -48,151 +58,12 @@ class Teoria:
     leitura: str = ""
     """O que se deve enxergar no gráfico. Sem isto, ele é decoração."""
 
+    horizontal: bool = False
+    """Barras deitadas, para quando o eixo tem nomes longos.
 
-def teoria_da_pascal(media: float, dispersao: int) -> Teoria:
-    """Por que o regime `occasional_custody` usa binomial negativa e não Poisson.
-
-    As duas têm a mesma média. O que muda é a variância, e é a variância que
-    produz o "ritmo irregular, padrão humano" que a lista de conferência pede.
-    O assunto é o regime, que governa o ritmo; o perfil que o usa é o
-    `administrator`.
+    Com `ExportKeyMaterial` no eixo, o rótulo em pé ocupava quase toda a altura
+    do gráfico e as barras ficavam achatadas numa faixa de poucos pixels.
     """
-    contagens = np.arange(0, 9)
-    sucesso = dispersao / (dispersao + media)
-
-    poisson = stats.poisson.pmf(contagens, media)
-    pascal = stats.nbinom.pmf(contagens, dispersao, sucesso)
-
-    dados = pd.DataFrame({
-        "sessões no dia": contagens,
-        "Poisson": poisson,
-        f"Pascal, n = {dispersao}": pascal,
-    })
-
-    variancia_pascal = media / sucesso
-    media_escrita = f"{media:.1f}".replace(".", ",")
-    variancia_escrita = f"{variancia_pascal:.2f}".replace(".", ",")
-    razao_escrita = f"{variancia_pascal / media:.2f}".replace(".", ",")
-
-    return Teoria(
-        titulo="Poisson ou binomial negativa (Pascal)?",
-        texto=(
-            "Uma **Poisson** descreve chegadas independentes a uma taxa "
-            "constante, que é o caso de quem trabalha sempre no mesmo ritmo. Ela tem "
-            "uma propriedade rígida: a **variância é igual à média**. Com média "
-            f"{media_escrita}, a variância também é {media_escrita}.\n\n"
-            "Pessoas não trabalham assim. Um custodiante de chaves passa dias "
-            "sem abrir uma sessão e então faz seis numa tarde, porque o trabalho "
-            "chega em lote e não em fluxo. Isso é **superdispersão**: variância "
-            "maior que a média.\n\n"
-            "A **binomial negativa**, também chamada de Pascal, é a Poisson com "
-            "um parâmetro a mais. Ela se lê como uma Poisson cuja taxa varia de "
-            "dia para dia, e o parâmetro `n` controla quanto varia: quanto "
-            f"menor, mais irregular. Com `n = {dispersao}` e a mesma média "
-            f"{media_escrita}, a variância sobe para **{variancia_escrita}**, ou "
-            f"{razao_escrita} vezes a média. É o ritmo do regime "
-            "`occasional_custody`, usado pelo perfil `administrator`."
-        ),
-        dados=dados,
-        rotulo_x="sessões abertas num dia útil",
-        rotulo_y="probabilidade",
-        leitura=(
-            "As duas curvas têm o mesmo centro de massa, porque a média é a mesma. O "
-            "que muda são as pontas: a Pascal põe **mais peso no zero** e "
-            "**mais peso na cauda** de 5 ou mais. É exatamente isso que produz "
-            "dias vazios e dias cheios, e é isso que se lê no log como ritmo "
-            "humano."
-        ),
-    )
-
-
-def teoria_da_poisson(media: float) -> Teoria:
-    """Por que o regime `routine` é Poisson.
-
-    O assunto é o **regime**, e não o perfil: é o regime que governa o ritmo.
-    O título dizia "usuário legítimo", o nome que a D-092 aposentou porque os
-    três perfis são legítimos e a expressão confundia papel com inocência.
-    """
-    contagens = np.arange(0, 8)
-    probabilidades = stats.poisson.pmf(contagens, media)
-
-    dados = pd.DataFrame({
-        "sessões no dia": contagens,
-        "Poisson": probabilidades,
-    })
-
-    media_escrita = f"{media:.1f}".replace(".", ",")
-    vazios = probabilidades[0]
-    uma_ou_duas = probabilidades[1] + probabilidades[2]
-
-    return Teoria(
-        titulo="Por que o regime routine é Poisson",
-        texto=(
-            "O `routine` descreve **trabalho em fluxo**: a pessoa vem durante o "
-            "expediente, faz o que tem de fazer e volta outro dia, sem que um "
-            "dia cheio torne o seguinte mais vazio ou mais cheio. Chegadas "
-            "independentes a uma taxa constante são, por definição, uma "
-            "**Poisson**.\n\n"
-            "E ela não pede mais que isso. A Poisson tem um parâmetro só, a "
-            "média, e a variância sai **igual** a ela por consequência. Não há "
-            "forma a escolher, então não há decisão a defender além da média.\n\n"
-            "É também o **contraste** do trabalho: o `occasional_custody` é "
-            "irregular, e isso fica fácil de ver ao lado do `routine`, que é "
-            "regular e segue o mesmo calendário de dias úteis. O que separa os "
-            "dois não é a média de sessões, é como elas se espalham pelos dias: "
-            "um trabalha de forma constante e o outro em rajadas. É essa "
-            "comparação, dentro do mesmo log, que o teste confere.\n\n"
-            f"Com média de {media_escrita} sessões por dia útil, o regime abre "
-            f"uma ou duas sessões em **{uma_ou_duas * 100:.0f} %** dos dias, e "
-            f"em **{vazios * 100:.0f} %** não abre nenhuma. É o regime do perfil "
-            "`end_user`."
-        ),
-        dados=dados,
-        rotulo_x="sessões abertas num dia útil",
-        rotulo_y="probabilidade",
-        leitura=(
-            "Uma corcova só, estreita, centrada perto da média. Compare com a "
-            "Pascal do `occasional_custody`: lá o zero e a cauda carregam muito "
-            "mais peso."
-        ),
-    )
-
-
-def teoria_da_exponencial(intervalos: dict[str, float]) -> Teoria:
-    """O intervalo entre requisições dentro de uma sessão."""
-    segundos = np.linspace(0, 240, 120)
-
-    dados = pd.DataFrame({"segundos": segundos})
-
-    for perfil, media in intervalos.items():
-        dados[perfil] = stats.expon.pdf(segundos, scale=media)
-
-    return Teoria(
-        titulo="Por que o intervalo entre requisições é exponencial",
-        texto=(
-            "Dentro de uma sessão, o tempo até a próxima requisição é sorteado "
-            "de uma **exponencial**. Ela é a distribuição do intervalo entre "
-            "eventos de um processo sem memória: o tempo já decorrido não muda "
-            "a chance de o próximo evento ocorrer agora.\n\n"
-            "É a escolha natural aqui porque **a duração da sessão não é "
-            "escrita em lugar nenhum**: ela emerge da soma desses intervalos. "
-            "E é da duração que sai `requests_per_minute`, que é uma das cinco "
-            "dimensões que σ interpola.\n\n"
-            "Cada perfil tem sua média. O `automated_service` dispara "
-            "requisições quase em rajada; o `administrator` trabalha devagar, "
-            "inspecionando entre uma e outra."
-        ),
-        dados=dados,
-        rotulo_x="segundos até a próxima requisição",
-        rotulo_y="densidade",
-        forma="linha",
-        leitura=(
-            "Quanto mais alta a curva na origem, mais curto o intervalo típico. "
-            "A do `automated_service` despenca quase de imediato, e quase toda a "
-            "massa está nos primeiros segundos. A do `administrator` é rasa e "
-            "longa, o que dá sessões de dezenas de minutos."
-        ),
-    )
 
 
 def teoria_da_cauda(
@@ -272,9 +143,9 @@ def teoria_da_cauda(
             f"excesso geométrico de média {excesso:.0f}. Tráfego real de KMS tem "
             "cauda (migração em lote, reprocessagem, job que repete), e o teto "
             "era artefato do sorteio, não propriedade do domínio.\n\n"
-            f"Hoje **{acima:.1%}** das sessões passam do típico, e a mais longa "
-            "chega à faixa do atacante. O mesmo mecanismo vale para a amplitude: "
-            "a sessão que se estende também se alarga (D-098)."
+            f"Hoje **{porcento(acima)}** das sessões passam do típico, e a mais longa "
+            "chega à faixa do atacante. A amplitude ganhou uma cauda igual, "
+            "sorteada à parte (D-098, D-100)."
         ),
         dados=dados,
         rotulo_x="eventos na sessão",
@@ -288,7 +159,7 @@ def teoria_da_cauda(
             f"Elas descem juntas até {maior - 1}. Em **{maior}** se separam, e "
             "é este o gráfico inteiro: a **faixa fechada** cai a zero e fica "
             "ali, porque à direita do teto não existe sessão legítima nenhuma. "
-            f"A **com cauda** vale **{alcanca:.1%}** nesse ponto e segue "
+            f"A **com cauda** vale **{porcento(alcanca)}** nesse ponto e segue "
             "descendo devagar, sem nunca tocar o eixo.\n\n"
             "É pouco, e é o suficiente: enquanto for maior que zero, sessão "
             "longa é explicação possível para um tamanho grande, e a regra "
@@ -329,7 +200,8 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
         texto=(
             "Cada operador tem de duas a quatro origens habituais, e a sessão "
             "escolhe uma delas por uma **geométrica truncada**: a principal leva "
-            f"{principal:.0%}, e cada endereço seguinte leva {principal:.0%} do "
+            f"{porcento(principal, 0)}, e cada endereço seguinte leva "
+            f"{porcento(principal, 0)} do "
             "que sobrou.\n\n"
             "A razão não é realismo pelo realismo. O atributo `new_source_ip` "
             "pergunta se a origem da sessão **apareceu na régua**, que são as "
@@ -337,9 +209,9 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
             "aparecessem sempre, nenhuma sessão legítima teria origem inédita no "
             "período avaliado, e origem inédita viraria marcador perfeito do "
             "atacante.\n\n"
-            f"Com o decaimento, o quarto endereço fica em **{quarto:.2%}** de "
-            "chance por sessão. Numa régua de cerca de 32 sessões, ele tem "
-            f"~{ausencia:.0%} de chance de **não aparecer nenhuma vez**, e é "
+            f"Com o decaimento, o quarto endereço fica em **{porcento(quarto, 2)}** de "
+            f"chance por sessão. Numa régua de cerca de {SESSOES_NA_REGUA} "
+            f"sessões, ele tem ~{porcento(ausencia, 0)} de chance de **não aparecer nenhuma vez**, e é "
             "essa ausência que produz origem inédita legítima depois.\n\n"
             "**A régua de quatro semanas apertou essa folga**, e é o custo "
             "declarado da D-096: com mais semanas observadas, a maior parte dos "
@@ -375,7 +247,7 @@ def teoria_da_dirichlet(chaves: pd.DataFrame, concentracao: float) -> Teoria:
             "As chaves se repartem entre os escopos por uma **Dirichlet**, que "
             "é a distribuição de proporções que somam 1, que é o sorteio natural "
             "quando se quer dividir um total em partes. O parâmetro de "
-            f"concentração, aqui **{concentracao}**, controla quão desigual: "
+            f"concentração, aqui **{com_virgula(concentracao)}**, controla quão desigual: "
             "valores altos aproximam a divisão de partes iguais, valores baixos "
             "produzem uns poucos escopos grandes e muitos pequenos.\n\n"
             "A desigualdade é **deliberada**. O alcance de um operador é a soma "
