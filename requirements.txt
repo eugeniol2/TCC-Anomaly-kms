@@ -38,3 +38,7 @@ matplotlib==3.11.1
 
 # Verificacao de determinismo dos modulos (mesma semente -> mesma saida)
 pytest==9.1.1
+
+# Viewer (src/viewer/), fora do pipeline: a tela que mostra cada passo com os
+# dados de verdade. Os controles usam persist_state, que exige a 1.64 ou mais.
+streamlit==1.64.0

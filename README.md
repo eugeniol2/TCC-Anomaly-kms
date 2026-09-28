@@ -141,7 +141,7 @@ python -m src.pipeline --warmup --seed 1       # só o ramo da semente
 python -m src.pipeline --grade                 # as 330, e o runs.csv
 ```
 
-`--out` aceita outra raiz para `data/`. A grade inteira ocupa cerca de 3,8 GB.
+`--out` aceita outra raiz para `data/`. A grade inteira ocupa cerca de 3,4 GB.
 
 Cada módulo também roda sozinho, com a semente como parâmetro explícito, e os que rodam
 nos dois ramos (M4, M5, M7) exigem `--fase warmup` ou `--fase evaluated`:
