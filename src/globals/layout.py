@@ -13,7 +13,7 @@ sobre o periodo avaliado (D-049).
       metrics.csv                     agregado final (M12)
       preparation/
         seed-902/                     busca de hiperparametros (D-047)
-        seed-903/                     limiar X de exclusao por trivialidade (D-052)
+        seed-903/                     ensaio do pipeline antes das 330 (D-107)
       seed-01/                        ---- ramo da semente, 30 execucoes ----
         operators.csv                 M1
         keys.csv                      M1
@@ -86,8 +86,8 @@ def preparation_directory(root: Path, seed: int) -> Path:
     """Onde fica uma execucao preparatoria, fora das 330 replicas.
 
     Sao duas, com sementes reservadas distintas: a **902** escolhe a configuracao
-    de hiperparametros (D-047) e a **903** fixa o limiar X de exclusao por
-    trivialidade (D-052). Ficam separadas porque servem a propositos diferentes e
+    de hiperparametros (D-047) e a **903** e o ensaio do pipeline inteiro antes
+    das 330 (D-107). Ficam separadas porque servem a propositos diferentes e
     porque reaproveitar o holdout da 902 conflitaria com a D-045.
 
     Os limiares do baseline nao passam por aqui: saem do aquecimento de cada

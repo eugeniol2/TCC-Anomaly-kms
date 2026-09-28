@@ -433,7 +433,8 @@ def frames_da_fase_3(
             modulos="M12",
             resumo=(
                 "F1 com a matriz de confusão completa, Wilcoxon pareado com "
-                f"correção de Holm sobre {len(SIGMAS) * len(MODELOS)} comparações. "
+                f"correção de Holm sobre até {len(SIGMAS) * len(MODELOS)} comparações, as das "
+                "condições que a trivialidade mantiver. "
                 "Aqui roda a verificação "
                 "de trivialidade."
             ),

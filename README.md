@@ -49,7 +49,7 @@ data/
   metrics.csv                     agregado final (M12)
   preparation/
     seed-902/                     busca de hiperparametros
-    seed-903/                     limiar X de exclusao por trivialidade
+    seed-903/                     ensaio do pipeline antes das 330
   seed-01/                        ---- ramo da semente, 30 execucoes ----
     operators.csv  keys.csv       M1
     requests.csv                  M2, oito semanas, so legitimo

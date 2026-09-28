@@ -413,20 +413,23 @@ def variaveis_pendentes_do_m12() -> tuple[Variavel, ...]:
                  "O que mais é reportado em toda condição.", "D-022"),
         Variavel("teste estatístico",
                  "Wilcoxon pareado, correção de Holm, "
-                 f"{len(SIGMAS) * len(MODELOS)} comparações",
-                 f"{len(SIGMAS)} condições de σ × {len(MODELOS)} modelos, cada um "
-                 "contra o baseline.",
-                 "D-027, D-051"),
+                 f"até {len(SIGMAS) * len(MODELOS)} comparações",
+                 "As condições de σ que a verificação de trivialidade mantiver × "
+                 f"{len(MODELOS)} modelos, cada um contra o baseline. As excluídas são "
+                 "reportadas só de forma descritiva.",
+                 "D-027, D-051, D-111"),
         Variavel("grade", f"{len(SEEDS)} sementes × {len(SIGMAS)} σ = "
                           f"{len(SEEDS) * len(SIGMAS)} execuções",
                  "Quantas execuções a comparação usa.", "D-004, D-039"),
         Variavel("trivialidade", "árvore de profundidade 1, F1 ≥ 0,95 exclui",
                  "O critério que decide se uma condição entra na comparação.",
                  "D-028"),
-        Variavel("remedição", "remover o atributo dominante e retreinar",
-                 "O que se faz depois de identificar trivialidade.", "D-050"),
-        Variavel("tempo de inferência", "com tabela própria",
-                 "Métrica de primeira classe, não nota de rodapé.", "D-023"),
+        Variavel("remedição", "retreinar sem o atributo dominante",
+                 "Diagnóstico: diz quanto o atributo carregava, e não exclui condição. "
+                 "Se o dominante for events, duration_minutes ou requests_per_minute, "
+                 "saem os três.", "D-050, D-107"),
+        Variavel("tempo de inferência", "só a decisão, mediana de 10, um núcleo",
+                 "Métrica de primeira classe, em microssegundos por sessão.", "D-025, D-106"),
         Variavel("semanas", f"{WEEK_COUNT}, em {RULER_WEEKS} + {EVALUATED_WEEKS}",
                  "O período simulado de cada execução.", "D-096"),
     )
