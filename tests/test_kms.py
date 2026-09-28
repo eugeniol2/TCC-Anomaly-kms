@@ -86,9 +86,9 @@ def repository_of(seed: int) -> Repository:
 def test_nonexistent_identifier_wins_over_everything() -> None:
     """Identificador que nao existe nao tem escopo para comparar."""
     repository = Repository(
-        scope_of={"k_real": "scope_01"},
+        scope_by_key={"k_real": "scope_01"},
         disabled=frozenset({"k_real"}),
-        scopes_of={"admin_01": frozenset({"scope_01"})},
+        scopes_by_operator={"admin_01": frozenset({"scope_01"})},
     )
 
     assert outcome_of("admin_01", "k_ausente", repository) == UNKNOWN_KEY
@@ -101,9 +101,9 @@ def test_policy_wins_over_disabled_state() -> None:
     existe e revelaria em que estado ela esta. Nega-se sem qualificar.
     """
     repository = Repository(
-        scope_of={"k_alheia": "scope_09"},
+        scope_by_key={"k_alheia": "scope_09"},
         disabled=frozenset({"k_alheia"}),
-        scopes_of={"user_01": frozenset({"scope_01"})},
+        scopes_by_operator={"user_01": frozenset({"scope_01"})},
     )
 
     assert outcome_of("user_01", "k_alheia", repository) == DENIED_BY_POLICY
@@ -117,9 +117,9 @@ def test_disabled_only_reaches_keys_the_operator_may_use() -> None:
     disponibilidade.
     """
     repository = Repository(
-        scope_of={"k_minha": "scope_01"},
+        scope_by_key={"k_minha": "scope_01"},
         disabled=frozenset({"k_minha"}),
-        scopes_of={"user_01": frozenset({"scope_01"})},
+        scopes_by_operator={"user_01": frozenset({"scope_01"})},
     )
 
     assert outcome_of("user_01", "k_minha", repository) == DISABLED_KEY
@@ -127,9 +127,9 @@ def test_disabled_only_reaches_keys_the_operator_may_use() -> None:
 
 def test_reachable_and_active_succeeds() -> None:
     repository = Repository(
-        scope_of={"k_minha": "scope_01"},
+        scope_by_key={"k_minha": "scope_01"},
         disabled=frozenset(),
-        scopes_of={"user_01": frozenset({"scope_01"})},
+        scopes_by_operator={"user_01": frozenset({"scope_01"})},
     )
 
     assert outcome_of("user_01", "k_minha", repository) == SUCCESS
@@ -214,7 +214,7 @@ def test_no_event_is_lost_or_duplicated_in_the_join(seed: int) -> None:
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_the_warmup_covers_exactly_weeks_one_to_three(seed: int) -> None:
+def test_the_warmup_covers_exactly_the_ruler_weeks(seed: int) -> None:
     """O aquecimento nao pode vazar para o periodo avaliado.
 
     Se vazasse, o perfil historico e os limiares veriam dados que o atacante
@@ -258,8 +258,8 @@ def test_policy_denial_reaches_many_operators(seed: int) -> None:
 def test_denied_keys_are_real_and_outside_the_operator_scopes(seed: int) -> None:
     """A negacao vem da politica, nao de um sinalizador do gerador."""
     tables = population(seed)
-    scope_of = dict(zip(tables.keys["key_id"], tables.keys["scope"]))
-    scopes_of = {
+    scope_by_key = dict(zip(tables.keys["key_id"], tables.keys["scope"]))
+    scopes_by_operator = {
         row.operator_id: set(row.scopes.split(MULTIVALUE_SEPARATOR))
         for row in tables.operators.itertuples()
     }
@@ -267,8 +267,8 @@ def test_denied_keys_are_real_and_outside_the_operator_scopes(seed: int) -> None
     denied = log(seed)[log(seed)["outcome"] == DENIED_BY_POLICY]
 
     for row in denied.itertuples():
-        assert row.key_id in scope_of
-        assert scope_of[row.key_id] not in scopes_of[row.operator_id]
+        assert row.key_id in scope_by_key
+        assert scope_by_key[row.key_id] not in scopes_by_operator[row.operator_id]
 
 
 @pytest.mark.parametrize("seed", SEEDS)

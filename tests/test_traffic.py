@@ -280,7 +280,7 @@ def test_the_longest_legitimate_session_reaches_the_ostensive_range(
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_distinct_keys_are_typical_in_range_and_widen_on_long_sessions(
+def test_distinct_keys_are_typical_in_range_and_sometimes_exceed_it(
     seed: int,
 ) -> None:
     """Amplitude da sessao legitima, contra a varredura ampla do atacante.
@@ -289,19 +289,23 @@ def test_distinct_keys_are_typical_in_range_and_widen_on_long_sessions(
     dele e por isso ficam de fora da contagem.
 
     **A faixa e a amplitude tipica, e nao um teto** (D-098). Enquanto era teto,
-    a sessao de 200 eventos tocava as mesmas 12 chaves de uma de 20, e o
-    `distinct_keys` separava as classes sozinho ate sigma 0,5: F1 0,879, e
-    **identico** em 0,0, 0,2 e 0,5, que e a assinatura de um separador que nao
-    responde a sigma nenhum.
+    nenhuma sessao legitima passava de 12 chaves, e o `distinct_keys` separava
+    as classes sozinho ate sigma 0,5: F1 0,879, e **identico** em 0,0, 0,2 e
+    0,5, que e a assinatura de um separador que nao responde a sigma nenhum.
+
+    Chamava-se `..._widen_on_long_sessions` ate 27/09, e o nome prometia o que
+    o teste nunca conferiu: ele nao olha se a sessao longa e a que alarga, e
+    ela nao e (D-100). Confere so que alguma sessao passa do tipico, e que
+    passar e raro.
     """
     requests = traffic(seed)
     tables = population(seed)
 
     scopes = scopes_by_operator(tables.operators)
-    scope_of = dict(zip(tables.keys["key_id"], tables.keys["scope"]))
+    scope_by_key = dict(zip(tables.keys["key_id"], tables.keys["scope"]))
 
     in_reach = [
-        scope_of.get(key) in scopes[operator]
+        scope_by_key.get(key) in scopes[operator]
         for operator, key in zip(requests["operator_id"], requests["key_id"])
     ]
     reached = requests[in_reach]
@@ -334,11 +338,11 @@ def test_both_legitimate_failure_paths_occur(seed: int) -> None:
     tables = population(seed)
 
     scopes = scopes_by_operator(tables.operators)
-    scope_of = dict(zip(tables.keys["key_id"], tables.keys["scope"]))
+    scope_by_key = dict(zip(tables.keys["key_id"], tables.keys["scope"]))
 
-    unknown = sum(key not in scope_of for key in requests["key_id"])
+    unknown = sum(key not in scope_by_key for key in requests["key_id"])
     stale = sum(
-        key in scope_of and scope_of[key] not in scopes[operator]
+        key in scope_by_key and scope_by_key[key] not in scopes[operator]
         for operator, key in zip(requests["operator_id"], requests["key_id"])
     )
 
@@ -358,11 +362,11 @@ def test_deviation_rates_stay_near_the_configured_ones(seed: int) -> None:
     tables = population(seed)
 
     scopes = scopes_by_operator(tables.operators)
-    scope_of = dict(zip(tables.keys["key_id"], tables.keys["scope"]))
+    scope_by_key = dict(zip(tables.keys["key_id"], tables.keys["scope"]))
 
-    unknown = sum(key not in scope_of for key in requests["key_id"]) / len(requests)
+    unknown = sum(key not in scope_by_key for key in requests["key_id"]) / len(requests)
     stale = sum(
-        key in scope_of and scope_of[key] not in scopes[operator]
+        key in scope_by_key and scope_by_key[key] not in scopes[operator]
         for operator, key in zip(requests["operator_id"], requests["key_id"])
     ) / len(requests)
 

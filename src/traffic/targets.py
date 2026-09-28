@@ -48,12 +48,16 @@ def distinct_key_count(
     para tocar oito chaves distintas em seis requisicoes, nem para alcancar
     doze quando o escopo tem quatro.
 
-    **A sessao que se estende tambem se alarga** (D-098). A faixa e a amplitude
-    tipica, e a mesma cauda da D-097 se aplica: sem ela, a sessao de 200 eventos
-    tocava as mesmas 12 chaves de uma de 20, e nenhuma sessao legitima passava
-    de 12: teto rigido de que o `distinct_keys` separava as classes sozinho ate
-    sigma 0,5, com F1 0,879. Quem alarga de fato e o `ceiling`: a sessao curta
-    nao tem onde por o excesso, e so a longa o acomoda.
+    **A faixa e a amplitude tipica, nao um teto** (D-098). Uma sessao em vinte
+    passa dela, com a mesma chance e o mesmo excesso da cauda de comprimento da
+    D-097. Sem isso nenhuma sessao legitima passava de 12, e o `distinct_keys`
+    separava as classes sozinho ate sigma 0,5, com F1 0,879.
+
+    **Esta cauda e sorteada a parte da de comprimento** (D-100). A D-098 dizia
+    que a sessao que se estende tambem se alarga, e nao e o que este codigo faz:
+    medido em 10 sementes, so 7 % das sessoes longas passam de 12 chaves, e 94 %
+    das largas tem comprimento tipico. O `ceiling` limita o alargamento; quem o
+    produz e o sorteio `runs_broad` abaixo.
     """
     lowest, highest = specification.distinct_keys_range
     drawn = int(rng.integers(lowest, highest + 1))

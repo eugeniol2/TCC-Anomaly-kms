@@ -37,13 +37,13 @@ exatamente o que a D-064 mantem fora do log.
 class Repository(NamedTuple):
     """O que o KMS precisa saber para decidir, ja indexado."""
 
-    scope_of: dict[str, str]
+    scope_by_key: dict[str, str]
     """De cada chave existente para o escopo dela."""
 
     disabled: frozenset[str]
     """As chaves que nascem desabilitadas (D-038)."""
 
-    scopes_of: dict[str, frozenset[str]]
+    scopes_by_operator: dict[str, frozenset[str]]
     """De cada operador para os escopos que ele detem."""
 
 
@@ -56,9 +56,9 @@ def read_repository(keys: pd.DataFrame, operators: pd.DataFrame) -> Repository:
     from src.globals.tables import MULTIVALUE_SEPARATOR
 
     return Repository(
-        scope_of=dict(zip(keys["key_id"], keys["scope"])),
+        scope_by_key=dict(zip(keys["key_id"], keys["scope"])),
         disabled=frozenset(keys.loc[keys["status"] == "disabled", "key_id"]),
-        scopes_of={
+        scopes_by_operator={
             row.operator_id: frozenset(row.scopes.split(MULTIVALUE_SEPARATOR))
             for row in operators.itertuples()
         },
@@ -79,14 +79,14 @@ def outcome_of(operator_id: str, key_id: str, repository: Repository) -> str:
     pratica correta, e por acaso e tambem a que acrescenta 4 % a contagem de
     `denied_by_policy`, que e o desfecho escasso.
     """
-    scope = repository.scope_of.get(key_id)
+    scope = repository.scope_by_key.get(key_id)
 
     is_unknown = scope is None
 
     if is_unknown:
         return UNKNOWN_KEY
 
-    is_out_of_scope = scope not in repository.scopes_of[operator_id]
+    is_out_of_scope = scope not in repository.scopes_by_operator[operator_id]
 
     if is_out_of_scope:
         return DENIED_BY_POLICY
