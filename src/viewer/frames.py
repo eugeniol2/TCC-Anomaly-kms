@@ -29,9 +29,11 @@ import pandas as pd
 
 from src.attack.parameters import AttackSpecification
 from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.dataset.build import ATTRIBUTES
+from src.dataset.build import ATTRIBUTES, LABEL
 from src.globals.experiment import SIGMAS
 from src.globals.phases import EVALUATED, WARMUP, belongs_to
+from src.partition.build import Partition
+from src.partition.parameters import HOLDOUT_SHARE
 from src.population.parameters import KeyRepositorySpecification
 from src.traffic.parameters import TrafficSpecification
 from src.viewer.decisions import (
@@ -46,7 +48,7 @@ from src.viewer.decisions import (
     variaveis_do_m6,
     variaveis_do_m7,
     variaveis_do_m8,
-    variaveis_pendentes_do_m9,
+    variaveis_do_m9,
     variaveis_pendentes_do_m10_m11,
     variaveis_pendentes_do_m12,
 )
@@ -321,7 +323,16 @@ def frames_da_fase_2(
     ]
 
 
+def lado(parte: pd.DataFrame) -> str:
+    """A legenda de um lado da partição: tamanho e proporção, contados (D-023)."""
+    positivas = int(parte[LABEL].sum())
+
+    return (f"semanas 5 a 8, {len(parte)} sessões, {positivas} positivas "
+            f"({porcento(positivas / len(parte), 2)})")
+
+
 def frames_da_fase_3(
+    seed: int,
     sigma: float,
     requests: pd.DataFrame,
     perfis: pd.DataFrame,
@@ -330,9 +341,10 @@ def frames_da_fase_3(
     execucao: pd.DataFrame,
     log: pd.DataFrame,
     sessoes: pd.DataFrame,
+    particao: Partition,
     detalhes: list[Step],
 ) -> list[Quadro]:
-    """Passos 8 a 12. Os três últimos ainda não existem."""
+    """Passos 8 a 12. Os dois últimos ainda não existem."""
     do_avaliado = requests[belongs_to(EVALUATED, requests["timestamp"])]
     positivas = int(sessoes["compromised"].sum())
 
@@ -403,14 +415,23 @@ def frames_da_fase_3(
             entidade="Partição experimental",
             modulos="M9",
             resumo=(
-                "Divide o conjunto em treino e holdout, **por sessão** e "
-                "estratificada por classe: 60 % e 40 %."
+                f"Divide o conjunto em treino e holdout, **por sessão** e "
+                f"estratificada por classe: {porcento(1 - HOLDOUT_SHARE, 0)} e "
+                f"{porcento(HOLDOUT_SHARE, 0)}. **A mesma divisão em todo σ** da "
+                f"semente."
             ),
-            entradas=(Painel("sessions.csv", sessoes,
-                       "semanas 5 a 8, o conjunto rotulado"),),
-            saidas=(),
-            variaveis=variaveis_pendentes_do_m9(),
-            pendente="train.csv e holdout.csv ainda não existem.",
+            entradas=(
+                Painel("sessions.csv", sessoes,
+                       "semanas 5 a 8, o conjunto rotulado"),
+                Painel("semente", seed,
+                       "parâmetro: o sorteio depende só dela, e não de σ"),
+            ),
+            saidas=(
+                Painel("train.csv", particao.train, lado(particao.train)),
+                Painel("holdout.csv", particao.holdout, lado(particao.holdout)),
+            ),
+            variaveis=variaveis_do_m9(particao.holdout),
+            detalhes=apenas(detalhes, "M9"),
         ),
         Quadro(
             numero=11,

@@ -22,7 +22,13 @@ from src.audit_logger.build import build_log
 from src.calibration.build import build_thresholds
 from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
 from src.calibration.build import ruler_period as ruler_sessions
-from src.dataset.build import ATTRIBUTES, build_dataset, per_session, with_rate_attributes
+from src.dataset.build import (
+    ATTRIBUTES,
+    LABEL,
+    build_dataset,
+    per_session,
+    with_rate_attributes,
+)
 from src.globals.phases import EVALUATED, WARMUP
 from src.globals.rng import ATTACK, POPULATION, TRAFFIC, stream
 from src.historical_profiles.build import (
@@ -32,6 +38,7 @@ from src.historical_profiles.build import (
 )
 from src.kms.build import build_outcomes, requests_of_phase
 from src.kms.policy import read_repository
+from src.partition.build import Partition, build_partition
 from src.traffic.regimes import REGIMES
 from src.globals.tables import shuffle_rows
 from src.population.keys import build_keys, disable_random_sample, split_keys_by_scope
@@ -56,8 +63,8 @@ class Fase:
     pendencia: str = ""
     """O que ainda falta na fase, quando ela esta so parcialmente implementada.
 
-    A fase 3 e o caso: a campanha e o conjunto avaliado existem, mas nada que
-    os consome. Marca-la como nao implementada esconderia metade do que ja
+    A fase 3 e o caso: a campanha, o conjunto avaliado e a particao existem,
+    mas nada que os consome. Marca-la como nao implementada esconderia metade do que ja
     roda; marca-la como pronta mentiria sobre a outra metade.
     """
 
@@ -78,8 +85,8 @@ FASES = (
         modulos="M3 · M4 · M5 · M7 · M9 · M10 · M11 · M12",
         implementada=True,
         pendencia=(
-            "Os passos abaixo param no `sessions.csv` rotulado, que é a **entrada** "
-            "dos modelos. O que falta é tudo que o consome: a partição, o "
+            "Os passos abaixo param no `train.csv` e no `holdout.csv`, que são a "
+            "**entrada** dos modelos. O que falta é tudo que os consome: o "
             "baseline de regras, os dois modelos e a avaliação. "
             "Nenhum F1 foi calculado."
         ),
@@ -635,6 +642,18 @@ def warmup_steps(
     return passos
 
 
+def contagem_por_lado(particao: Partition) -> pd.DataFrame:
+    """Quantas sessoes de cada classe caem em cada lado, contadas (D-023)."""
+    linhas = []
+
+    for classe, rotulo in (("legitimas", 0), ("do atacante", 1)):
+        treino = int((particao.train[LABEL] == rotulo).sum())
+        holdout = int((particao.holdout[LABEL] == rotulo).sum())
+        linhas.append({"classe": classe, "treino": treino, "holdout": holdout})
+
+    return pd.DataFrame(linhas)
+
+
 def attack_steps(
     seed: int,
     sigma: float,
@@ -643,7 +662,7 @@ def attack_steps(
     requests: pd.DataFrame,
     perfis: pd.DataFrame,
 ) -> list[Step]:
-    """Refaz a fase 3 ate onde ela existe: M3, M4, M5 e M7 sobre sigma.
+    """Refaz a fase 3 ate onde ela existe: M3, M4, M5, M7 e M9 sobre sigma.
 
     O operador em foco aqui e sempre o administrador comprometido: acompanhar
     outro nao mostraria nada que a fase 2 ja nao tenha mostrado.
@@ -786,15 +805,35 @@ def attack_steps(
             "mais a juncao do rotulo, que so acontece aqui.\n\n"
             "Cada sessao comprometida e **uma** positiva (D-061). A proporcao "
             "abaixo e contada no dado, nao herdada do parametro do gerador, "
-            "como o metodo exige.\n\n"
-            "**E aqui que o pipeline para hoje.** O que falta e a particao, o "
-            "baseline, os modelos e a avaliacao."
+            "como o metodo exige."
         ),
         entrada={"log": len(log), "rotulos": len(campanha.compromised)},
         saida=sessoes[sessoes["compromised"] == 1].head(10),
         completa=sessoes,
         legenda=(f"sessions.csv, {len(sessoes)} sessoes, {positivas} positivas "
                  f"({porcento(positivas / len(sessoes), 2)}); abaixo, 10 comprometidas"),
+    ))
+
+    particao = build_partition(seed, sessoes)
+    passos.append(Step(
+        fase=FASE_3,
+        modulo="M9",
+        funcao="build_partition",
+        explicacao=(
+            "Cada classe e dividida **a parte**, 40 % para o holdout (D-070), e a "
+            "sessao vai inteira para um lado so (D-061).\n\n"
+            "O sorteio sai da semente e nao de sigma (D-102): as legitimas sao "
+            "reconhecidas por operador e instante de abertura, que nao mudam entre "
+            "condicoes, e as do atacante pela posicao na campanha. Por isso **as "
+            "mesmas sessoes legitimas** estao no holdout em todo sigma, e o que muda "
+            "de um ponto da curva ao outro e so o atacante.\n\n"
+            "**E aqui que o pipeline para hoje.** O que falta e o baseline, os "
+            "modelos e a avaliacao."
+        ),
+        entrada={"sessoes": len(sessoes), "semente": seed},
+        saida=contagem_por_lado(particao),
+        completa=particao.holdout,
+        legenda=f"holdout.csv, {len(particao.holdout)} sessoes; acima, a contagem por classe",
     ))
 
     return passos

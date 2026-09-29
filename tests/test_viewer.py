@@ -39,6 +39,7 @@ from src.dataset.build import build_dataset
 from src.globals.phases import EVALUATED, WARMUP
 from src.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
+from src.partition.build import build_partition
 from src.population.build import build_population
 from src.population.parameters import KeyRepositorySpecification
 from src.traffic.build import build_traffic
@@ -240,6 +241,7 @@ def test_every_frame_carries_real_tables_and_none_is_empty(seed: int) -> None:
             ),
         )
         + frames_da_fase_3(
+            seed,
             SIGMA,
             requests,
             perfis,
@@ -248,6 +250,7 @@ def test_every_frame_carries_real_tables_and_none_is_empty(seed: int) -> None:
             campanha.run,
             log_avaliado,
             sessoes_avaliadas,
+            build_partition(seed, sessoes_avaliadas),
             attack_steps(
                 seed, SIGMA, tabelas.operators, tabelas.keys, requests, perfis
             ),

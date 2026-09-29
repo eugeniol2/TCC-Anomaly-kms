@@ -42,6 +42,7 @@ from src.globals.experiment import SIGMAS
 from src.globals.phases import EVALUATED, WARMUP
 from src.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
+from src.partition.build import Partition, build_partition
 from src.population.build import build_population
 from src.population.parameters import KeyRepositorySpecification
 from src.traffic.build import build_traffic
@@ -152,7 +153,7 @@ def aquecimento(seed: int) -> dict[str, pd.DataFrame]:
 
 
 @st.cache_data(show_spinner="rodando a campanha...")
-def avaliado(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
+def avaliado(seed: int, sigma: float) -> dict[str, pd.DataFrame | Partition]:
     operators, keys = tabelas(seed)
     perfis = aquecimento(seed)["perfis"]
 
@@ -162,13 +163,15 @@ def avaliado(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
     )
     outcomes = build_outcomes(campanha.requests, keys, operators, EVALUATED)
     log = build_log(campanha.requests, outcomes, EVALUATED)
+    sessoes = build_dataset(log, perfis, EVALUATED, campanha.compromised)
 
     return {
         "requests": campanha.requests,
         "compromised": campanha.compromised,
         "run": campanha.run,
         "log": log,
-        "sessoes": build_dataset(log, perfis, EVALUATED, campanha.compromised),
+        "sessoes": sessoes,
+        "particao": build_partition(seed, sessoes),
     }
 
 
@@ -220,9 +223,9 @@ def quadros_da_fase(fase: Fase, seed: int, foco: str, sigma: float) -> list[Quad
     campanha = avaliado(seed, sigma)
 
     return frames_da_fase_3(
-        sigma, trafego(seed), warmup["perfis"],
+        seed, sigma, trafego(seed), warmup["perfis"],
         campanha["requests"], campanha["compromised"], campanha["run"],
-        campanha["log"], campanha["sessoes"], detalhes,
+        campanha["log"], campanha["sessoes"], campanha["particao"], detalhes,
     )
 
 

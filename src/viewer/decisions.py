@@ -35,6 +35,8 @@ from src.globals.experiment import SEEDS, SIGMAS
 from src.globals.phases import EVALUATED_WEEKS, RULER_WEEKS, WEEK_COUNT
 from src.historical_profiles.build import HOUR_FORMAT
 from src.kms.policy import COLUMNS as OUTCOME_COLUMNS, OUTCOMES
+from src.partition.build import holdout_count
+from src.partition.parameters import HOLDOUT_SHARE
 from src.population.parameters import KeyRepositorySpecification
 from src.population.profiles import PROFILES
 from src.traffic.parameters import (
@@ -343,9 +345,9 @@ def variaveis_do_m3(
                  f"Sessões que o atacante abre, o mesmo número nas {condicoes} "
                  "condições.",
                  "D-081"),
-        Variavel("positivas no holdout", 23,
-                 "Quantas sessões comprometidas caem no holdout. Projeção: a "
-                 "partição ainda não existe.", "D-081, D-070"),
+        Variavel("positivas no holdout", holdout_count(ataque.campaign_sessions),
+                 f"Quantas das {ataque.campaign_sessions} sessões comprometidas "
+                 "caem no holdout.", "D-081, D-070"),
     ) + dimensoes_do_atacante(sigma, ataque, trafego) + (
         Variavel("o que σ move", "o proveito, não o esforço",
                  "O atacante furtivo abre tantas sessões quanto o ostensivo e "
@@ -362,17 +364,26 @@ def variaveis_do_m3(
     )
 
 
-def variaveis_pendentes_do_m9() -> tuple[Variavel, ...]:
-    """A partição: decidida, não implementada."""
+def variaveis_do_m9(holdout: pd.DataFrame) -> tuple[Variavel, ...]:
+    """A partição: quanto vai para cada lado, e o que a divisão preserva."""
+    treino = 1 - HOLDOUT_SHARE
+
     return (
-        Variavel("partição", "60 % treino, 40 % holdout",
-                 "Como o conjunto avaliado se divide.", "D-070"),
+        Variavel("HOLDOUT_SHARE", porcento(HOLDOUT_SHARE, 0),
+                 f"A fração de cada classe que vai para o holdout. O treino "
+                 f"fica com {porcento(treino, 0)}.",
+                 "D-070"),
         Variavel("estratificação", "por classe, e por sessão",
-                 "O que a partição preserva, e o que ela nunca corta ao meio.",
-                 "D-061"),
-        Variavel("positivas no holdout", 23,
+                 "Cada classe é dividida à parte, e nenhuma sessão é cortada "
+                 "ao meio.",
+                 "D-018, D-061"),
+        Variavel("positivas no holdout", int(holdout[LABEL].sum()),
                  "Contagem absoluta, que é o número que importa.",
-                 "D-006, D-081"),
+                 "D-070, D-081"),
+        Variavel("o mesmo sorteio nos σ", f"nas {len(SIGMAS)} condições",
+                 "As mesmas sessões legítimas vão para o holdout em todo σ da "
+                 "semente. Só o atacante muda de um ponto da curva ao outro.",
+                 "D-102"),
     )
 
 
