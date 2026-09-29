@@ -1,8 +1,14 @@
-"""Derivacao dos fluxos de aleatoriedade do experimento (D-003).
+"""Derivacao dos fluxos de aleatoriedade do experimento (D-003, D-102).
 
-Tres fluxos independentes saem da mesma semente. Fluxo unico compartilhado faria
-o numero de sorteios de um subsistema deslocar os sorteios dos outros, desfazendo
-o pareamento entre condicoes de sigma sem emitir erro nem aviso.
+Fluxos independentes saem da mesma semente, um por subsistema. Fluxo unico
+compartilhado faria o numero de sorteios de um subsistema deslocar os sorteios
+dos outros, desfazendo o pareamento entre condicoes de sigma sem emitir erro nem
+aviso.
+
+**Acrescentar um fluxo nao altera os existentes.** O `SeedSequence.spawn` deriva
+cada filho do indice dele, e nao de quantos filhos sao pedidos: os tres
+primeiros de `spawn(4)` sao identicos aos de `spawn(3)`. Foi assim que a
+particao ganhou o quarto fluxo sem mudar dado nenhum ja gerado (D-102).
 """
 
 from __future__ import annotations
@@ -18,14 +24,21 @@ TRAFFIC = 1
 ATTACK = 2
 """Campanha de ataque (M3)."""
 
-STREAM_COUNT = 3
+PARTITION = 3
+"""Particao em treino e holdout (M9, D-102).
+
+Derivado so da semente, e nao de sigma: a particao e a mesma nas onze condicoes
+de uma semente, pela mesma logica da D-011.
+"""
+
+STREAM_COUNT = 4
 
 
 def stream(seed: int, subsystem: int) -> Generator:
     """Gerador do subsistema indicado, derivado de `seed`.
 
-    A mesma semente devolve sempre os mesmos tres fluxos, e cada fluxo avanca
-    de forma independente dos demais.
+    A mesma semente devolve sempre os mesmos fluxos, e cada fluxo avanca de
+    forma independente dos demais.
     """
     is_out_of_range = not 0 <= subsystem < STREAM_COUNT
 

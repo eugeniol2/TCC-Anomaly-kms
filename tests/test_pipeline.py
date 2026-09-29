@@ -30,6 +30,7 @@ from src.globals.layout import RUNS_INDEX, run_directory, seed_directory
 from src.globals.phases import EVALUATED, WARMUP
 from src.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
+from src.partition.build import build_partition
 from src.pipeline.build import (
     Specifications,
     run_seed_branch,
@@ -63,6 +64,8 @@ SIGMA_FILES = (
     "outcomes.csv",
     "log.csv",
     "sessions.csv",
+    "train.csv",
+    "holdout.csv",
 )
 
 
@@ -94,6 +97,10 @@ def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
         campaign.requests, population.keys, population.operators, EVALUATED
     )
     evaluated_log = build_log(campaign.requests, evaluated_outcomes, EVALUATED)
+    evaluated_sessions = build_dataset(
+        evaluated_log, profiles, EVALUATED, campaign.compromised
+    )
+    partition = build_partition(seed, evaluated_sessions)
 
     return {
         "operators.csv": population.operators,
@@ -109,9 +116,9 @@ def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
         "sigma/run.csv": campaign.run,
         "sigma/outcomes.csv": evaluated_outcomes,
         "sigma/log.csv": evaluated_log,
-        "sigma/sessions.csv": build_dataset(
-            evaluated_log, profiles, EVALUATED, campaign.compromised
-        ),
+        "sigma/sessions.csv": evaluated_sessions,
+        "sigma/train.csv": partition.train,
+        "sigma/holdout.csv": partition.holdout,
     }
 
 

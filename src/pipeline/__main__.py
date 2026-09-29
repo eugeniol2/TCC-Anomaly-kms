@@ -125,10 +125,12 @@ def run_one_seed(args: Arguments, specifications: Specifications) -> None:
             args.seed, sigma, args.out, branch, specifications
         )
         positives = int(produced.sessions["compromised"].sum())
+        holdout_positives = int(produced.holdout["compromised"].sum())
 
         print(f"  sigma {sigma:.1f}     {len(produced.sessions)} sessoes   "
               f"{positives} positivas   "
               f"{positives / len(produced.sessions):.2%}   "
+              f"holdout {len(produced.holdout)} com {holdout_positives}   "
               f"{perf_counter() - started:.1f}s")
 
 

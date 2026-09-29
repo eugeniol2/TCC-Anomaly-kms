@@ -39,6 +39,7 @@ from src.globals.phases import EVALUATED, WARMUP
 from src.globals.tables import write_csv
 from src.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
+from src.partition.build import build_partition
 from src.population.build import build_population
 from src.population.parameters import KeyRepositorySpecification
 from src.traffic.build import build_traffic
@@ -75,6 +76,8 @@ class SigmaBranch(NamedTuple):
     compromised: pd.DataFrame
     run: pd.DataFrame
     sessions: pd.DataFrame
+    train: pd.DataFrame
+    holdout: pd.DataFrame
 
 
 def emit(frame: pd.DataFrame, directory: Path, name: str) -> pd.DataFrame:
@@ -155,7 +158,11 @@ def run_sigma_branch(
         directory, "sessions.csv",
     )
 
-    return SigmaBranch(requests, compromised, run, sessions)
+    partition = build_partition(seed, sessions)
+    train = emit(partition.train, directory, "train.csv")
+    holdout = emit(partition.holdout, directory, "holdout.csv")
+
+    return SigmaBranch(requests, compromised, run, sessions, train, holdout)
 
 
 def run_sweep(
