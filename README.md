@@ -29,6 +29,7 @@ src/
   historical_profiles/  M6  o perfil histórico de cada operador, da régua
   dataset/              M7  uma linha por sessão, com os oito atributos
   calibration/          M8  os limiares do baseline, da régua
+  partition/            M9  treino e holdout, a mesma divisão em todo sigma
   pipeline/             o orquestrador: a ordem de execução, em código
   viewer/               a tela do Streamlit que mostra o pipeline por dentro
   examples/             demonstração dos fluxos de aleatoriedade
@@ -167,7 +168,7 @@ streamlit run src/viewer/app.py
 python -m pytest
 ```
 
-São 1527 testes, em cerca de sete minutos. Cobrem determinismo e as invariantes de que os
+São 1567 testes, em cerca de cinco minutos. Cobrem determinismo e as invariantes de que os
 módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
 específica de semente é o que passa despercebido.
 
@@ -178,6 +179,7 @@ específica de semente é o que passa despercebido.
 | `test_kms.py` | 307 | a ordem de avaliação dos desfechos, o log com oito colunas e sem rótulo, os quatro desfechos no tráfego limpo |
 | `test_attack.py` | 147 | sigma 0 e sigma 1 reproduzem os dois extremos, a campanha só nas semanas 5 a 8, o mesmo administrador em todo sigma |
 | `test_dataset.py` | 140 | perfis, sessões e limiares, e o rótulo só no período avaliado |
+| `test_partition.py` | 40 | cada sessão de um lado só, 23 positivas no holdout, a mesma divisão em todo sigma |
 | `test_viewer.py` | 39 | a tela mostra o que o pipeline produz, e as curvas batem com o gerador |
 | `test_pipeline.py` | 8 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
 | `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |
@@ -196,15 +198,17 @@ apagar a pasta e reexecutar reproduz os CSVs byte a byte, e é assim que o deter
 conferido.
 
 Fluxos de aleatoriedade são separados por subsistema (população e chaves, tráfego
-legítimo, campanha de ataque), todos derivados da mesma semente. A grade experimental é
+legítimo, campanha de ataque, partição), todos derivados da mesma semente. O quinto, da
+semente de treino dos modelos, entra com o M11. A grade experimental é
 de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuções.
 
 ## Estado
 
-Em construção. **M1 a M8 implementados, e o orquestrador**; M9 a M12 pendentes. O ramo da
-semente já produz a régua inteira (o perfil histórico e os limiares do baseline, das
+Em construção. **M1 a M9 implementados, e o orquestrador**; M10 a M12 pendentes. O ramo
+da semente já produz a régua inteira (o perfil histórico e os limiares do baseline, das
 quatro semanas de aquecimento) e o ramo de sigma já produz o conjunto rotulado das
-semanas 5 a 8.
+semanas 5 a 8, dividido em treino e holdout: 23 das 58 sessões do atacante no holdout, e
+as mesmas sessões legítimas de cada lado nas onze condições de uma semente.
 
 O M2 produz cerca de 77 mil requisições em 3,8 mil sessões por semente. Os três itens que
 as convenções do projeto mandam conferir antes do M3 estão cobertos por teste: o serviço
