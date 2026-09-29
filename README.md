@@ -21,6 +21,7 @@ src/
     layout.py           onde cada arquivo mora dentro de data/
     phases.py           o calendário: âncora, semanas e as duas fases
     experiment.py       a grade: sementes 1 a 30, sigma de 0,0 a 1,0
+    timing.py           o cronômetro do tempo de inferência, comum a regras e modelos
   population/           M1  operadores, escopos e chaves
   traffic/              M2  o tráfego legítimo das oito semanas
   attack/               M3  a campanha de ataque, interpolada por sigma
@@ -30,6 +31,7 @@ src/
   dataset/              M7  uma linha por sessão, com os oito atributos
   calibration/          M8  os limiares do baseline, da régua
   partition/            M9  treino e holdout, a mesma divisão em todo sigma
+  baseline/             M10 as oito regras decidindo sobre o holdout
   pipeline/             o orquestrador: a ordem de execução, em código
   viewer/               a tela do Streamlit que mostra o pipeline por dentro
   examples/             demonstração dos fluxos de aleatoriedade
@@ -66,6 +68,7 @@ data/
       sessions.csv                M7, semanas 5 a 8
       train.csv  holdout.csv      M9
       predictions_rules.csv       M10
+      timing_rules.csv            M10, o tempo, único arquivo não determinístico
       predictions_ml.csv          M11
     sigma-0.1/ ... sigma-1.0/
   seed-02/ ... seed-30/
@@ -94,7 +97,7 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 | M7 | `dataset` | fase, `log.csv`, profiles, `compromised_sessions.csv` (só em `evaluated`) | `sessions.csv` |
 | M8 | `calibration` | `sessions.csv` (aquecimento inteiro) | `thresholds.csv` |
 | M9 | `partition` | `sessions.csv` (semanas 5 a 8) | `train.csv`, `holdout.csv` |
-| M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv` |
+| M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv`, `timing_rules.csv` |
 | M11 | `models` | `train.csv`, `holdout.csv`, config | `predictions_ml.csv` |
 | M12 | `evaluation` | predictions | `metrics.csv` |
 
@@ -168,7 +171,7 @@ streamlit run src/viewer/app.py
 python -m pytest
 ```
 
-São 1567 testes, em cerca de cinco minutos. Cobrem determinismo e as invariantes de que os
+São 1631 testes, em cerca de cinco minutos. Cobrem determinismo e as invariantes de que os
 módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
 específica de semente é o que passa despercebido.
 
@@ -180,8 +183,9 @@ específica de semente é o que passa despercebido.
 | `test_attack.py` | 147 | sigma 0 e sigma 1 reproduzem os dois extremos, a campanha só nas semanas 5 a 8, o mesmo administrador em todo sigma |
 | `test_dataset.py` | 140 | perfis, sessões e limiares, e o rótulo só no período avaliado |
 | `test_partition.py` | 40 | cada sessão de um lado só, 23 positivas no holdout, a mesma divisão em todo sigma |
+| `test_baseline.py` | 63 | cada regra dispara onde a D-080 diz, qualquer par alerta e nenhuma regra sozinha, o rótulo não decide |
 | `test_viewer.py` | 39 | a tela mostra o que o pipeline produz, e as curvas batem com o gerador |
-| `test_pipeline.py` | 8 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
+| `test_pipeline.py` | 9 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
 | `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |
 
 O `test_reference_output_has_not_changed` e detector de mudanca, nao teste de
@@ -195,7 +199,8 @@ que o codigo.
 
 Semente mais código determinam a saída inteira. É por isso que `data/` não é versionada:
 apagar a pasta e reexecutar reproduz os CSVs byte a byte, e é assim que o determinismo é
-conferido.
+conferido. A exceção declarada é o `timing_rules.csv`: tempo de inferência muda a cada
+execução, e por isso mora num arquivo próprio, fora dessa conferência.
 
 Fluxos de aleatoriedade são separados por subsistema (população e chaves, tráfego
 legítimo, campanha de ataque, partição), todos derivados da mesma semente. O quinto, da
@@ -204,11 +209,13 @@ de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuç
 
 ## Estado
 
-Em construção. **M1 a M9 implementados, e o orquestrador**; M10 a M12 pendentes. O ramo
+Em construção. **M1 a M10 implementados, e o orquestrador**; M11 e M12 pendentes. O ramo
 da semente já produz a régua inteira (o perfil histórico e os limiares do baseline, das
 quatro semanas de aquecimento) e o ramo de sigma já produz o conjunto rotulado das
 semanas 5 a 8, dividido em treino e holdout: 23 das 58 sessões do atacante no holdout, e
-as mesmas sessões legítimas de cada lado nas onze condições de uma semente.
+as mesmas sessões legítimas de cada lado nas onze condições de uma semente. O baseline de
+regras já decide sobre o holdout, e grava o tempo que levou. Nenhuma métrica de detecção
+foi calculada.
 
 O M2 produz cerca de 77 mil requisições em 3,8 mil sessões por semente. Os três itens que
 as convenções do projeto mandam conferir antes do M3 estão cobertos por teste: o serviço
