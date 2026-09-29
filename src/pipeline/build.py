@@ -17,9 +17,11 @@ segundo recomputaria onze vezes o mesmo aquecimento, e bastaria um sorteio
 consumido em ordem diferente para os perfis divergirem entre condições da mesma
 semente, quebrando o pareamento que a D-002 assume, sem erro e sem aviso.
 
-**Tudo roda no mesmo processo.** A grade completa são cerca de 2370 invocações
-de módulo; como subprocesso, paga-se a partida do interpretador e o import do
-pandas 2370 vezes, algo como 15 minutos só de inicialização.
+**Tudo roda no mesmo processo.** Com os doze modulos, a grade completa sao 2521
+invocacoes de modulo: sete no ramo da semente, 30 vezes cada; sete no ramo de
+sigma, 330 vezes cada; e o M12 uma vez, sobre a grade inteira. Como subprocesso,
+cada uma paga a partida do interpretador e o import do pandas, cerca de 0,57 s,
+o que da uns 24 minutos so de inicializacao.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ import pandas as pd
 from src.attack.build import build_attack
 from src.attack.parameters import AttackSpecification
 from src.audit_logger.build import build_log
+from src.baseline.build import build_baseline
 from src.calibration.build import build_thresholds
 from src.dataset.build import build_dataset
 from src.globals.layout import RUNS_INDEX, run_directory, seed_directory
@@ -78,6 +81,7 @@ class SigmaBranch(NamedTuple):
     sessions: pd.DataFrame
     train: pd.DataFrame
     holdout: pd.DataFrame
+    predictions_rules: pd.DataFrame
 
 
 def emit(frame: pd.DataFrame, directory: Path, name: str) -> pd.DataFrame:
@@ -162,7 +166,15 @@ def run_sigma_branch(
     train = emit(partition.train, directory, "train.csv")
     holdout = emit(partition.holdout, directory, "holdout.csv")
 
-    return SigmaBranch(requests, compromised, run, sessions, train, holdout)
+    baseline = build_baseline(holdout, branch.thresholds)
+    predictions_rules = emit(
+        baseline.predictions, directory, "predictions_rules.csv"
+    )
+    emit(baseline.timing, directory, "timing_rules.csv")
+
+    return SigmaBranch(
+        requests, compromised, run, sessions, train, holdout, predictions_rules
+    )
 
 
 def run_sweep(

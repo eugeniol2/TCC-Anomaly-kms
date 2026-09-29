@@ -23,11 +23,13 @@ import pytest
 
 from src.attack.build import build_attack
 from src.audit_logger.build import build_log
+from src.baseline.build import build_baseline
 from src.calibration.build import build_thresholds
 from src.dataset.build import build_dataset
 from src.globals.experiment import SIGMAS
 from src.globals.layout import RUNS_INDEX, run_directory, seed_directory
 from src.globals.phases import EVALUATED, WARMUP
+from src.globals.timing import COLUMNS as TIMING_COLUMNS
 from src.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
 from src.partition.build import build_partition
@@ -66,7 +68,15 @@ SIGMA_FILES = (
     "sessions.csv",
     "train.csv",
     "holdout.csv",
+    "predictions_rules.csv",
 )
+
+TIMING_FILES = ("timing_rules.csv",)
+"""Os arquivos de tempo, fora de toda comparacao de conteudo.
+
+Tempo muda a cada execucao, entao eles nunca sao iguais aos de outra rodada, e
+nem deveriam ser. O que se confere neles e que existem e tem a forma certa.
+"""
 
 
 def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
@@ -101,6 +111,7 @@ def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
         evaluated_log, profiles, EVALUATED, campaign.compromised
     )
     partition = build_partition(seed, evaluated_sessions)
+    thresholds = build_thresholds(warmup_sessions)
 
     return {
         "operators.csv": population.operators,
@@ -110,7 +121,7 @@ def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
         "log.csv": warmup_log,
         "historical_profiles.csv": profiles,
         "sessions.csv": warmup_sessions,
-        "thresholds.csv": build_thresholds(warmup_sessions),
+        "thresholds.csv": thresholds,
         "sigma/requests.csv": campaign.requests,
         "sigma/compromised_sessions.csv": campaign.compromised,
         "sigma/run.csv": campaign.run,
@@ -119,6 +130,9 @@ def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
         "sigma/sessions.csv": evaluated_sessions,
         "sigma/train.csv": partition.train,
         "sigma/holdout.csv": partition.holdout,
+        "sigma/predictions_rules.csv": build_baseline(
+            partition.holdout, thresholds
+        ).predictions,
     }
 
 
@@ -167,6 +181,19 @@ def test_every_expected_file_is_written(tmp_path: Path) -> None:
 
     for name in SIGMA_FILES:
         assert (run_directory(tmp_path, SEED, 0.5) / name).exists(), name
+
+
+def test_the_timing_files_are_written_with_their_columns(tmp_path: Path) -> None:
+    """O tempo nao se compara byte a byte, mas o arquivo tem de existir e ter forma."""
+    branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
+    run_sigma_branch(SEED, 0.5, tmp_path, branch, SPECIFICATIONS)
+
+    for name in TIMING_FILES:
+        timing = pd.read_csv(run_directory(tmp_path, SEED, 0.5) / name)
+
+        assert tuple(timing.columns) == TIMING_COLUMNS, name
+        assert len(timing) == 1, name
+        assert timing["median_nanoseconds"].iloc[0] > 0, name
 
 
 @pytest.mark.parametrize("sigma", SAMPLE_SIGMAS)

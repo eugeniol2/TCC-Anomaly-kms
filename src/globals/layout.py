@@ -31,6 +31,7 @@ sobre o periodo avaliado (D-049).
           sessions.csv                M7, semanas 5 a 8
           train.csv, holdout.csv      M9
           predictions_rules.csv       M10
+          timing_rules.csv            M10, o tempo, unico arquivo nao deterministico
           predictions_ml.csv          M11
         sigma-0.1/ ... sigma-1.0/
       seed-02/ ... seed-30/
