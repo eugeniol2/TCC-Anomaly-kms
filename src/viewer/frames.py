@@ -445,7 +445,11 @@ def frames_da_fase_3(
             entradas=(),
             saidas=(),
             variaveis=variaveis_pendentes_do_m10_m11(),
-            pendente="predictions_rules.csv e predictions_ml.csv ainda não existem.",
+            pendente=(
+                "O baseline já decide sobre o holdout, mas a tela não mostra as "
+                "decisões: ver acerto no holdout é um momento que o registro marca. "
+                "predictions_ml.csv ainda não existe."
+            ),
         ),
         Quadro(
             numero=12,
