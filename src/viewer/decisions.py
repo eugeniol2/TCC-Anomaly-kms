@@ -433,12 +433,12 @@ def variaveis_pendentes_do_m12() -> tuple[Variavel, ...]:
                           f"{len(SEEDS) * len(SIGMAS)} execuções",
                  "Quantas execuções a comparação usa.", "D-004, D-039"),
         Variavel("trivialidade", "árvore de profundidade 1, F1 ≥ 0,95 exclui",
-                 "O critério que decide se uma condição entra na comparação.",
-                 "D-028"),
-        Variavel("remedição", "retreinar sem o atributo dominante",
-                 "Diagnóstico: diz quanto o atributo carregava, e não exclui condição. "
-                 "Se o dominante for events, duration_minutes ou requests_per_minute, "
-                 "saem os três.", "D-050, D-107"),
+                 "O critério que decide se uma condição entra na comparação. Treina "
+                 "no treino e mede no holdout.",
+                 "D-028, D-114"),
+        Variavel("treino dos modelos", "uma vez, no treino",
+                 "Cada modelo treina uma vez e decide sobre o holdout, sem retreino.",
+                 "D-114"),
         Variavel("tempo de inferência", "só a decisão, mediana de 10, um núcleo",
                  "Métrica de primeira classe, em microssegundos por sessão.", "D-025, D-106"),
         Variavel("semanas", f"{WEEK_COUNT}, em {RULER_WEEKS} + {EVALUATED_WEEKS}",
