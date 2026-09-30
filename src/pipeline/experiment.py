@@ -40,7 +40,7 @@ from src.pipeline.build import (
     run_sweep,
     write_runs_index,
 )
-from src.pipeline.stages import Step, reaches
+from src.pipeline.stages import reaches
 from src.shared import layout
 from src.shared.experiment import (
     HYPERPARAMETER_SEARCH_SEED,
@@ -213,11 +213,11 @@ def draw_figures(experiment: Experiment) -> None:
 
 
 EXPERIMENT_STEPS = (
-    Step("models", configure_models),
-    Step("evaluation", rehearse),
-    Step("scenario_engine", run_grid),
-    Step("evaluation", evaluate),
-    Step("figures", draw_figures),
+    ("models", configure_models),
+    ("evaluation", rehearse),
+    ("scenario_engine", run_grid),
+    ("evaluation", evaluate),
+    ("figures", draw_figures),
 )
 """A ordem do protocolo. Diferente dos ramos, aqui a entidade nao cresce passo a
 passo: cada passo roda se o `--ate` o alcanca, e os outros sao pulados."""
@@ -226,7 +226,6 @@ passo: cada passo roda se o `--ate` o alcanca, e os outros sao pulados."""
 def run_experiment(options: Options, report: Report) -> None:
     """O experimento inteiro, na ordem do protocolo, ate a entidade pedida."""
     experiment = Experiment(options, report)
-
-    for step in EXPERIMENT_STEPS:
-        if reaches(options.until, step.stage):
-            step.run(experiment)
+    for stage, run in EXPERIMENT_STEPS:
+        if reaches(options.until, stage):
+            run(experiment)

@@ -1,7 +1,7 @@
 """Os dois ramos de uma execucao, como listas de passos (D-091, D-121).
 
 A ordem de execucao e codigo, e mora aqui: `SEED_STEPS` e `SIGMA_STEPS` sao as
-duas listas, e cada passo diz a que entidade pertence.
+duas listas. Cada passo e um par, a entidade a que pertence e a funcao que roda.
 
 **Dois ramos, porque o atacante so age nas semanas 5 a 8** (D-049). O ramo da
 semente produz tudo que e anterior ao ataque e roda uma vez por semente; o ramo
@@ -29,7 +29,7 @@ from src.entities.kms.build import build_outcomes
 from src.entities.kms.repository.parameters import KeyRepositorySpecification
 from src.entities.models.build import build_models
 from src.pipeline.population import build_population
-from src.pipeline.stages import LAST_STAGE, Step, reaches, run_steps
+from src.pipeline.stages import LAST_STAGE, reaches, run_steps
 from src.entities.policy_engine.baseline.build import build_baseline
 from src.entities.policy_engine.calibration.build import build_thresholds
 from src.entities.scenario_engine.attack.build import build_attack
@@ -149,13 +149,13 @@ def thresholds(branch: SeedBranch) -> None:
 
 
 SEED_STEPS = (
-    Step("scenario_engine", population),
-    Step("scenario_engine", legitimate_traffic),
-    Step("kms", warmup_outcomes),
-    Step("audit_logger", warmup_log),
-    Step("dataset_generator", historical_profiles),
-    Step("dataset_generator", warmup_sessions),
-    Step("policy_engine", thresholds),
+    ("scenario_engine", population),
+    ("scenario_engine", legitimate_traffic),
+    ("kms", warmup_outcomes),
+    ("audit_logger", warmup_log),
+    ("dataset_generator", historical_profiles),
+    ("dataset_generator", warmup_sessions),
+    ("policy_engine", thresholds),
 )
 
 
@@ -217,13 +217,13 @@ def model_decisions(branch: SigmaBranch) -> None:
 
 
 SIGMA_STEPS = (
-    Step("scenario_engine", attack_campaign),
-    Step("kms", evaluated_outcomes),
-    Step("audit_logger", evaluated_log),
-    Step("dataset_generator", evaluated_sessions),
-    Step("dataset_generator", partition),
-    Step("policy_engine", rule_decisions),
-    Step("models", model_decisions),
+    ("scenario_engine", attack_campaign),
+    ("kms", evaluated_outcomes),
+    ("audit_logger", evaluated_log),
+    ("dataset_generator", evaluated_sessions),
+    ("dataset_generator", partition),
+    ("policy_engine", rule_decisions),
+    ("models", model_decisions),
 )
 
 
