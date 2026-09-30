@@ -92,6 +92,19 @@ def test_one_decision_per_holdout_session_and_model() -> None:
         assert set(decided[name]) <= {0, 1}
 
 
+def test_the_score_is_a_probability_that_agrees_with_the_decision() -> None:
+    """D-119: o escore da a curva ROC; a decisao continua cortando em 0,5."""
+    sides = partition(1)
+    decided = predictions(1, sides.train, sides.holdout)
+
+    for name in MODEL_NAMES:
+        score = decided[f"{name}_score"]
+        is_clear = (score - 0.5).abs() > 1e-6
+
+        assert score.between(0.0, 1.0).all()
+        assert ((score[is_clear] > 0.5).astype(int) == decided.loc[is_clear, name]).all()
+
+
 def test_the_holdout_label_is_carried_but_never_consulted() -> None:
     """Zerar ou inverter o rotulo do holdout nao muda decisao nenhuma (D-113)."""
     sides = partition(1)

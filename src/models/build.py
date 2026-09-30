@@ -25,8 +25,11 @@ from src.globals.rng import MODELS, stream
 from src.globals.timing import time_decision
 from src.models.parameters import FOLDS, GRIDS, JOBS, MODEL_NAMES, REPEATS, SEED_CEILING
 
-COLUMNS = IDENTIFIERS + MODEL_NAMES + (LABEL,)
-"""As colunas do `predictions_ml.csv`: a decisao de cada modelo, e a verdade por ultimo."""
+SCORE_COLUMNS = tuple(f"{name}_score" for name in MODEL_NAMES)
+"""A probabilidade de ataque que cada modelo da a sessao: e dela que sai a curva ROC (D-119)."""
+
+COLUMNS = IDENTIFIERS + MODEL_NAMES + SCORE_COLUMNS + (LABEL,)
+"""As colunas do `predictions_ml.csv`: a decisao e o escore de cada modelo, e a verdade por ultimo."""
 
 CONFIGURATION_COLUMNS = ("model", "parameter", "value")
 
@@ -215,22 +218,27 @@ def read_configuration(path: Path) -> dict[str, dict]:
 def build_models(
     seed: int, train: pd.DataFrame, holdout: pd.DataFrame, configuration: dict[str, dict]
 ) -> Models:
-    """Treina os dois modelos e decide sobre o holdout, cronometrando so a decisao (D-106)."""
+    """Treina os dois modelos e decide sobre o holdout, cronometrando so a decisao (D-106).
+
+    Grava tambem o escore, a probabilidade de ataque, que a curva ROC usa (D-119). A
+    decisao continua sendo a do `predict`, que corta em 0,5.
+    """
     check_label(train)
     check_label(holdout)
 
     seeds = training_seeds(seed)
     features = holdout[list(ATTRIBUTES)]
 
-    decisions = {}
+    outputs = {}
     timings = []
 
     for name in MODEL_NAMES:
         model = fitted(name, configuration[name], train, getattr(seeds, name))
-        decisions[name] = model.predict(features).astype(int)
+        outputs[name] = model.predict(features).astype(int)
+        outputs[f"{name}_score"] = model.predict_proba(features)[:, 1].round(6)
         timings.append(time_decision(name, len(holdout), lambda: model.predict(features)))
 
-    predictions = holdout[list(IDENTIFIERS)].assign(**decisions, **{LABEL: holdout[LABEL]})
+    predictions = holdout[list(IDENTIFIERS)].assign(**outputs, **{LABEL: holdout[LABEL]})
 
     return Models(
         predictions[list(COLUMNS)].reset_index(drop=True),
