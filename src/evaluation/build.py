@@ -3,9 +3,12 @@
 Quatro tabelas, e cada uma responde uma pergunta:
 
 - `metrics.csv`: quanto cada mecanismo acertou em cada execucao, com a matriz de
-  confusao inteira ao lado do F1 (D-021, D-022).
-- `triviality.csv`: um atributo sozinho ja separa as classes? Ha sessao repetida
-  entre treino e holdout? (D-028, D-029)
+  confusao inteira ao lado do F1 (D-021, D-022). Duas vezes: sobre o holdout
+  inteiro, e so sobre as sessoes de administradores, o desfecho secundario da
+  proposta (D-119). Para os modelos, tambem a ROC AUC.
+- `triviality.csv`: quantas positivas ha em cada lado da particao (D-023); um
+  atributo sozinho ja separa as classes? Ha sessao repetida entre treino e
+  holdout? (D-028, D-029)
 - `comparison.csv`: em cada sigma, cada modelo difere do baseline? Wilcoxon
   pareado por semente, com a correcao de Holm so sobre as condicoes mantidas
   (D-027, D-111, D-116).
@@ -20,9 +23,11 @@ from typing import NamedTuple
 import numpy as np
 import pandas as pd
 from scipy.stats import wilcoxon
+from sklearn.metrics import roc_auc_score
 from sklearn.tree import DecisionTreeClassifier
 from statsmodels.stats.multitest import multipletests
 
+from src.attack.build import ADMINISTRATOR
 from src.baseline.build import MECHANISM as RULES
 from src.dataset.build import ATTRIBUTES, LABEL
 from src.evaluation.parameters import (
@@ -33,19 +38,28 @@ from src.evaluation.parameters import (
     STUMP_RANDOM_STATE,
     ZERO_METHOD,
 )
-from src.globals.layout import run_directory
+from src.globals.layout import run_directory, seed_directory
 from src.models.parameters import MODEL_NAMES
 
 MECHANISMS = (RULES,) + MODEL_NAMES
 
+ALL_SESSIONS = "all"
+ADMINISTRATORS = "administrators"
+SCOPES = (ALL_SESSIONS, ADMINISTRATORS)
+"""Sobre o que a metrica e calculada: o holdout inteiro (desfecho primario) ou so as
+sessoes de administradores, o perfil que o atacante personifica (desfecho secundario,
+proposta, Subsecao 5.4). No segundo, o atalho de reconhecer o papel some (D-118)."""
+
 METRIC_COLUMNS = (
-    "seed", "sigma", "mechanism", "sessions", "positives",
+    "seed", "sigma", "mechanism", "scope", "sessions", "positives",
     "true_positives", "false_positives", "true_negatives", "false_negatives",
-    "f1", "precision", "recall", "accuracy", "specificity",
+    "f1", "precision", "recall", "accuracy", "specificity", "roc_auc",
 )
 
 TRIVIALITY_COLUMNS = (
-    "seed", "sigma", "stump_attribute", "stump_threshold", "stump_f1",
+    "seed", "sigma", "train_sessions", "train_positives",
+    "holdout_sessions", "holdout_positives",
+    "stump_attribute", "stump_threshold", "stump_f1",
     "shared_sessions", "repeated_sessions",
 )
 
@@ -53,6 +67,7 @@ COMPARISON_COLUMNS = (
     "sigma", "model", "seeds", "median_f1_model", "median_f1_rules",
     "median_difference", "q1_difference", "q3_difference",
     "statistic", "p_value", "stump_median_f1", "excluded", "p_holm", "significant",
+    "median_f1_model_administrators", "median_f1_rules_administrators",
 )
 
 TIMING_COLUMNS = (
@@ -71,6 +86,8 @@ class Run(NamedTuple):
     predictions_rules: pd.DataFrame
     predictions_ml: pd.DataFrame
     timing: pd.DataFrame
+    administrators: frozenset[str]
+    """Os operadores de perfil administrador daquela semente, para o desfecho secundario."""
 
 
 class Evaluation(NamedTuple):
@@ -119,26 +136,54 @@ def rates(counts: dict[str, int]) -> dict[str, float]:
     return {name: round(value, 4) for name, value in values.items()}
 
 
+def area_under_curve(truth: pd.Series, score: pd.Series | None) -> float:
+    """A ROC AUC de um escore continuo (D-119).
+
+    O baseline nao tem escore, so decisao, e fica sem AUC: nao e falha, e o que ele
+    e (proposta, Tabela 9).
+    """
+    has_score = score is not None
+
+    if not has_score:
+        return np.nan
+
+    return round(float(roc_auc_score(truth, score)), 4)
+
+
+def mechanism_outputs(run: Run) -> dict[str, tuple[pd.Series, pd.Series | None]]:
+    """A decisao e o escore de cada mecanismo. O baseline so decide."""
+    outputs = {RULES: (run.predictions_rules["predicted"], None)}
+
+    for name in MODEL_NAMES:
+        outputs[name] = (run.predictions_ml[name], run.predictions_ml[f"{name}_score"])
+
+    return outputs
+
+
 def run_metrics(run: Run) -> pd.DataFrame:
-    """Uma linha por mecanismo: o baseline e os dois modelos, na mesma execucao."""
+    """Uma linha por mecanismo e escopo: o holdout inteiro e so os administradores."""
     same_sessions = run.predictions_rules["session_id"].equals(run.predictions_ml["session_id"])
 
     if not same_sessions:
         raise ValueError(f"semente {run.seed}, sigma {run.sigma}: predicoes de sessoes diferentes")
 
     truth = run.predictions_rules[LABEL]
-    decisions = {RULES: run.predictions_rules["predicted"]}
-    decisions.update({name: run.predictions_ml[name] for name in MODEL_NAMES})
+    is_administrator = run.predictions_rules["operator_id"].isin(run.administrators)
+    rows_of = {ALL_SESSIONS: truth.index == truth.index, ADMINISTRATORS: is_administrator}
 
     rows = []
 
-    for mechanism, decided in decisions.items():
-        counts = confusion(truth, decided)
-        rows.append({
-            "seed": run.seed, "sigma": run.sigma, "mechanism": mechanism,
-            "sessions": len(truth), "positives": int(truth.sum()),
-            **counts, **rates(counts),
-        })
+    for mechanism, (decided, score) in mechanism_outputs(run).items():
+        for scope, selected in rows_of.items():
+            counts = confusion(truth[selected], decided[selected])
+            chosen_score = None if score is None else score[selected]
+            rows.append({
+                "seed": run.seed, "sigma": run.sigma, "mechanism": mechanism,
+                "scope": scope, "sessions": int(selected.sum()),
+                "positives": int(truth[selected].sum()),
+                **counts, **rates(counts),
+                "roc_auc": area_under_curve(truth[selected], chosen_score),
+            })
 
     return pd.DataFrame(rows)[list(METRIC_COLUMNS)]
 
@@ -179,9 +224,18 @@ def duplicates(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, int]:
     return {"shared_sessions": len(shared), "repeated_sessions": int(repeated)}
 
 
+def partition_counts(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, int]:
+    """Sessoes e positivas de cada lado: a proporcao de anomalias, contada (D-023)."""
+    return {
+        "train_sessions": len(train), "train_positives": int(train[LABEL].sum()),
+        "holdout_sessions": len(holdout), "holdout_positives": int(holdout[LABEL].sum()),
+    }
+
+
 def run_triviality(run: Run) -> pd.DataFrame:
     row = {
         "seed": run.seed, "sigma": run.sigma,
+        **partition_counts(run.train, run.holdout),
         **stump(run.train, run.holdout), **duplicates(run.train, run.holdout),
     }
 
@@ -191,9 +245,19 @@ def run_triviality(run: Run) -> pd.DataFrame:
 # A comparacao, sobre a grade inteira.
 
 
+def of_condition(metrics: pd.DataFrame, sigma: float, scope: str) -> pd.DataFrame:
+    return metrics[(metrics["sigma"] == sigma) & (metrics["scope"] == scope)]
+
+
+def median_f1(metrics: pd.DataFrame, sigma: float, scope: str, mechanism: str) -> float:
+    condition = of_condition(metrics, sigma, scope)
+
+    return round(condition.loc[condition["mechanism"] == mechanism, "f1"].median(), 4)
+
+
 def paired_differences(metrics: pd.DataFrame, sigma: float, model: str) -> pd.Series:
-    """F1 do modelo menos F1 do baseline, semente a semente, naquele sigma."""
-    condition = metrics[metrics["sigma"] == sigma]
+    """F1 do modelo menos F1 do baseline, semente a semente, no holdout inteiro."""
+    condition = of_condition(metrics, sigma, ALL_SESSIONS)
     f1 = condition.pivot(index="seed", columns="mechanism", values="f1")
 
     return f1[model] - f1[RULES]
@@ -215,8 +279,8 @@ def signed_rank_test(differences: pd.Series) -> tuple[float, float]:
 
 
 def comparison_row(metrics: pd.DataFrame, stumps: pd.Series, sigma: float, model: str) -> dict:
+    """O teste e feito so no desfecho primario; os administradores vao ao lado, descritivos."""
     differences = paired_differences(metrics, sigma, model)
-    condition = metrics[metrics["sigma"] == sigma]
     statistic, p_value = signed_rank_test(differences)
     stump_median = float(stumps[sigma])
 
@@ -224,8 +288,8 @@ def comparison_row(metrics: pd.DataFrame, stumps: pd.Series, sigma: float, model
         "sigma": sigma,
         "model": model,
         "seeds": len(differences),
-        "median_f1_model": round(condition.loc[condition["mechanism"] == model, "f1"].median(), 4),
-        "median_f1_rules": round(condition.loc[condition["mechanism"] == RULES, "f1"].median(), 4),
+        "median_f1_model": median_f1(metrics, sigma, ALL_SESSIONS, model),
+        "median_f1_rules": median_f1(metrics, sigma, ALL_SESSIONS, RULES),
         "median_difference": round(differences.median(), 4),
         "q1_difference": round(differences.quantile(0.25), 4),
         "q3_difference": round(differences.quantile(0.75), 4),
@@ -233,6 +297,8 @@ def comparison_row(metrics: pd.DataFrame, stumps: pd.Series, sigma: float, model
         "p_value": round(p_value, 6),
         "stump_median_f1": round(stump_median, 4),
         "excluded": stump_median >= EXCLUSION_F1,
+        "median_f1_model_administrators": median_f1(metrics, sigma, ADMINISTRATORS, model),
+        "median_f1_rules_administrators": median_f1(metrics, sigma, ADMINISTRATORS, RULES),
     }
 
 
@@ -295,6 +361,19 @@ def build_evaluation(runs: list[Run]) -> Evaluation:
 # A leitura de uma execucao do disco.
 
 
+def read_administrators(root: Path, seed: int) -> frozenset[str]:
+    """Os administradores da semente, lidos da populacao do ramo da semente."""
+    path = seed_directory(root, seed) / "operators.csv"
+
+    if not path.exists():
+        raise FileNotFoundError(f"falta `operators.csv` em {path.parent}")
+
+    operators = pd.read_csv(path)
+    is_administrator = operators["profile"] == ADMINISTRATOR
+
+    return frozenset(operators.loc[is_administrator, "operator_id"])
+
+
 def read_run(root: Path, seed: int, sigma: float) -> Run:
     """Os arquivos de uma execucao, com erro claro quando falta algum."""
     directory = run_directory(root, seed, sigma)
@@ -312,4 +391,5 @@ def read_run(root: Path, seed: int, sigma: float) -> Run:
     return Run(
         seed, sigma, table("train.csv"), table("holdout.csv"),
         table("predictions_rules.csv"), table("predictions_ml.csv"), timing,
+        read_administrators(root, seed),
     )

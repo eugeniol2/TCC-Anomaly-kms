@@ -26,7 +26,7 @@ from src.audit_logger.build import build_log
 from src.baseline.build import build_baseline
 from src.calibration.build import build_thresholds
 from src.dataset.build import build_dataset
-from src.evaluation.build import MECHANISMS
+from src.evaluation.build import MECHANISMS, SCOPES
 from src.globals.experiment import PREPARATION_SIGMA, REHEARSAL_SEED, SIGMAS
 from src.globals.layout import (
     METRICS,
@@ -228,7 +228,7 @@ def test_the_rehearsal_runs_the_whole_pipeline_on_the_reserved_seed(tmp_path: Pa
     evaluation = run_rehearsal(tmp_path, SPECIFICATIONS)
     directory = run_directory(tmp_path / PREPARATION, REHEARSAL_SEED, PREPARATION_SIGMA)
 
-    assert len(evaluation.metrics) == len(MECHANISMS)
+    assert len(evaluation.metrics) == len(MECHANISMS) * len(SCOPES)
     assert len(evaluation.triviality) == 1
     assert (directory / METRICS).exists()
     assert (directory / TRIVIALITY).exists()
