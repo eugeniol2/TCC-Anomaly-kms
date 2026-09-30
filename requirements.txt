@@ -19,8 +19,8 @@ pandas==3.0.5
 # M12 evaluation - Wilcoxon pareado (D-027)
 scipy==1.17.1
 
-# M9  partition  - GroupShuffleSplit / StratifiedGroupKFold, particao por sessao (D-018)
-# M11 models     - Random Forest, um dos dois modelos da comparacao (D-026, D-051)
+# M11 models     - Random Forest, um dos dois modelos da comparacao (D-026, D-051),
+#                  e a validacao cruzada 5 x 3 da busca na 902 (D-103)
 # M12 evaluation - matriz de confusao, F1, precisao, revocacao, especificidade (D-021, D-022)
 #                  arvore de profundidade 1 da verificacao de trivialidade (D-028, D-050)
 scikit-learn==1.9.1
@@ -29,7 +29,7 @@ scikit-learn==1.9.1
 # Nomeado no objetivo geral da proposta, junto com o Random Forest.
 xgboost==3.2.0
 
-# M12 evaluation - correcao de Holm sobre as 22 comparacoes (D-027, D-051),
+# M12 evaluation - correcao de Holm sobre as comparacoes das condicoes mantidas (D-111),
 # via statsmodels.stats.multitest.multipletests(method="holm")
 statsmodels==0.15.0
 

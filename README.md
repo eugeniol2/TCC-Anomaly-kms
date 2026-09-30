@@ -32,6 +32,8 @@ src/
   calibration/          M8  os limiares do baseline, da régua
   partition/            M9  treino e holdout, a mesma divisão em todo sigma
   baseline/             M10 as oito regras decidindo sobre o holdout
+  models/               M11 Random Forest e XGBoost, e a busca de hiperparâmetros
+  evaluation/           M12 métricas, trivialidade, Wilcoxon com Holm e tempo
   pipeline/             o orquestrador: a ordem de execução, em código
   viewer/               a tela do Streamlit que mostra o pipeline por dentro
   examples/             demonstração dos fluxos de aleatoriedade
@@ -49,9 +51,12 @@ pipeline tem dois ramos. M4, M5 e M7 aparecem nos dois.
 ```
 data/
   runs.csv                        indice das 330 execucoes
-  metrics.csv                     agregado final (M12)
+  metrics.csv                     M12, cada mecanismo em cada execucao
+  triviality.csv                  M12, a arvore rasa e as duplicatas
+  comparison.csv                  M12, Wilcoxon e Holm por sigma e modelo
+  timing.csv                      M12, o tempo de cada mecanismo
   preparation/
-    seed-902/                     busca de hiperparametros
+    seed-902/                     busca de hiperparametros, com config.csv
     seed-903/                     ensaio do pipeline antes das 330
   seed-01/                        ---- ramo da semente, 30 execucoes ----
     operators.csv  keys.csv       M1
@@ -70,6 +75,7 @@ data/
       predictions_rules.csv       M10
       timing_rules.csv            M10, o tempo, único arquivo não determinístico
       predictions_ml.csv          M11
+      timing_ml.csv               M11, o tempo dos dois modelos
     sigma-0.1/ ... sigma-1.0/
   seed-02/ ... seed-30/
 ```
@@ -98,8 +104,8 @@ chamada de função: cada um roda isolado e a saída é inspecionável antes do 
 | M8 | `calibration` | `sessions.csv` (aquecimento inteiro) | `thresholds.csv` |
 | M9 | `partition` | `sessions.csv` (semanas 5 a 8) | `train.csv`, `holdout.csv` |
 | M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv`, `timing_rules.csv` |
-| M11 | `models` | `train.csv`, `holdout.csv`, config | `predictions_ml.csv` |
-| M12 | `evaluation` | predictions | `metrics.csv` |
+| M11 | `models` | `train.csv`, `holdout.csv`, `config.csv` da 902 | `predictions_ml.csv`, `timing_ml.csv` |
+| M12 | `evaluation` | as 330 execuções | `metrics.csv`, `triviality.csv`, `comparison.csv`, `timing.csv` |
 
 As oito semanas simuladas têm dois papéis. As semanas 1 a 4 constroem a **régua** (o
 perfil histórico de cada operador **e** os limiares do baseline, do mesmo período) e as
@@ -142,8 +148,13 @@ O orquestrador roda os módulos na ordem certa, que mora em `src/pipeline/build.
 python -m src.pipeline --seed 1                # varredura: aquecimento + 11 sigmas
 python -m src.pipeline --seed 1 --sigma 0.5    # só uma condição
 python -m src.pipeline --warmup --seed 1       # só o ramo da semente
-python -m src.pipeline --grade                 # as 330, e o runs.csv
+python -m src.pipeline --grade                 # as 330, o runs.csv e a avaliação
+python -m src.pipeline --search                # a busca de hiperparâmetros, na 902
+python -m src.pipeline --rehearsal             # o ensaio do pipeline inteiro, na 903
 ```
+
+A ordem é **busca, ensaio, grade**. A busca escreve o `config.csv` que toda execução lê
+(uns 10 minutos); o ensaio é a primeira vez que se vê acerto, numa semente reservada.
 
 `--out` aceita outra raiz para `data/`. A grade inteira ocupa cerca de 3,4 GB.
 
@@ -171,7 +182,7 @@ streamlit run src/viewer/app.py
 python -m pytest
 ```
 
-São 1631 testes, em cerca de cinco minutos. Cobrem determinismo e as invariantes de que os
+São 1662 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
 módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
 específica de semente é o que passa despercebido.
 
@@ -185,7 +196,9 @@ específica de semente é o que passa despercebido.
 | `test_partition.py` | 40 | cada sessão de um lado só, 23 positivas no holdout, a mesma divisão em todo sigma |
 | `test_baseline.py` | 63 | cada regra dispara onde a D-080 diz, qualquer par alerta e nenhuma regra sozinha, o rótulo não decide |
 | `test_viewer.py` | 39 | a tela mostra o que o pipeline produz, e as curvas batem com o gerador |
-| `test_pipeline.py` | 9 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
+| `test_models.py` | 14 | o rótulo do holdout não decide, a mesma semente treina os mesmos modelos, a busca escolhe pela regra de empate |
+| `test_evaluation.py` | 15 | as métricas de uma matriz conhecida, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
+| `test_pipeline.py` | 11 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
 | `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |
 
 O `test_reference_output_has_not_changed` e detector de mudanca, nao teste de
@@ -199,23 +212,25 @@ que o codigo.
 
 Semente mais código determinam a saída inteira. É por isso que `data/` não é versionada:
 apagar a pasta e reexecutar reproduz os CSVs byte a byte, e é assim que o determinismo é
-conferido. A exceção declarada é o `timing_rules.csv`: tempo de inferência muda a cada
-execução, e por isso mora num arquivo próprio, fora dessa conferência.
+conferido. A exceção declarada são os arquivos de tempo (`timing_rules.csv`,
+`timing_ml.csv` e o `timing.csv` da avaliação): tempo de inferência muda a cada execução,
+e por isso mora em arquivo próprio, fora dessa conferência.
 
 Fluxos de aleatoriedade são separados por subsistema (população e chaves, tráfego
-legítimo, campanha de ataque, partição), todos derivados da mesma semente. O quinto, da
-semente de treino dos modelos, entra com o M11. A grade experimental é
+legítimo, campanha de ataque, partição e modelos), todos derivados da mesma semente. A
+grade experimental é
 de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuções.
 
 ## Estado
 
-Em construção. **M1 a M10 implementados, e o orquestrador**; M11 e M12 pendentes. O ramo
-da semente já produz a régua inteira (o perfil histórico e os limiares do baseline, das
-quatro semanas de aquecimento) e o ramo de sigma já produz o conjunto rotulado das
-semanas 5 a 8, dividido em treino e holdout: 23 das 58 sessões do atacante no holdout, e
-as mesmas sessões legítimas de cada lado nas onze condições de uma semente. O baseline de
-regras já decide sobre o holdout, e grava o tempo que levou. Nenhuma métrica de detecção
-foi calculada.
+**Os doze módulos estão implementados, e o orquestrador.** A busca da 902 já rodou; falta
+o ensaio da 903 e a grade. Nenhuma métrica de detecção das 30 réplicas foi calculada.
+
+O ramo da semente produz a régua inteira (o perfil histórico e os limiares do baseline,
+das quatro semanas de aquecimento). O ramo de sigma produz o conjunto rotulado das
+semanas 5 a 8, dividido em treino e holdout, com 23 das 58 sessões do atacante no
+holdout e as mesmas sessões legítimas de cada lado nas onze condições de uma semente; e
+sobre ele decidem o baseline de regras e os dois modelos, gravando o tempo que levaram.
 
 O M2 produz cerca de 77 mil requisições em 3,8 mil sessões por semente. Os três itens que
 as convenções do projeto mandam conferir antes do M3 estão cobertos por teste: o serviço
