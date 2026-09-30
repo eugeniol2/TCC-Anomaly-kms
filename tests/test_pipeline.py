@@ -164,7 +164,7 @@ def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
 
 
 def test_the_orchestrator_writes_what_the_modules_would_write(tmp_path: Path) -> None:
-    """A ordem codificada aqui é a mesma que os módulos executam sozinhos."""
+    """O orquestrador grava o mesmo que as entidades chamadas uma a uma, à mão."""
     sigma = 0.5
 
     branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)

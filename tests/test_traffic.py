@@ -130,9 +130,10 @@ def test_reference_output_has_not_changed() -> None:
     """Detector de mudanca, nao teste de correcao.
 
     Guarda o resumo criptografico em vez do CSV inteiro porque o arquivo tem
-    cerca de 48 mil linhas: versiona-lo pesaria mais que o repositorio de
+    cerca de 78 mil linhas: versiona-lo pesaria mais que o repositorio de
     codigo. A contrapartida e que a falha diz **que** mudou, nao **o que**
-    mudou, e o arquivo se regenera com `python -m src.entities.scenario_engine.traffic --seed 1`.
+    mudou, e o arquivo se regenera com
+    `python -m src.main --sementes 1 --ate scenario_engine`, em `data/seed-01/requests.csv`.
 
     Quando falhar, confirme se a mudanca era intencional, registre a decisao e
     atualize o valor de referencia.

@@ -69,51 +69,54 @@ baseline e os modelos o usam para medir o próprio tempo.
 | `hypothesis_tests.py` | Wilcoxon pareado, correção de Holm | a comparação |
 
 O que é definição do domínio fica na entidade, mesmo sendo conta: os oito atributos da
-sessão são o Dataset Generator, e as unidades do tempo são o cronômetro.
+sessão são do Dataset Generator, e as unidades do tempo são do cronômetro.
 
-A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
-semanas 5 a 8, tudo que deriva do aquecimento e independente de sigma, e o
-pipeline tem dois ramos. M4, M5 e M7 aparecem nos dois.
+A pasta `data/` espelha a dependência dos módulos. Como o atacante age apenas nas
+semanas 5 a 8, tudo que deriva do aquecimento é independente de sigma, e o pipeline tem
+dois ramos. M4, M5 e M7 aparecem nos dois.
 
 ```
 data/
-  runs.csv                        indice das 330 execucoes
-  metrics.csv                     M12, cada mecanismo em cada execucao
-  triviality.csv                  M12, a arvore rasa e as duplicatas
+  runs.csv                        índice das 330 execuções
+  metrics.csv                     M12, cada mecanismo em cada execução
+  triviality.csv                  M12, a árvore rasa e as duplicatas
   comparison.csv                  M12, Wilcoxon e Holm por sigma e modelo
   timing.csv                      M12, o tempo de cada mecanismo
+  figures/                        as figuras, em PNG e em PDF
   preparation/
-    seed-902/                     busca de hiperparametros, com config.csv
-    seed-903/                     ensaio do pipeline antes das 330
-  seed-01/                        ---- ramo da semente, 30 execucoes ----
+    seed-902/                     a busca de hiperparâmetros: search_results.csv e
+                                  config.csv, sobre o treino do sigma-0.5/
+    seed-903/                     o ensaio: o pipeline inteiro em sigma-0.5/, com as
+                                  métricas e a árvore rasa dele
+  seed-01/                        ---- ramo da semente, 30 execuções ----
     operators.csv  keys.csv       M1
-    requests.csv                  M2, oito semanas, so legitimo
+    requests.csv                  M2, oito semanas, só legítimo
     outcomes.csv  log.csv         M4, M5, semanas 1 a 4
     historical_profiles.csv       M6, do aquecimento inteiro
     sessions.csv                  M7, semanas 1 a 4
     thresholds.csv                M8, do aquecimento inteiro
-    sigma-0.0/                    ---- ramo de sigma, 330 execucoes ----
-      requests.csv                M3, semanas 5 a 8, legitimo + ataque
+    sigma-0.0/                    ---- ramo de sigma, 330 execuções ----
+      requests.csv                M3, semanas 5 a 8, legítimo + ataque
       compromised_sessions.csv    M3
       run.csv                     M3, qual administrador foi comprometido
       outcomes.csv  log.csv       M4, M5, semanas 5 a 8
       sessions.csv                M7, semanas 5 a 8
       train.csv  holdout.csv      M9
       predictions_rules.csv       M10
-      timing_rules.csv            M10, o tempo, único arquivo não determinístico
+      timing_rules.csv            M10, o tempo das regras (não determinístico)
       predictions_ml.csv          M11
-      timing_ml.csv               M11, o tempo dos dois modelos
+      timing_ml.csv               M11, o tempo dos dois modelos (não determinístico)
     sigma-0.1/ ... sigma-1.0/
   seed-02/ ... seed-30/
 ```
 
-O `seed-NN/log.csv` sendo unico por semente e a garantia fisica de que o atacante
-nao toca o aquecimento: nao ha lugar onde ele pudesse estar.
+O `seed-NN/log.csv` ser único por semente é a garantia física de que o atacante não toca
+o aquecimento: não há lugar onde ele pudesse estar.
 
 ## Módulos
 
-Cada módulo grava o seu arquivo, e o arquivo é a fronteira: a saída de cada um é
-inspecionável antes do próximo.
+Cada módulo grava o seu arquivo, e o arquivo é a fronteira: a saída de cada um se
+inspeciona parando o comando naquela entidade, com o `--ate`.
 
 | | Entidade | Módulo | Entrada | Saída |
 |---|---|---|---|---|
@@ -149,6 +152,22 @@ só a calibração, que não usa rótulo.
 
 Nomes de código e de arquivo em inglês; o texto da monografia é em português e traz uma
 tabela de correspondência entre os dois.
+
+## Leitura do código
+
+Do geral para o detalhe, na ordem em que o dado anda:
+
+1. `src/main.py`: lê os parâmetros e chama o experimento.
+2. `src/pipeline/experiment.py`: `EXPERIMENT_STEPS`, a ordem do protocolo (busca, ensaio,
+   grade, avaliação e figuras).
+3. `src/pipeline/build.py`: `SEED_STEPS` e `SIGMA_STEPS`, o pipeline inteiro em duas
+   listas. Cada passo chama o `build_...` de uma entidade e grava o arquivo dela.
+4. As entidades, na ordem das duas listas. Em cada uma, primeiro o `parameters.py` (os
+   números e a decisão que fixou cada um), depois o `build.py`.
+
+Em cada arquivo, as funções auxiliares vêm antes de quem as chama: a principal fica no
+fim. O `src/formulas/` se consulta quando uma chamada a ele aparece, e o teste de cada
+módulo diz o que ele garante.
 
 ## Ambiente
 
@@ -187,14 +206,17 @@ Os parâmetros dizem **o que** rodar e **onde** gravar:
 | `--sem-busca` | reaproveita o `config.csv` de uma busca anterior na mesma saída | desligado |
 
 ```
-python -m src.main --sem-busca                        # sem refazer os 9 minutos da busca
-python -m src.main --sementes 1 --sigmas 0.5 --ate kms  # uma execução, até o KMS
-python -m src.main --saida C:\tcc-data                # fora do OneDrive
+python -m src.main --sem-busca                          # sem refazer os 9 minutos da busca
+python -m src.main --sementes 1 --sigmas 0.5 --ate kms  # uma execução até o KMS, em segundos
+python -m src.main --saida C:\tcc-data                  # fora do OneDrive
 ```
+
+Antes do `models`, o `--ate` não roda a busca: ela só existe para os modelos.
 
 Os números do experimento (58 sessões de ataque, 44 operadores, percentil 99...) **não**
 são parâmetros do comando: moram no `parameters.py` de cada entidade, cada um com a
-decisão que o fixou. A grade inteira ocupa cerca de 3,4 GB.
+decisão que o fixou. O `data/` inteiro, com as preparatórias e as figuras, ocupa cerca de
+3,5 GB.
 
 Depois de rodar o comando, a tela que mostra o que ele gravou: o pipeline passo a passo,
 os comportamentos dos operadores e os resultados, com as figuras.
@@ -228,16 +250,15 @@ específica de semente é o que passa despercebido.
 | `test_models.py` | 15 | o rótulo do holdout não decide, a mesma semente treina os mesmos modelos, a busca escolhe pela regra de empate |
 | `test_evaluation.py` | 16 | as taxas gravadas com quatro casas, o recorte dos administradores, a AUC, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
 | `test_formulas.py` | 20 | cada fórmula num caso de resposta conhecida, e as dependências num sentido só: `formulas` não importa o projeto, as entidades não importam `metrics` |
-| `test_pipeline.py` | 11 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
+| `test_pipeline.py` | 11 | o orquestrador grava o mesmo que as entidades chamadas uma a uma, os modelos não rodam sem configuração, e sempre os mesmos bytes |
 | `test_main.py` | 8 | o comando único: os parâmetros, as sementes reservadas recusadas, e o `--ate` parando na entidade certa |
 | `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |
 
-O `test_reference_output_has_not_changed` e detector de mudanca, nao teste de
-correcao: falha sempre que o gerador mudar, inclusive de proposito. Quando
-falhar, confirme se a mudanca era intencional, registre a decisao e atualize o
-valor de referencia. O do M1 compara o CSV inteiro; o do M2 compara um resumo
-SHA-256, porque o arquivo tem cerca de 77 mil linhas e versiona-lo pesaria mais
-que o codigo.
+O `test_reference_output_has_not_changed` é detector de mudança, não teste de correção:
+falha sempre que o gerador mudar, inclusive de propósito. Quando falhar, confirme se a
+mudança era intencional, registre a decisão e atualize o valor de referência. O do M1
+compara o CSV inteiro; o do M2 compara um resumo SHA-256, porque o arquivo tem cerca de
+78 mil linhas e versioná-lo pesaria mais que o código.
 
 ## Reprodutibilidade
 
@@ -249,8 +270,8 @@ e por isso mora em arquivo próprio, fora dessa conferência.
 
 Fluxos de aleatoriedade são separados por subsistema (população e chaves, tráfego
 legítimo, campanha de ataque, partição e modelos), todos derivados da mesma semente. A
-grade experimental é
-de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuções.
+grade experimental é de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando
+330 execuções.
 
 ## Estado
 
