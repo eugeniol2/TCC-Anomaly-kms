@@ -34,6 +34,7 @@ src/
   baseline/             M10 as oito regras decidindo sobre o holdout
   models/               M11 Random Forest e XGBoost, e a busca de hiperparâmetros
   evaluation/           M12 métricas, trivialidade, Wilcoxon com Holm e tempo
+  figures/              as figuras da monografia, a partir da grade rodada
   pipeline/             o orquestrador: a ordem de execução, em código
   viewer/               a tela do Streamlit que mostra o pipeline por dentro
   examples/             demonstração dos fluxos de aleatoriedade
@@ -155,6 +156,13 @@ python -m src.pipeline --rehearsal             # o ensaio do pipeline inteiro, n
 
 A ordem é **busca, ensaio, grade**. A busca escreve o `config.csv` que toda execução lê
 (uns 10 minutos); o ensaio é a primeira vez que se vê acerto, numa semente reservada.
+
+Depois da grade, as figuras da monografia (F1 ao longo de σ e curva ROC, em PNG e PDF,
+em `data/figures/`):
+
+```
+python -m src.figures
+```
 
 `--out` aceita outra raiz para `data/`. A grade inteira ocupa cerca de 3,4 GB.
 
