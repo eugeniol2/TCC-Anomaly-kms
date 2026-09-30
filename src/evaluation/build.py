@@ -1,0 +1,315 @@
+"""M12: a avaliacao das 330 execucoes.
+
+Quatro tabelas, e cada uma responde uma pergunta:
+
+- `metrics.csv`: quanto cada mecanismo acertou em cada execucao, com a matriz de
+  confusao inteira ao lado do F1 (D-021, D-022).
+- `triviality.csv`: um atributo sozinho ja separa as classes? Ha sessao repetida
+  entre treino e holdout? (D-028, D-029)
+- `comparison.csv`: em cada sigma, cada modelo difere do baseline? Wilcoxon
+  pareado por semente, com a correcao de Holm so sobre as condicoes mantidas
+  (D-027, D-111, D-116).
+- `timing.csv`: quanto cada mecanismo leva para decidir (D-025, D-106).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import NamedTuple
+
+import numpy as np
+import pandas as pd
+from scipy.stats import wilcoxon
+from sklearn.tree import DecisionTreeClassifier
+from statsmodels.stats.multitest import multipletests
+
+from src.baseline.build import MECHANISM as RULES
+from src.dataset.build import ATTRIBUTES, LABEL
+from src.evaluation.parameters import (
+    ALTERNATIVE,
+    EXCLUSION_F1,
+    SIGNIFICANCE,
+    STUMP_DEPTH,
+    STUMP_RANDOM_STATE,
+    ZERO_METHOD,
+)
+from src.globals.layout import run_directory
+from src.models.parameters import MODEL_NAMES
+
+MECHANISMS = (RULES,) + MODEL_NAMES
+
+METRIC_COLUMNS = (
+    "seed", "sigma", "mechanism", "sessions", "positives",
+    "true_positives", "false_positives", "true_negatives", "false_negatives",
+    "f1", "precision", "recall", "accuracy", "specificity",
+)
+
+TRIVIALITY_COLUMNS = (
+    "seed", "sigma", "stump_attribute", "stump_threshold", "stump_f1",
+    "shared_sessions", "repeated_sessions",
+)
+
+COMPARISON_COLUMNS = (
+    "sigma", "model", "seeds", "median_f1_model", "median_f1_rules",
+    "median_difference", "q1_difference", "q3_difference",
+    "statistic", "p_value", "stump_median_f1", "excluded", "p_holm", "significant",
+)
+
+TIMING_COLUMNS = (
+    "mechanism", "runs", "median_microseconds", "q1_microseconds",
+    "q3_microseconds", "median_sessions_per_second",
+)
+
+
+class Run(NamedTuple):
+    """Tudo que o M12 le de uma execucao (semente, sigma)."""
+
+    seed: int
+    sigma: float
+    train: pd.DataFrame
+    holdout: pd.DataFrame
+    predictions_rules: pd.DataFrame
+    predictions_ml: pd.DataFrame
+    timing: pd.DataFrame
+
+
+class Evaluation(NamedTuple):
+    metrics: pd.DataFrame
+    triviality: pd.DataFrame
+    comparison: pd.DataFrame
+    timing: pd.DataFrame
+
+
+# As metricas de uma execucao.
+
+
+def confusion(truth: pd.Series, decided) -> dict[str, int]:
+    """A matriz de confusao, com a sessao comprometida como classe positiva."""
+    truth = np.asarray(truth)
+    decided = np.asarray(decided)
+
+    return {
+        "true_positives": int(((truth == 1) & (decided == 1)).sum()),
+        "false_positives": int(((truth == 0) & (decided == 1)).sum()),
+        "true_negatives": int(((truth == 0) & (decided == 0)).sum()),
+        "false_negatives": int(((truth == 1) & (decided == 0)).sum()),
+    }
+
+
+def rates(counts: dict[str, int]) -> dict[str, float]:
+    """F1, precisao, revocacao, acuracia e especificidade de uma matriz.
+
+    Sem alerta nenhum, a precisao nao tem denominador e vale zero (D-116). O F1
+    nunca fica indefinido: o holdout sempre tem positivas.
+    """
+    tp = counts["true_positives"]
+    fp = counts["false_positives"]
+    tn = counts["true_negatives"]
+    fn = counts["false_negatives"]
+    alerts = tp + fp
+
+    values = {
+        "f1": 2 * tp / (2 * tp + fp + fn),
+        "precision": tp / alerts if alerts else 0.0,
+        "recall": tp / (tp + fn),
+        "accuracy": (tp + tn) / (tp + fp + tn + fn),
+        "specificity": tn / (tn + fp),
+    }
+
+    return {name: round(value, 4) for name, value in values.items()}
+
+
+def run_metrics(run: Run) -> pd.DataFrame:
+    """Uma linha por mecanismo: o baseline e os dois modelos, na mesma execucao."""
+    same_sessions = run.predictions_rules["session_id"].equals(run.predictions_ml["session_id"])
+
+    if not same_sessions:
+        raise ValueError(f"semente {run.seed}, sigma {run.sigma}: predicoes de sessoes diferentes")
+
+    truth = run.predictions_rules[LABEL]
+    decisions = {RULES: run.predictions_rules["predicted"]}
+    decisions.update({name: run.predictions_ml[name] for name in MODEL_NAMES})
+
+    rows = []
+
+    for mechanism, decided in decisions.items():
+        counts = confusion(truth, decided)
+        rows.append({
+            "seed": run.seed, "sigma": run.sigma, "mechanism": mechanism,
+            "sessions": len(truth), "positives": int(truth.sum()),
+            **counts, **rates(counts),
+        })
+
+    return pd.DataFrame(rows)[list(METRIC_COLUMNS)]
+
+
+# A verificacao de trivialidade de uma execucao.
+
+
+def stump(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, object]:
+    """A arvore de profundidade 1: treina no treino, mede no holdout (D-028, D-114).
+
+    Diz qual atributo ela escolheu e onde cortou. Quando nenhum corte melhora a
+    arvore, ela fica sem atributo e responde "legitima" para tudo.
+    """
+    tree = DecisionTreeClassifier(max_depth=STUMP_DEPTH, random_state=STUMP_RANDOM_STATE)
+    tree.fit(train[list(ATTRIBUTES)], train[LABEL])
+
+    root = int(tree.tree_.feature[0])
+    has_split = root >= 0
+    decided = tree.predict(holdout[list(ATTRIBUTES)])
+
+    return {
+        "stump_attribute": ATTRIBUTES[root] if has_split else "",
+        "stump_threshold": round(float(tree.tree_.threshold[0]), 4) if has_split else np.nan,
+        "stump_f1": rates(confusion(holdout[LABEL], decided))["f1"],
+    }
+
+
+def duplicates(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, int]:
+    """Sessoes em comum e sessoes do holdout com atributos identicos a alguma do treino (D-029).
+
+    A primeira tem de ser zero: a sessao e uma linha so, e a particao nao a corta.
+    A segunda pode nao ser: duas sessoes diferentes podem ter os mesmos oito numeros.
+    """
+    shared = set(train["session_id"]) & set(holdout["session_id"])
+    seen = set(map(tuple, train[list(ATTRIBUTES)].to_numpy()))
+    repeated = sum(tuple(row) in seen for row in holdout[list(ATTRIBUTES)].to_numpy())
+
+    return {"shared_sessions": len(shared), "repeated_sessions": int(repeated)}
+
+
+def run_triviality(run: Run) -> pd.DataFrame:
+    row = {
+        "seed": run.seed, "sigma": run.sigma,
+        **stump(run.train, run.holdout), **duplicates(run.train, run.holdout),
+    }
+
+    return pd.DataFrame([row])[list(TRIVIALITY_COLUMNS)]
+
+
+# A comparacao, sobre a grade inteira.
+
+
+def paired_differences(metrics: pd.DataFrame, sigma: float, model: str) -> pd.Series:
+    """F1 do modelo menos F1 do baseline, semente a semente, naquele sigma."""
+    condition = metrics[metrics["sigma"] == sigma]
+    f1 = condition.pivot(index="seed", columns="mechanism", values="f1")
+
+    return f1[model] - f1[RULES]
+
+
+def signed_rank_test(differences: pd.Series) -> tuple[float, float]:
+    """Wilcoxon pareado, bilateral (D-116).
+
+    Quando todas as diferencas sao zero nao ha o que testar: estatistica 0 e p 1.
+    """
+    has_difference = bool((differences != 0).any())
+
+    if not has_difference:
+        return 0.0, 1.0
+
+    result = wilcoxon(differences, zero_method=ZERO_METHOD, alternative=ALTERNATIVE)
+
+    return float(result.statistic), float(result.pvalue)
+
+
+def comparison_row(metrics: pd.DataFrame, stumps: pd.Series, sigma: float, model: str) -> dict:
+    differences = paired_differences(metrics, sigma, model)
+    condition = metrics[metrics["sigma"] == sigma]
+    statistic, p_value = signed_rank_test(differences)
+    stump_median = float(stumps[sigma])
+
+    return {
+        "sigma": sigma,
+        "model": model,
+        "seeds": len(differences),
+        "median_f1_model": round(condition.loc[condition["mechanism"] == model, "f1"].median(), 4),
+        "median_f1_rules": round(condition.loc[condition["mechanism"] == RULES, "f1"].median(), 4),
+        "median_difference": round(differences.median(), 4),
+        "q1_difference": round(differences.quantile(0.25), 4),
+        "q3_difference": round(differences.quantile(0.75), 4),
+        "statistic": statistic,
+        "p_value": round(p_value, 6),
+        "stump_median_f1": round(stump_median, 4),
+        "excluded": stump_median >= EXCLUSION_F1,
+    }
+
+
+def with_holm(rows: pd.DataFrame) -> pd.DataFrame:
+    """Holm so sobre as condicoes mantidas (D-111); as excluidas ficam sem teste corrigido."""
+    kept = ~rows["excluded"]
+    corrected = pd.Series(np.nan, index=rows.index)
+
+    if kept.any():
+        corrected[kept] = multipletests(rows.loc[kept, "p_value"], method="holm")[1]
+
+    return rows.assign(
+        p_holm=corrected.round(6),
+        significant=kept & (corrected < SIGNIFICANCE),
+    )
+
+
+def comparison(metrics: pd.DataFrame, triviality: pd.DataFrame) -> pd.DataFrame:
+    """Uma linha por sigma e modelo: a diferenca de F1 contra o baseline, e o teste."""
+    stumps = triviality.groupby("sigma")["stump_f1"].median()
+    rows = [
+        comparison_row(metrics, stumps, sigma, model)
+        for sigma in sorted(metrics["sigma"].unique())
+        for model in MODEL_NAMES
+    ]
+
+    return with_holm(pd.DataFrame(rows))[list(COMPARISON_COLUMNS)]
+
+
+def timing_summary(timings: pd.DataFrame) -> pd.DataFrame:
+    """Mediana e quartis do tempo por sessao de cada mecanismo, sobre as execucoes."""
+    rows = []
+
+    for mechanism in MECHANISMS:
+        of_mechanism = timings[timings["mechanism"] == mechanism]
+        per_session = of_mechanism["microseconds_per_session"]
+        rows.append({
+            "mechanism": mechanism,
+            "runs": len(of_mechanism),
+            "median_microseconds": round(per_session.median(), 4),
+            "q1_microseconds": round(per_session.quantile(0.25), 4),
+            "q3_microseconds": round(per_session.quantile(0.75), 4),
+            "median_sessions_per_second": round(of_mechanism["sessions_per_second"].median(), 1),
+        })
+
+    return pd.DataFrame(rows)[list(TIMING_COLUMNS)]
+
+
+def build_evaluation(runs: list[Run]) -> Evaluation:
+    """Das execucoes as quatro tabelas."""
+    metrics = pd.concat([run_metrics(run) for run in runs], ignore_index=True)
+    triviality = pd.concat([run_triviality(run) for run in runs], ignore_index=True)
+    timings = pd.concat([run.timing for run in runs], ignore_index=True)
+
+    return Evaluation(
+        metrics, triviality, comparison(metrics, triviality), timing_summary(timings)
+    )
+
+
+# A leitura de uma execucao do disco.
+
+
+def read_run(root: Path, seed: int, sigma: float) -> Run:
+    """Os arquivos de uma execucao, com erro claro quando falta algum."""
+    directory = run_directory(root, seed, sigma)
+
+    def table(name: str) -> pd.DataFrame:
+        path = directory / name
+
+        if not path.exists():
+            raise FileNotFoundError(f"falta `{name}` em {directory}")
+
+        return pd.read_csv(path)
+
+    timing = pd.concat([table("timing_rules.csv"), table("timing_ml.csv")], ignore_index=True)
+
+    return Run(
+        seed, sigma, table("train.csv"), table("holdout.csv"),
+        table("predictions_rules.csv"), table("predictions_ml.csv"), timing,
+    )
