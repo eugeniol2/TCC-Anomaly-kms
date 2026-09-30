@@ -26,9 +26,9 @@ import pytest
 
 from src.audit_logger.build import COLUMNS as LOG_COLUMNS
 from src.audit_logger.build import build_log
-from src.globals.experiment import SEEDS
-from src.globals.phases import EVALUATED, WARMUP, belongs_to
-from src.globals.tables import MULTIVALUE_SEPARATOR
+from src.shared.experiment import SEEDS
+from src.shared.phases import EVALUATED, WARMUP, belongs_to
+from src.shared.tables import MULTIVALUE_SEPARATOR
 from src.kms.build import build_outcomes, requests_of_phase
 from src.kms.policy import (
     DENIED_BY_POLICY,
@@ -39,10 +39,10 @@ from src.kms.policy import (
 )
 from src.kms.policy import COLUMNS as OUTCOME_COLUMNS
 from src.kms.policy import Repository, outcome_of, read_repository
-from src.population.build import Population, build_population
-from src.population.parameters import KeyRepositorySpecification
-from src.traffic.build import build_traffic
-from src.traffic.parameters import TrafficSpecification
+from src.pipeline.population import Population, build_population
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.scenario_engine.traffic.build import build_traffic
+from src.scenario_engine.traffic.parameters import TrafficSpecification
 
 REPOSITORY_SPECIFICATION = KeyRepositorySpecification()
 TRAFFIC_SPECIFICATION = TrafficSpecification()

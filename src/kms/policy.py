@@ -53,7 +53,7 @@ def read_repository(keys: pd.DataFrame, operators: pd.DataFrame) -> Repository:
     Feito uma vez por execucao: a alternativa seria varrer as tabelas a cada
     uma das dezenas de milhares de requisicoes.
     """
-    from src.globals.tables import MULTIVALUE_SEPARATOR
+    from src.shared.tables import MULTIVALUE_SEPARATOR
 
     return Repository(
         scope_by_key=dict(zip(keys["key_id"], keys["scope"])),

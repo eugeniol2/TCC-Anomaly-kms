@@ -1,7 +1,8 @@
 """Pipeline experimental: geracao de metadados de auditoria de KMS e deteccao de anomalias.
 
-Cada modulo (M1 a M12) le arquivo e escreve arquivo, roda sozinho pela linha de comando
-e e deterministico dada a semente. Executar com:
+As pastas sao as entidades da arquitetura da proposta, e cada modulo (M1 a M12) grava o
+seu arquivo. O experimento inteiro roda por um comando so, deterministico dada a
+semente (D-121):
 
-    python -m src.<modulo> --seed <n>
+    python -m src.main
 """

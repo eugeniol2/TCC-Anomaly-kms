@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.globals.phases import belongs_to
+from src.shared.phases import belongs_to
 
 COLUMNS = (
     "event_id",

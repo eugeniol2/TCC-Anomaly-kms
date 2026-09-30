@@ -13,37 +13,42 @@ documentação do gerador é parte do trabalho.
 
 ## Estrutura
 
+As pastas de `src/` são as **entidades da arquitetura da proposta** (Figura 1), e cada
+módulo mora na entidade a que pertence.
+
 ```
 src/
-  globals/              auxiliares comuns a todos os módulos
-    rng.py              fluxos de aleatoriedade derivados da semente
-    tables.py           escrita de CSV e embaralhamento de linhas
-    layout.py           onde cada arquivo mora dentro de data/
-    phases.py           o calendário: âncora, semanas e as duas fases
-    experiment.py       a grade: sementes 1 a 30, sigma de 0,0 a 1,0
-    timing.py           o cronômetro do tempo de inferência, comum a regras e modelos
-  population/           M1  operadores, escopos e chaves
-  traffic/              M2  o tráfego legítimo das oito semanas
-  attack/               M3  a campanha de ataque, interpolada por sigma
-  kms/                  M4  o desfecho de cada requisição, pela política
-  audit_logger/         M5  o log de auditoria
-  historical_profiles/  M6  o perfil histórico de cada operador, da régua
-  dataset/              M7  uma linha por sessão, com os oito atributos
-  calibration/          M8  os limiares do baseline, da régua
-  partition/            M9  treino e holdout, a mesma divisão em todo sigma
-  baseline/             M10 as oito regras decidindo sobre o holdout
-  models/               M11 Random Forest e XGBoost, e a busca de hiperparâmetros
-  evaluation/           M12 métricas, trivialidade, Wilcoxon com Holm e tempo
-  figures/              as figuras da monografia, a partir da grade rodada
-  pipeline/             o orquestrador: a ordem de execução, em código
-  viewer/               a tela do Streamlit que mostra o pipeline por dentro
-  examples/             demonstração dos fluxos de aleatoriedade
-data/                   saída CSV de todos os módulos (não versionada)
-tests/                  determinismo, formato e invariantes, nas 30 sementes
+  main.py                    o comando único: roda tudo, de ponta a ponta
+  scenario_engine/           o gerador de cenários
+    population/              M1  os operadores, com perfil, regime e escopos
+    traffic/                 M2  o tráfego legítimo das oito semanas
+    attack/                  M3  a campanha de ataque, interpolada por sigma
+  kms/                       o Experimental KMS
+    repository/              M1  o repositório de chaves e os escopos
+    build.py, policy.py      M4  o desfecho de cada requisição, pela política
+  audit_logger/              M5  o log de auditoria
+  dataset_generator/         da auditoria ao conjunto de dados
+    historical_profiles/     M6  o perfil histórico de cada operador, da régua
+    dataset/                 M7  uma linha por sessão, com os oito atributos
+    partition/               M9  treino e holdout, a mesma divisão em todo sigma
+  policy_engine/             o baseline de regras
+    calibration/             M8  os limiares, da régua
+    baseline/                M10 as oito regras decidindo sobre o holdout
+  models/                    M11 Random Forest e XGBoost, e a busca de hiperparâmetros
+  evaluation/                M12 métricas, trivialidade, Wilcoxon com Holm e tempo
+    figures/                 as figuras da monografia
+  pipeline/                  a ordem: os passos de cada ramo e o experimento
+  shared/                    sementes, calendário, pastas, CSV e cronômetro
+  viewer/                    a tela do Streamlit que mostra o pipeline por dentro
+  examples/                  demonstração dos fluxos de aleatoriedade
+data/                        saída CSV de todos os módulos (não versionada)
+tests/                       determinismo, formato e invariantes, nas 30 sementes
 ```
 
-Cada módulo é um pacote com o fluxo principal em `__main__.py`, os números que o
-governam em `parameters.py` quando os tem, e um arquivo por conceito.
+Cada módulo é um pacote com a lógica em `build.py`, os números que o governam em
+`parameters.py` quando os tem, e um arquivo por conceito. O M1 se divide entre duas
+entidades, porque os operadores e as chaves saem do mesmo sorteio; quem os monta, nessa
+ordem, é o `src/pipeline/population.py`.
 
 A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
 semanas 5 a 8, tudo que deriva do aquecimento e independente de sigma, e o
@@ -84,29 +89,25 @@ data/
 O `seed-NN/log.csv` sendo unico por semente e a garantia fisica de que o atacante
 nao toca o aquecimento: nao ha lugar onde ele pudesse estar.
 
-Cada modulo M1..M12 e um pacote sob `src/`, com o fluxo principal em `__main__.py`
-e um arquivo por conceito. A fronteira entre modulos continua sendo o arquivo CSV,
-nao a chamada de funcao.
-
 ## Módulos
 
-Cada módulo lê arquivo e escreve arquivo. A fronteira entre módulos é o arquivo, não a
-chamada de função: cada um roda isolado e a saída é inspecionável antes do próximo.
+Cada módulo grava o seu arquivo, e o arquivo é a fronteira: a saída de cada um é
+inspecionável antes do próximo.
 
-| | Módulo | Entrada | Saída |
-|---|---|---|---|
-| M1 | `population` | seed | `operators.csv`, `keys.csv` |
-| M2 | `traffic` | seed, tabelas | `requests.csv` |
-| M3 | `attack` | seed, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 5 a 8, legítimo + ataque), `compromised_sessions.csv`, `run.csv` |
-| M4 | `kms` | fase, `requests.csv`, `keys.csv`, `operators.csv` | `outcomes.csv` |
-| M5 | `audit_logger` | fase, requests, outcomes | `log.csv` |
-| M6 | `historical_profiles` | `log.csv` (aquecimento inteiro) | `historical_profiles.csv` |
-| M7 | `dataset` | fase, `log.csv`, profiles, `compromised_sessions.csv` (só em `evaluated`) | `sessions.csv` |
-| M8 | `calibration` | `sessions.csv` (aquecimento inteiro) | `thresholds.csv` |
-| M9 | `partition` | `sessions.csv` (semanas 5 a 8) | `train.csv`, `holdout.csv` |
-| M10 | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv`, `timing_rules.csv` |
-| M11 | `models` | `train.csv`, `holdout.csv`, `config.csv` da 902 | `predictions_ml.csv`, `timing_ml.csv` |
-| M12 | `evaluation` | as 330 execuções | `metrics.csv`, `triviality.csv`, `comparison.csv`, `timing.csv` |
+| | Entidade | Módulo | Entrada | Saída |
+|---|---|---|---|---|
+| M1 | Scenario Engine e KMS | `population`, `repository` | semente | `operators.csv`, `keys.csv` |
+| M2 | Scenario Engine | `traffic` | semente, tabelas | `requests.csv` |
+| M3 | Scenario Engine | `attack` | semente, sigma, tabelas, `requests.csv` | `requests.csv` (semanas 5 a 8, legítimo + ataque), `compromised_sessions.csv`, `run.csv` |
+| M4 | KMS | `kms` | fase, `requests.csv`, `keys.csv`, `operators.csv` | `outcomes.csv` |
+| M5 | Audit Logger | `audit_logger` | fase, requests, outcomes | `log.csv` |
+| M6 | Dataset Generator | `historical_profiles` | `log.csv` (aquecimento inteiro) | `historical_profiles.csv` |
+| M7 | Dataset Generator | `dataset` | fase, `log.csv`, perfis, `compromised_sessions.csv` (só em `evaluated`) | `sessions.csv` |
+| M8 | Policy Engine | `calibration` | `sessions.csv` (aquecimento inteiro) | `thresholds.csv` |
+| M9 | Dataset Generator | `partition` | `sessions.csv` (semanas 5 a 8) | `train.csv`, `holdout.csv` |
+| M10 | Policy Engine | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv`, `timing_rules.csv` |
+| M11 | Modelos | `models` | `train.csv`, `holdout.csv`, `config.csv` da 902 | `predictions_ml.csv`, `timing_ml.csv` |
+| M12 | Avaliação | `evaluation` | as 330 execuções | `metrics.csv`, `triviality.csv`, `comparison.csv`, `timing.csv`, `figures/` |
 
 As oito semanas simuladas têm dois papéis. As semanas 1 a 4 constroem a **régua** (o
 perfil histórico de cada operador **e** os limiares do baseline, do mesmo período) e as
@@ -116,8 +117,8 @@ produção.
 
 O M3 lê o `requests.csv` do M2 e escreve outro, mesclando a campanha às semanas 5 a 8
 do tráfego legítimo, nunca acrescentando linhas ao arquivo do M2. Já `fase` não é
-arquivo: é o parâmetro obrigatório de M4, M5 e M7, que diz qual arquivo o módulo lê e
-em qual dos dois ramos escreve.
+arquivo: é o parâmetro obrigatório das funções do M4, do M5 e do M7, que o orquestrador
+passa em cada ramo.
 
 O rótulo de sessão comprometida **não é coluna do `log.csv`**: ele viaja em
 `compromised_sessions.csv` e o M7 o junta só na fase `evaluated`. Um log de auditoria
@@ -143,40 +144,36 @@ congelamento completo, para recriar o ambiente exatamente.
 
 ## Execução
 
-O orquestrador roda os módulos na ordem certa, que mora em `src/pipeline/build.py`:
+Um comando só roda o experimento inteiro:
 
 ```
-python -m src.pipeline --seed 1                # varredura: aquecimento + 11 sigmas
-python -m src.pipeline --seed 1 --sigma 0.5    # só uma condição
-python -m src.pipeline --warmup --seed 1       # só o ramo da semente
-python -m src.pipeline --grade                 # as 330, o runs.csv e a avaliação
-python -m src.pipeline --search                # a busca de hiperparâmetros, na 902
-python -m src.pipeline --rehearsal             # o ensaio do pipeline inteiro, na 903
+python -m src.main
 ```
 
-A ordem é **busca, ensaio, grade**. A busca escreve o `config.csv` que toda execução lê
-(uns 10 minutos); o ensaio é a primeira vez que se vê acerto, numa semente reservada.
+Ele roda, nesta ordem, a busca de hiperparâmetros na semente 902 (uns 9 minutos), o
+ensaio na 903, as 330 execuções (uns 12 minutos), a avaliação e as figuras. No fim, os
+resultados estão em `data/comparison.csv`, `metrics.csv`, `triviality.csv` e
+`timing.csv`, e as figuras em `data/figures/`.
 
-Depois da grade, as figuras da monografia (F1 ao longo de σ e curva ROC, em PNG e PDF,
-em `data/figures/`):
+Os parâmetros dizem **o que** rodar e **onde** gravar:
+
+| Parâmetro | O que faz | Padrão |
+|---|---|---|
+| `--sementes` | faixa (`1-30`) ou lista (`1,5,9`) | `1-30` |
+| `--sigmas` | lista (`0.5` ou `0.0,0.5,1.0`) | os onze, de 0,0 a 1,0 |
+| `--saida` | a raiz onde tudo é gravado | `data` |
+| `--ate` | a entidade em que o pipeline para: `scenario_engine`, `kms`, `audit_logger`, `dataset_generator`, `policy_engine`, `models`, `evaluation` ou `figures` | `figures` |
+| `--sem-busca` | reaproveita o `config.csv` de uma busca anterior na mesma saída | desligado |
 
 ```
-python -m src.figures
+python -m src.main --sem-busca                        # sem refazer os 9 minutos da busca
+python -m src.main --sementes 1 --sigmas 0.5 --ate kms  # uma execução, até o KMS
+python -m src.main --saida C:\tcc-data                # fora do OneDrive
 ```
 
-`--out` aceita outra raiz para `data/`. A grade inteira ocupa cerca de 3,4 GB.
-
-Cada módulo também roda sozinho, com a semente como parâmetro explícito, e os que rodam
-nos dois ramos (M4, M5, M7) exigem `--fase warmup` ou `--fase evaluated`:
-
-```
-python -m src.population --seed 7
-python -m src.traffic    --seed 7
-python -m src.kms        --seed 7 --fase warmup
-```
-
-O módulo lê os arquivos que o anterior escreveu naquela semente, então a ordem importa, e
-ele falha com mensagem clara se eles não existirem.
+Os números do experimento (58 sessões de ataque, 44 operadores, percentil 99...) **não**
+são parâmetros do comando: moram no `parameters.py` de cada entidade, cada um com a
+decisão que o fixou. A grade inteira ocupa cerca de 3,4 GB.
 
 A tela que mostra o pipeline por dentro, passo a passo e com os dados de verdade:
 
@@ -190,7 +187,7 @@ streamlit run src/viewer/app.py
 python -m pytest
 ```
 
-São 1667 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
+São 1675 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
 módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
 específica de semente é o que passa despercebido.
 
@@ -207,6 +204,7 @@ específica de semente é o que passa despercebido.
 | `test_models.py` | 15 | o rótulo do holdout não decide, a mesma semente treina os mesmos modelos, a busca escolhe pela regra de empate |
 | `test_evaluation.py` | 19 | as métricas de uma matriz conhecida, o recorte dos administradores, a AUC, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
 | `test_pipeline.py` | 11 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
+| `test_main.py` | 8 | o comando único: os parâmetros, as sementes reservadas recusadas, e o `--ate` parando na entidade certa |
 | `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |
 
 O `test_reference_output_has_not_changed` e detector de mudanca, nao teste de

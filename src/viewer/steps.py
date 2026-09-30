@@ -15,40 +15,40 @@ from typing import Any
 
 import pandas as pd
 
-from src.attack.build import build_attack, draw_compromised_admin
-from src.attack.parameters import AttackSpecification
-from src.attack.stealth import stealth_of
+from src.scenario_engine.attack.build import build_attack, draw_compromised_admin
+from src.scenario_engine.attack.parameters import AttackSpecification
+from src.scenario_engine.attack.stealth import stealth_of
 from src.audit_logger.build import build_log
-from src.calibration.build import build_thresholds
-from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.calibration.build import ruler_period as ruler_sessions
-from src.dataset.build import (
+from src.policy_engine.calibration.build import build_thresholds
+from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.policy_engine.calibration.build import ruler_period as ruler_sessions
+from src.dataset_generator.dataset.build import (
     ATTRIBUTES,
     LABEL,
     build_dataset,
     per_session,
     with_rate_attributes,
 )
-from src.globals.phases import EVALUATED, WARMUP
-from src.globals.rng import ATTACK, POPULATION, TRAFFIC, stream
-from src.historical_profiles.build import (
+from src.shared.phases import EVALUATED, WARMUP
+from src.shared.rng import ATTACK, POPULATION, TRAFFIC, stream
+from src.dataset_generator.historical_profiles.build import (
     profile_of,
     ruler_period,
     session_openings,
 )
 from src.kms.build import build_outcomes, requests_of_phase
 from src.kms.policy import read_repository
-from src.partition.build import Partition, build_partition
-from src.traffic.regimes import REGIMES
-from src.globals.tables import shuffle_rows
-from src.population.keys import build_keys, disable_random_sample, split_keys_by_scope
-from src.population.operators import build_operators_covering_pool
-from src.population.parameters import KeyRepositorySpecification
-from src.population.scopes import scope_pool
-from src.traffic.build import chronological, plan_sessions, request_rows, with_event_ids
-from src.traffic.operators import read_operators
-from src.traffic.parameters import TrafficSpecification
-from src.traffic.repository import build_repository, keys_by_scope, reach_of
+from src.dataset_generator.partition.build import Partition, build_partition
+from src.scenario_engine.traffic.regimes import REGIMES
+from src.shared.tables import shuffle_rows
+from src.kms.repository.keys import build_keys, disable_random_sample, split_keys_by_scope
+from src.scenario_engine.population.operators import build_operators_covering_pool
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.kms.repository.scopes import scope_pool
+from src.scenario_engine.traffic.build import chronological, plan_sessions, request_rows, with_event_ids
+from src.scenario_engine.traffic.operators import read_operators
+from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.scenario_engine.traffic.repository import build_repository, keys_by_scope, reach_of
 from src.viewer.behaviors import linhas_do_atacante
 from src.viewer.formatting import com_virgula, porcento
 

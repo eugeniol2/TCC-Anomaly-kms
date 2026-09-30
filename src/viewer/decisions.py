@@ -25,27 +25,27 @@ from typing import Any
 
 import pandas as pd
 
-from src.attack.parameters import AttackSpecification
-from src.attack.stealth import stealth_of
+from src.scenario_engine.attack.parameters import AttackSpecification
+from src.scenario_engine.attack.stealth import stealth_of
 from src.audit_logger.build import COLUMNS as LOG_COLUMNS
-from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
-from src.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
-from src.globals.experiment import SEEDS, SIGMAS
-from src.globals.phases import EVALUATED_WEEKS, RULER_WEEKS, WEEK_COUNT
-from src.historical_profiles.build import HOUR_FORMAT
+from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
+from src.dataset_generator.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
+from src.shared.experiment import SEEDS, SIGMAS
+from src.shared.phases import EVALUATED_WEEKS, RULER_WEEKS, WEEK_COUNT
+from src.dataset_generator.historical_profiles.build import HOUR_FORMAT
 from src.kms.policy import COLUMNS as OUTCOME_COLUMNS, OUTCOMES
-from src.partition.build import holdout_count
-from src.partition.parameters import HOLDOUT_SHARE
-from src.population.parameters import KeyRepositorySpecification
-from src.population.profiles import PROFILES
-from src.traffic.parameters import (
+from src.dataset_generator.partition.build import holdout_count
+from src.dataset_generator.partition.parameters import HOLDOUT_SHARE
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.scenario_engine.population.profiles import PROFILES
+from src.scenario_engine.traffic.parameters import (
     IDENTIFIER_DIGITS,
     IDENTIFIER_PREFIX,
     PRIMARY_ADDRESS_SHARE,
     TrafficSpecification,
 )
-from src.traffic.regimes import REGIMES
+from src.scenario_engine.traffic.regimes import REGIMES
 from src.viewer.behaviors import linhas_do_atacante
 from src.viewer.formatting import com_virgula, porcento, valor_escrito
 from src.viewer.theory import (

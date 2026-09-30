@@ -25,15 +25,15 @@ from functools import lru_cache
 import pandas as pd
 import pytest
 
-from src.attack.build import build_attack
-from src.attack.parameters import AttackSpecification
+from src.scenario_engine.attack.build import build_attack
+from src.scenario_engine.attack.parameters import AttackSpecification
 from src.audit_logger.build import build_log
-from src.calibration.build import COLUMNS as THRESHOLD_COLUMNS
-from src.calibration.build import build_thresholds, ruler_period
-from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL, build_dataset
-from src.globals.experiment import SEEDS
-from src.globals.phases import (
+from src.policy_engine.calibration.build import COLUMNS as THRESHOLD_COLUMNS
+from src.policy_engine.calibration.build import build_thresholds, ruler_period
+from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL, build_dataset
+from src.shared.experiment import SEEDS
+from src.shared.phases import (
     EVALUATED,
     RULER_WEEKS,
     WARMUP,
@@ -41,19 +41,19 @@ from src.globals.phases import (
     day_after_last_of,
     first_day_of,
 )
-from src.globals.tables import MULTIVALUE_SEPARATOR
-from src.historical_profiles.build import COLUMNS as PROFILE_COLUMNS
-from src.historical_profiles.build import (
+from src.shared.tables import MULTIVALUE_SEPARATOR
+from src.dataset_generator.historical_profiles.build import COLUMNS as PROFILE_COLUMNS
+from src.dataset_generator.historical_profiles.build import (
     build_profiles,
     hour_of_day,
     session_openings,
     window_width_hours,
 )
 from src.kms.build import build_outcomes
-from src.population.build import Population, build_population
-from src.population.parameters import KeyRepositorySpecification
-from src.traffic.build import build_traffic
-from src.traffic.parameters import TrafficSpecification
+from src.pipeline.population import Population, build_population
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.scenario_engine.traffic.build import build_traffic
+from src.scenario_engine.traffic.parameters import TrafficSpecification
 
 REPOSITORY_SPECIFICATION = KeyRepositorySpecification()
 TRAFFIC_SPECIFICATION = TrafficSpecification()

@@ -16,15 +16,15 @@ from numpy.random import PCG64, Generator, SeedSequence
 from sklearn.model_selection import ParameterGrid
 
 import src.models.build as models_build
-from src.attack.build import build_attack
-from src.attack.parameters import AttackSpecification
+from src.scenario_engine.attack.build import build_attack
+from src.scenario_engine.attack.parameters import AttackSpecification
 from src.audit_logger.build import build_log
-from src.dataset.build import IDENTIFIERS, LABEL, build_dataset
-from src.globals.phases import EVALUATED, WARMUP
-from src.globals.rng import PARTITION, stream
-from src.globals.tables import write_csv
-from src.globals.timing import COLUMNS as TIMING_COLUMNS
-from src.historical_profiles.build import build_profiles
+from src.dataset_generator.dataset.build import IDENTIFIERS, LABEL, build_dataset
+from src.shared.phases import EVALUATED, WARMUP
+from src.shared.rng import PARTITION, stream
+from src.shared.tables import write_csv
+from src.shared.timing import COLUMNS as TIMING_COLUMNS
+from src.dataset_generator.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
 from src.models.build import (
     COLUMNS,
@@ -36,11 +36,11 @@ from src.models.build import (
     xgboost,
 )
 from src.models.parameters import GRIDS, MODEL_NAMES
-from src.partition.build import Partition, build_partition
-from src.population.build import build_population
-from src.population.parameters import KeyRepositorySpecification
-from src.traffic.build import build_traffic
-from src.traffic.parameters import TrafficSpecification
+from src.dataset_generator.partition.build import Partition, build_partition
+from src.pipeline.population import build_population
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.scenario_engine.traffic.build import build_traffic
+from src.scenario_engine.traffic.parameters import TrafficSpecification
 
 TEST_CONFIGURATION = {
     "random_forest": {
@@ -224,7 +224,7 @@ def test_the_configuration_survives_the_csv_with_its_types(tmp_path: Path) -> No
 
 
 def test_a_missing_configuration_points_to_the_search(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="--search"):
+    with pytest.raises(FileNotFoundError, match="src.main"):
         read_configuration(tmp_path / "config.csv")
 
 

@@ -25,15 +25,15 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from src.attack.parameters import AttackSpecification
-from src.attack.stealth import HourWindow, Stealth, stealth_of
-from src.globals.phases import EVALUATED, belongs_to
-from src.traffic.calendar import business_days_among, simulated_days
-from src.traffic.operations import OPERATION_MIX, OPERATIONS
-from src.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
-from src.traffic.regimes import REGIMES, ArrivalRhythm, Regime, ScheduledRhythm
-from src.traffic.sessions import draw_request_count
-from src.population.profiles import PROFILES
+from src.scenario_engine.attack.parameters import AttackSpecification
+from src.scenario_engine.attack.stealth import HourWindow, Stealth, stealth_of
+from src.shared.phases import EVALUATED, belongs_to
+from src.scenario_engine.traffic.calendar import business_days_among, simulated_days
+from src.scenario_engine.traffic.operations import OPERATION_MIX, OPERATIONS
+from src.scenario_engine.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
+from src.scenario_engine.traffic.regimes import REGIMES, ArrivalRhythm, Regime, ScheduledRhythm
+from src.scenario_engine.traffic.sessions import draw_request_count
+from src.scenario_engine.population.profiles import PROFILES
 from src.viewer.formatting import com_virgula, porcento
 from src.viewer.theory import Teoria, teoria_da_geometrica
 

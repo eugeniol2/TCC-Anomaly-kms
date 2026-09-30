@@ -21,14 +21,14 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.attack.build import build_attack
+from src.scenario_engine.attack.build import build_attack
 from src.audit_logger.build import build_log
-from src.baseline.build import build_baseline
-from src.calibration.build import build_thresholds
-from src.dataset.build import build_dataset
+from src.policy_engine.baseline.build import build_baseline
+from src.policy_engine.calibration.build import build_thresholds
+from src.dataset_generator.dataset.build import build_dataset
 from src.evaluation.build import MECHANISMS, SCOPES
-from src.globals.experiment import PREPARATION_SIGMA, REHEARSAL_SEED, SIGMAS
-from src.globals.layout import (
+from src.shared.experiment import PREPARATION_SIGMA, REHEARSAL_SEED, SIGMAS
+from src.shared.layout import (
     METRICS,
     PREPARATION,
     RUNS_INDEX,
@@ -36,22 +36,22 @@ from src.globals.layout import (
     run_directory,
     seed_directory,
 )
-from src.globals.phases import EVALUATED, WARMUP
-from src.globals.timing import COLUMNS as TIMING_COLUMNS
-from src.historical_profiles.build import build_profiles
+from src.shared.phases import EVALUATED, WARMUP
+from src.shared.timing import COLUMNS as TIMING_COLUMNS
+from src.dataset_generator.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
 from src.models.build import build_models
-from src.partition.build import build_partition
+from src.dataset_generator.partition.build import build_partition
 from src.pipeline.build import (
     Specifications,
-    run_rehearsal,
     run_seed_branch,
     run_sigma_branch,
     run_sweep,
     write_runs_index,
 )
-from src.population.build import build_population
-from src.traffic.build import build_traffic
+from src.pipeline.population import build_population
+from src.pipeline.experiment import run_rehearsal
+from src.scenario_engine.traffic.build import build_traffic
 
 TEST_CONFIGURATION = {
     "random_forest": {
@@ -168,7 +168,7 @@ def test_the_orchestrator_writes_what_the_modules_would_write(tmp_path: Path) ->
     sigma = 0.5
 
     branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
-    run_sigma_branch(SEED, sigma, tmp_path, branch, SPECIFICATIONS)
+    run_sigma_branch(branch, sigma)
 
     expected = modules_one_by_one(SEED, sigma)
 
@@ -201,7 +201,7 @@ def _as_csv(frame: pd.DataFrame, directory: Path, name: str) -> Path:
 def test_every_expected_file_is_written(tmp_path: Path) -> None:
     """Nenhuma etapa deixa de escrever a sua saída."""
     branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
-    run_sigma_branch(SEED, 0.5, tmp_path, branch, SPECIFICATIONS)
+    run_sigma_branch(branch, 0.5)
 
     for name in SEED_FILES:
         assert (seed_directory(tmp_path, SEED) / name).exists(), name
@@ -213,7 +213,7 @@ def test_every_expected_file_is_written(tmp_path: Path) -> None:
 def test_the_timing_files_are_written_with_their_columns(tmp_path: Path) -> None:
     """O tempo nao se compara byte a byte, mas o arquivo tem de existir e ter forma."""
     branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
-    run_sigma_branch(SEED, 0.5, tmp_path, branch, SPECIFICATIONS)
+    run_sigma_branch(branch, 0.5)
 
     for name, mechanisms in TIMING_FILES.items():
         timing = pd.read_csv(run_directory(tmp_path, SEED, 0.5) / name)
@@ -240,7 +240,7 @@ def test_the_sigma_branch_refuses_to_run_without_a_configuration(tmp_path: Path)
     branch = run_seed_branch(SEED, tmp_path, unconfigured)
 
     with pytest.raises(ValueError, match="configuracao"):
-        run_sigma_branch(SEED, 0.5, tmp_path, branch, unconfigured)
+        run_sigma_branch(branch, 0.5)
 
     assert not run_directory(tmp_path, SEED, 0.5).exists()
 
@@ -258,7 +258,7 @@ def test_the_warmup_is_identical_across_conditions(
     branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
     before = (seed_directory(tmp_path, SEED) / "thresholds.csv").read_bytes()
 
-    run_sigma_branch(SEED, sigma, tmp_path, branch, SPECIFICATIONS)
+    run_sigma_branch(branch, sigma)
     after = (seed_directory(tmp_path, SEED) / "thresholds.csv").read_bytes()
 
     assert before == after
@@ -302,7 +302,7 @@ def test_running_twice_produces_the_same_bytes(tmp_path: Path) -> None:
 
     for root in (first, second):
         branch = run_seed_branch(SEED, root, SPECIFICATIONS)
-        run_sigma_branch(SEED, 0.5, root, branch, SPECIFICATIONS)
+        run_sigma_branch(branch, 0.5)
 
     for name in SEED_FILES:
         assert (seed_directory(first, SEED) / name).read_bytes() == (

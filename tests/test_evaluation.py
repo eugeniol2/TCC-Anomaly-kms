@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 from statsmodels.stats.multitest import multipletests
 
-from src.dataset.build import ATTRIBUTES, LABEL
+from src.dataset_generator.dataset.build import ATTRIBUTES, LABEL
 from src.evaluation.build import (
     ADMINISTRATORS,
     COMPARISON_COLUMNS,

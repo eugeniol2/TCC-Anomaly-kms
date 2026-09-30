@@ -27,7 +27,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src.traffic.sessions import address_weights
+from src.scenario_engine.traffic.sessions import address_weights
 from src.viewer.formatting import com_virgula, porcento
 
 # A cor não mora aqui. Os passos da paleta mudam entre o tema claro e o

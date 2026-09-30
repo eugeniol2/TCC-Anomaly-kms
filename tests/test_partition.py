@@ -21,19 +21,19 @@ import pandas as pd
 import pytest
 from numpy.random import PCG64, Generator, SeedSequence
 
-from src.attack.build import build_attack
-from src.attack.parameters import AttackSpecification
+from src.scenario_engine.attack.build import build_attack
+from src.scenario_engine.attack.parameters import AttackSpecification
 from src.audit_logger.build import build_log
-from src.dataset.build import ATTRIBUTES, LABEL, build_dataset
-from src.globals.phases import EVALUATED, WARMUP
-from src.globals.rng import ATTACK, POPULATION, TRAFFIC, stream
-from src.historical_profiles.build import build_profiles
+from src.dataset_generator.dataset.build import ATTRIBUTES, LABEL, build_dataset
+from src.shared.phases import EVALUATED, WARMUP
+from src.shared.rng import ATTACK, POPULATION, TRAFFIC, stream
+from src.dataset_generator.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
-from src.partition.build import build_partition, holdout_count
-from src.population.build import Population, build_population
-from src.population.parameters import KeyRepositorySpecification
-from src.traffic.build import build_traffic
-from src.traffic.parameters import TrafficSpecification
+from src.dataset_generator.partition.build import build_partition, holdout_count
+from src.pipeline.population import Population, build_population
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.scenario_engine.traffic.build import build_traffic
+from src.scenario_engine.traffic.parameters import TrafficSpecification
 
 REPOSITORY_SPECIFICATION = KeyRepositorySpecification()
 TRAFFIC_SPECIFICATION = TrafficSpecification()

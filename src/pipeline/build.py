@@ -1,243 +1,257 @@
-"""A ordem de execução do pipeline, como código em vez de documentação.
+"""Os dois ramos de uma execucao, como listas de passos (D-091, D-121).
 
-Até aqui a ordem existia em seis lugares em prosa (`README.md`, `CLAUDE.md`,
-três relatórios e um diagrama) e em nenhum deles executava. Seis cópias de um
-fato divergem, e divergiram: o diagrama ficou quatro decisões atrás do código
-sem que nada acusasse.
+A ordem de execucao e codigo, e mora aqui: `SEED_STEPS` e `SIGMA_STEPS` sao as
+duas listas, e cada passo diz a que entidade pertence.
 
-Este arquivo é a **única cópia executável**. Quem quiser saber em que ordem as
-coisas acontecem lê as duas funções do fim, que são listas lineares de chamadas.
+**Dois ramos, porque o atacante so age nas semanas 5 a 8** (D-049). O ramo da
+semente produz tudo que e anterior ao ataque e roda uma vez por semente; o ramo
+de sigma produz o periodo avaliado e roda uma vez por condicao, recebendo o ramo
+da semente pronto. Recomputar o aquecimento em cada condicao arriscaria perfis
+diferentes entre condicoes da mesma semente, e o pareamento da D-002 quebraria.
 
-Duas propriedades vêm de decisão e não de conveniência:
-
-**Os dois ramos existem porque o atacante só age nas semanas 5 a 8** (D-049).
-O ramo da semente roda 30 vezes e produz tudo que é anterior ao ataque; o ramo
-de sigma roda 330 e produz o período avaliado. Rodar o primeiro dentro do
-segundo recomputaria onze vezes o mesmo aquecimento, e bastaria um sorteio
-consumido em ordem diferente para os perfis divergirem entre condições da mesma
-semente, quebrando o pareamento que a D-002 assume, sem erro e sem aviso.
-
-**Tudo roda no mesmo processo.** Com os doze modulos, a grade completa sao 2521
-invocacoes de modulo: sete no ramo da semente, 30 vezes cada; sete no ramo de
-sigma, 330 vezes cada; e o M12 uma vez, sobre a grade inteira. Como subprocesso,
-cada uma paga a partida do interpretador e o import do pandas, cerca de 0,57 s,
-o que da uns 24 minutos so de inicializacao.
+**Cada passo grava o seu arquivo**, e passa o quadro adiante em memoria. O
+arquivo e o que deixa cada entidade inspecionavel.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
 import pandas as pd
 
-from src.attack.build import build_attack
-from src.attack.parameters import AttackSpecification
 from src.audit_logger.build import build_log
-from src.baseline.build import build_baseline
-from src.calibration.build import build_thresholds
-from src.dataset.build import build_dataset
-from src.evaluation.build import (
-    Evaluation,
-    build_evaluation,
-    read_run,
-    run_metrics,
-    run_triviality,
-)
-from src.globals.experiment import (
-    HYPERPARAMETER_SEARCH_SEED,
-    PREPARATION_SIGMA,
-    REHEARSAL_SEED,
-    SEEDS,
-    SIGMAS,
-)
-from src.globals.layout import (
-    COMPARISON,
-    CONFIGURATION,
-    METRICS,
-    PREPARATION,
-    RUNS_INDEX,
-    SEARCH_RESULTS,
-    TIMING,
-    TRIVIALITY,
-    preparation_directory,
-    run_directory,
-    seed_directory,
-)
-from src.globals.phases import EVALUATED, WARMUP
-from src.globals.tables import write_csv
-from src.historical_profiles.build import build_profiles
+from src.dataset_generator.dataset.build import build_dataset
+from src.dataset_generator.historical_profiles.build import build_profiles
+from src.dataset_generator.partition.build import build_partition
 from src.kms.build import build_outcomes
-from src.models.build import build_models, chosen_configuration
-from src.partition.build import build_partition
-from src.population.build import build_population
-from src.population.parameters import KeyRepositorySpecification
-from src.traffic.build import build_traffic
-from src.traffic.parameters import TrafficSpecification
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.models.build import build_models
+from src.pipeline.population import build_population
+from src.pipeline.stages import LAST_STAGE, Step, reaches, run_steps
+from src.policy_engine.baseline.build import build_baseline
+from src.policy_engine.calibration.build import build_thresholds
+from src.scenario_engine.attack.build import build_attack
+from src.scenario_engine.attack.parameters import AttackSpecification
+from src.scenario_engine.traffic.build import build_traffic
+from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.shared import layout
+from src.shared.phases import EVALUATED, WARMUP
+from src.shared.tables import write_csv
 
 
 class Specifications(NamedTuple):
-    """Os parâmetros dos geradores, reunidos para viajar por parâmetro.
+    """Os parametros das entidades, reunidos para viajar por parametro.
 
-    Existem aqui pela mesma razão que existem nos módulos: o teste troca um
-    valor sem editar arquivo nenhum, e a função recebe o que precisa em vez de
-    ler módulo global.
+    O teste troca um valor sem editar arquivo nenhum, e a funcao recebe o que
+    precisa em vez de ler modulo global.
     """
 
     repository: KeyRepositorySpecification = KeyRepositorySpecification()
     traffic: TrafficSpecification = TrafficSpecification()
     attack: AttackSpecification = AttackSpecification()
     models: dict[str, dict] | None = None
-    """A configuracao que a busca da 902 escolheu. Sem ela o M11 nao roda."""
+    """A configuracao que a busca da 902 escolheu. Sem ela os modelos nao rodam."""
 
 
-class SeedBranch(NamedTuple):
-    """O que o ramo da semente produz, e o que o ramo de sigma consome."""
+@dataclass
+class SeedBranch:
+    """O ramo da semente, preenchido passo a passo."""
 
-    operators: pd.DataFrame
-    keys: pd.DataFrame
-    requests: pd.DataFrame
-    profiles: pd.DataFrame
-    thresholds: pd.DataFrame
+    seed: int
+    root: Path
+    specifications: Specifications
+    operators: pd.DataFrame | None = None
+    keys: pd.DataFrame | None = None
+    requests: pd.DataFrame | None = None
+    outcomes: pd.DataFrame | None = None
+    log: pd.DataFrame | None = None
+    profiles: pd.DataFrame | None = None
+    sessions: pd.DataFrame | None = None
+    thresholds: pd.DataFrame | None = None
+
+    @property
+    def directory(self) -> Path:
+        return layout.seed_directory(self.root, self.seed)
 
 
-class EvaluatedSets(NamedTuple):
-    """O ramo de sigma ate a particao: o que o baseline e os modelos recebem."""
+@dataclass
+class SigmaBranch:
+    """Uma condicao (semente, sigma), preenchida passo a passo."""
 
-    requests: pd.DataFrame
-    compromised: pd.DataFrame
-    run: pd.DataFrame
-    sessions: pd.DataFrame
-    train: pd.DataFrame
-    holdout: pd.DataFrame
+    sigma: float
+    seed_branch: SeedBranch
+    requests: pd.DataFrame | None = None
+    compromised: pd.DataFrame | None = None
+    run: pd.DataFrame | None = None
+    outcomes: pd.DataFrame | None = None
+    log: pd.DataFrame | None = None
+    sessions: pd.DataFrame | None = None
+    train: pd.DataFrame | None = None
+    holdout: pd.DataFrame | None = None
+    predictions_rules: pd.DataFrame | None = None
+    predictions_ml: pd.DataFrame | None = None
 
-
-class SigmaBranch(NamedTuple):
-    """O que uma execução (semente, sigma) produz."""
-
-    requests: pd.DataFrame
-    compromised: pd.DataFrame
-    run: pd.DataFrame
-    sessions: pd.DataFrame
-    train: pd.DataFrame
-    holdout: pd.DataFrame
-    predictions_rules: pd.DataFrame
-    predictions_ml: pd.DataFrame
+    @property
+    def directory(self) -> Path:
+        return layout.run_directory(self.seed_branch.root, self.seed_branch.seed, self.sigma)
 
 
 def emit(frame: pd.DataFrame, directory: Path, name: str) -> pd.DataFrame:
-    """Escreve o arquivo e devolve o quadro, para encadear as etapas.
-
-    Devolver o que escreveu é o que permite a etapa seguinte receber o dado em
-    memória em vez de reler o disco. O arquivo continua sendo escrito: ele é a
-    fronteira entre módulos e o que torna cada etapa inspecionável.
-    """
+    """Grava o arquivo e devolve o quadro, para o passo seguinte receber em memoria."""
     write_csv(frame, directory / name)
 
     return frame
 
 
-def run_seed_branch(seed: int, root: Path, specifications: Specifications) -> SeedBranch:
-    """As semanas 1 a 4, e tudo que delas deriva. Roda 30 vezes, não 330.
+# Os passos do ramo da semente: semanas 1 a 4, sem atacante.
 
-    A ordem abaixo é a ordem. Cada linha depende do que as anteriores
-    produziram, e nenhuma depende de sigma.
-    """
-    directory = seed_directory(root, seed)
 
-    population = build_population(seed, specifications.repository)
-    operators = emit(population.operators, directory, "operators.csv")
-    keys = emit(population.keys, directory, "keys.csv")
+def population(branch: SeedBranch) -> None:
+    """Operadores (Scenario Engine) e repositorio de chaves (KMS), do mesmo sorteio."""
+    built = build_population(branch.seed, branch.specifications.repository)
+    branch.operators = emit(built.operators, branch.directory, layout.OPERATORS)
+    branch.keys = emit(built.keys, branch.directory, layout.KEYS)
 
-    requests = emit(
-        build_traffic(seed, operators, keys, specifications.traffic),
-        directory, "requests.csv",
+
+def legitimate_traffic(branch: SeedBranch) -> None:
+    requests = build_traffic(
+        branch.seed, branch.operators, branch.keys, branch.specifications.traffic
     )
-    outcomes = emit(
-        build_outcomes(requests, keys, operators, WARMUP),
-        directory, "outcomes.csv",
+    branch.requests = emit(requests, branch.directory, layout.REQUESTS)
+
+
+def warmup_outcomes(branch: SeedBranch) -> None:
+    outcomes = build_outcomes(branch.requests, branch.keys, branch.operators, WARMUP)
+    branch.outcomes = emit(outcomes, branch.directory, layout.OUTCOMES)
+
+
+def warmup_log(branch: SeedBranch) -> None:
+    log = build_log(branch.requests, branch.outcomes, WARMUP)
+    branch.log = emit(log, branch.directory, layout.LOG)
+
+
+def historical_profiles(branch: SeedBranch) -> None:
+    profiles = build_profiles(branch.log)
+    branch.profiles = emit(profiles, branch.directory, layout.HISTORICAL_PROFILES)
+
+
+def warmup_sessions(branch: SeedBranch) -> None:
+    sessions = build_dataset(branch.log, branch.profiles, WARMUP)
+    branch.sessions = emit(sessions, branch.directory, layout.SESSIONS)
+
+
+def thresholds(branch: SeedBranch) -> None:
+    branch.thresholds = emit(
+        build_thresholds(branch.sessions), branch.directory, layout.THRESHOLDS
     )
-    log = emit(build_log(requests, outcomes, WARMUP), directory, "log.csv")
-
-    profiles = emit(build_profiles(log), directory, "historical_profiles.csv")
-    sessions = emit(
-        build_dataset(log, profiles, WARMUP), directory, "sessions.csv"
-    )
-    thresholds = emit(build_thresholds(sessions), directory, "thresholds.csv")
-
-    return SeedBranch(operators, keys, requests, profiles, thresholds)
 
 
-def run_evaluated_sets(
-    seed: int,
-    sigma: float,
-    root: Path,
-    branch: SeedBranch,
-    specifications: Specifications,
-) -> EvaluatedSets:
-    """As semanas 5 a 8 de uma condição, da campanha à partição.
+SEED_STEPS = (
+    Step("scenario_engine", population),
+    Step("scenario_engine", legitimate_traffic),
+    Step("kms", warmup_outcomes),
+    Step("audit_logger", warmup_log),
+    Step("dataset_generator", historical_profiles),
+    Step("dataset_generator", warmup_sessions),
+    Step("policy_engine", thresholds),
+)
 
-    Recebe o ramo da semente pronto em vez de recomputá-lo: é o que garante
-    que as onze condições compartilhem exatamente o mesmo aquecimento.
-    """
-    directory = run_directory(root, seed, sigma)
 
+# Os passos do ramo de sigma: semanas 5 a 8, com a campanha.
+
+
+def attack_campaign(branch: SigmaBranch) -> None:
+    seed = branch.seed_branch
     campaign = build_attack(
-        seed, sigma, branch.operators, branch.keys, branch.requests,
-        specifications.traffic, specifications.attack,
+        seed.seed, branch.sigma, seed.operators, seed.keys, seed.requests,
+        seed.specifications.traffic, seed.specifications.attack,
     )
-    requests = emit(campaign.requests, directory, "requests.csv")
-    compromised = emit(
-        campaign.compromised, directory, "compromised_sessions.csv"
+    branch.requests = emit(campaign.requests, branch.directory, layout.REQUESTS)
+    branch.compromised = emit(
+        campaign.compromised, branch.directory, layout.COMPROMISED_SESSIONS
     )
-    run = emit(campaign.run, directory, "run.csv")
+    branch.run = emit(campaign.run, branch.directory, layout.RUN)
 
-    outcomes = emit(
-        build_outcomes(requests, branch.keys, branch.operators, EVALUATED),
-        directory, "outcomes.csv",
+
+def evaluated_outcomes(branch: SigmaBranch) -> None:
+    seed = branch.seed_branch
+    outcomes = build_outcomes(branch.requests, seed.keys, seed.operators, EVALUATED)
+    branch.outcomes = emit(outcomes, branch.directory, layout.OUTCOMES)
+
+
+def evaluated_log(branch: SigmaBranch) -> None:
+    log = build_log(branch.requests, branch.outcomes, EVALUATED)
+    branch.log = emit(log, branch.directory, layout.LOG)
+
+
+def evaluated_sessions(branch: SigmaBranch) -> None:
+    sessions = build_dataset(
+        branch.log, branch.seed_branch.profiles, EVALUATED, branch.compromised
     )
-    log = emit(build_log(requests, outcomes, EVALUATED), directory, "log.csv")
+    branch.sessions = emit(sessions, branch.directory, layout.SESSIONS)
 
-    sessions = emit(
-        build_dataset(log, branch.profiles, EVALUATED, compromised),
-        directory, "sessions.csv",
+
+def partition(branch: SigmaBranch) -> None:
+    sides = build_partition(branch.seed_branch.seed, branch.sessions)
+    branch.train = emit(sides.train, branch.directory, layout.TRAIN)
+    branch.holdout = emit(sides.holdout, branch.directory, layout.HOLDOUT)
+
+
+def rule_decisions(branch: SigmaBranch) -> None:
+    baseline = build_baseline(branch.holdout, branch.seed_branch.thresholds)
+    branch.predictions_rules = emit(
+        baseline.predictions, branch.directory, layout.PREDICTIONS_RULES
     )
-
-    partition = build_partition(seed, sessions)
-    train = emit(partition.train, directory, "train.csv")
-    holdout = emit(partition.holdout, directory, "holdout.csv")
-
-    return EvaluatedSets(requests, compromised, run, sessions, train, holdout)
+    emit(baseline.timing, branch.directory, layout.TIMING_RULES)
 
 
-def run_sigma_branch(
-    seed: int,
-    sigma: float,
-    root: Path,
-    branch: SeedBranch,
-    specifications: Specifications,
-) -> SigmaBranch:
-    """Uma condição inteira: os conjuntos, e as decisões do baseline e dos modelos.
+def model_decisions(branch: SigmaBranch) -> None:
+    seed = branch.seed_branch
+    models = build_models(
+        seed.seed, branch.train, branch.holdout, seed.specifications.models
+    )
+    branch.predictions_ml = emit(models.predictions, branch.directory, layout.PREDICTIONS_ML)
+    emit(models.timing, branch.directory, layout.TIMING_ML)
 
-    Roda 330 vezes. Exige a configuração dos modelos, que sai da busca da 902.
+
+SIGMA_STEPS = (
+    Step("scenario_engine", attack_campaign),
+    Step("kms", evaluated_outcomes),
+    Step("audit_logger", evaluated_log),
+    Step("dataset_generator", evaluated_sessions),
+    Step("dataset_generator", partition),
+    Step("policy_engine", rule_decisions),
+    Step("models", model_decisions),
+)
+
+
+# Os dois ramos, e a varredura de uma semente.
+
+
+def run_seed_branch(
+    seed: int, root: Path, specifications: Specifications, until: str = LAST_STAGE
+) -> SeedBranch:
+    """As semanas 1 a 4 de uma semente, ate a entidade `until`."""
+    branch = SeedBranch(seed, root, specifications)
+
+    return run_steps(SEED_STEPS, branch, until)
+
+
+def run_sigma_branch(branch: SeedBranch, sigma: float, until: str = LAST_STAGE) -> SigmaBranch:
+    """As semanas 5 a 8 de uma condicao, ate a entidade `until`.
+
+    Recebe o ramo da semente pronto: e o que garante que as onze condicoes
+    compartilhem exatamente o mesmo aquecimento. Recusa rodar os modelos sem a
+    configuracao da busca, antes de gravar qualquer arquivo.
     """
-    is_unconfigured = specifications.models is None
+    is_unconfigured = reaches(until, "models") and branch.specifications.models is None
 
     if is_unconfigured:
         raise ValueError("falta a configuracao dos modelos; rode antes a busca da 902")
 
-    directory = run_directory(root, seed, sigma)
-    sets = run_evaluated_sets(seed, sigma, root, branch, specifications)
-
-    baseline = build_baseline(sets.holdout, branch.thresholds)
-    predictions_rules = emit(baseline.predictions, directory, "predictions_rules.csv")
-    emit(baseline.timing, directory, "timing_rules.csv")
-
-    models = build_models(seed, sets.train, sets.holdout, specifications.models)
-    predictions_ml = emit(models.predictions, directory, "predictions_ml.csv")
-    emit(models.timing, directory, "timing_ml.csv")
-
-    return SigmaBranch(*sets, predictions_rules, predictions_ml)
+    return run_steps(SIGMA_STEPS, SigmaBranch(sigma, branch), until)
 
 
 def run_sweep(
@@ -245,88 +259,25 @@ def run_sweep(
     sigmas: tuple[float, ...],
     root: Path,
     specifications: Specifications,
+    until: str = LAST_STAGE,
 ) -> list[pd.DataFrame]:
-    """Uma varredura inteira: o aquecimento uma vez, e cada condição de sigma.
+    """Uma semente inteira: o aquecimento uma vez, e cada condicao de sigma.
 
-    Devolve as linhas de `run.csv` produzidas, que o índice agregado consome.
+    Devolve as linhas de `run.csv`, que o indice agregado junta.
     """
-    branch = run_seed_branch(seed, root, specifications)
+    branch = run_seed_branch(seed, root, specifications, until)
 
-    return [
-        run_sigma_branch(seed, sigma, root, branch, specifications).run
-        for sigma in sigmas
-    ]
+    return [run_sigma_branch(branch, sigma, until).run for sigma in sigmas]
 
 
 def write_runs_index(rows: list[pd.DataFrame], root: Path) -> pd.DataFrame:
-    """Concatena os `run.csv` de cada execução no índice da D-085.
+    """Junta os `run.csv` das execucoes no indice da D-085.
 
-    O M3 não escreve este arquivo porque 330 invocações do mesmo módulo
-    gravando no mesmo lugar dependeriam da ordem, e reexecutar uma condição
-    isolada duplicaria a linha em vez de substituí-la. Quem o escreve é quem
-    percorre a grade inteira, e por isso ele nasce completo ou não nasce.
+    Quem o escreve e quem percorre a grade, e por isso ele nasce completo ou nao
+    nasce: reexecutar uma condicao isolada nao duplica linha.
     """
     index = pd.concat(rows, ignore_index=True).sort_values(
         ["seed", "sigma"], ignore_index=True
     )
 
-    return emit(index, root, RUNS_INDEX)
-
-
-def run_search_preparation(root: Path, specifications: Specifications) -> pd.DataFrame:
-    """A preparatória 902 até a partição, em sigma 0,5: o treino da busca.
-
-    Grava tudo em `preparation/seed-902/`, com o layout de uma réplica. Para na
-    partição: o holdout da 902 não é consultado em momento nenhum (D-045).
-    """
-    preparation = root / PREPARATION
-    seed = HYPERPARAMETER_SEARCH_SEED
-
-    branch = run_seed_branch(seed, preparation, specifications)
-    sets = run_evaluated_sets(seed, PREPARATION_SIGMA, preparation, branch, specifications)
-
-    return sets.train
-
-
-def write_search(scores: list[dict], root: Path) -> pd.DataFrame:
-    """Grava a nota de cada configuração e a escolhida, e devolve a escolhida."""
-    directory = preparation_directory(root, HYPERPARAMETER_SEARCH_SEED)
-    results = emit(pd.DataFrame(scores), directory, SEARCH_RESULTS)
-
-    return emit(chosen_configuration(results), directory, CONFIGURATION)
-
-
-def run_rehearsal(root: Path, specifications: Specifications) -> Evaluation:
-    """A preparatória 903: o pipeline inteiro numa semente reservada, em sigma 0,5 (D-107).
-
-    Grava em `preparation/seed-903/`, e na pasta da execução as métricas e a árvore
-    rasa dela. É a primeira vez que se vê acerto, e numa semente fora das 30.
-    """
-    preparation = root / PREPARATION
-    seed = REHEARSAL_SEED
-
-    branch = run_seed_branch(seed, preparation, specifications)
-    run_sigma_branch(seed, PREPARATION_SIGMA, preparation, branch, specifications)
-
-    run = read_run(preparation, seed, PREPARATION_SIGMA)
-    directory = run_directory(preparation, seed, PREPARATION_SIGMA)
-
-    return Evaluation(
-        emit(run_metrics(run), directory, METRICS),
-        emit(run_triviality(run), directory, TRIVIALITY),
-        comparison=pd.DataFrame(),
-        timing=run.timing,
-    )
-
-
-def write_evaluation(root: Path) -> Evaluation:
-    """O M12 sobre a grade inteira, lida do disco: as quatro tabelas na raiz."""
-    runs = [read_run(root, seed, sigma) for seed in SEEDS for sigma in SIGMAS]
-    evaluation = build_evaluation(runs)
-
-    return Evaluation(
-        emit(evaluation.metrics, root, METRICS),
-        emit(evaluation.triviality, root, TRIVIALITY),
-        emit(evaluation.comparison, root, COMPARISON),
-        emit(evaluation.timing, root, TIMING),
-    )
+    return emit(index, root, layout.RUNS_INDEX)

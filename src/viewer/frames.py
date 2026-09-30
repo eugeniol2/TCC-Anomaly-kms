@@ -27,15 +27,15 @@ from typing import Any
 
 import pandas as pd
 
-from src.attack.parameters import AttackSpecification
-from src.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.dataset.build import ATTRIBUTES, LABEL
-from src.globals.experiment import SIGMAS
-from src.globals.phases import EVALUATED, WARMUP, belongs_to
-from src.partition.build import Partition
-from src.partition.parameters import HOLDOUT_SHARE
-from src.population.parameters import KeyRepositorySpecification
-from src.traffic.parameters import TrafficSpecification
+from src.scenario_engine.attack.parameters import AttackSpecification
+from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.dataset_generator.dataset.build import ATTRIBUTES, LABEL
+from src.shared.experiment import SIGMAS
+from src.shared.phases import EVALUATED, WARMUP, belongs_to
+from src.dataset_generator.partition.build import Partition
+from src.dataset_generator.partition.parameters import HOLDOUT_SHARE
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.scenario_engine.traffic.parameters import TrafficSpecification
 from src.viewer.decisions import (
     MODELOS,
     Variavel,

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.globals.phases import belongs_to
+from src.shared.phases import belongs_to
 from src.kms.policy import COLUMNS, outcome_of, read_repository
 
 

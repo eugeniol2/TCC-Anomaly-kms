@@ -20,9 +20,9 @@ from sklearn.metrics import f1_score
 from sklearn.model_selection import ParameterGrid, RepeatedStratifiedKFold
 from xgboost import XGBClassifier
 
-from src.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
-from src.globals.rng import MODELS, stream
-from src.globals.timing import time_decision
+from src.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL, require_label
+from src.shared.rng import MODELS, stream
+from src.shared.timing import time_decision
 from src.models.parameters import FOLDS, GRIDS, JOBS, MODEL_NAMES, REPEATS, SEED_CEILING
 
 SCORE_COLUMNS = tuple(f"{name}_score" for name in MODEL_NAMES)
@@ -59,13 +59,6 @@ def training_seeds(seed: int) -> TrainingSeeds:
     forest, boosting, folds = rng.integers(0, SEED_CEILING, size=3)
 
     return TrainingSeeds(int(forest), int(boosting), int(folds))
-
-
-def check_label(sessions: pd.DataFrame) -> None:
-    has_label = LABEL in sessions.columns
-
-    if not has_label:
-        raise ValueError("o conjunto recebido nao tem rotulo; o M11 le treino e holdout")
 
 
 def positive_weight(labels: pd.Series) -> float:
@@ -127,7 +120,7 @@ def configuration_scores(seed: int, train: pd.DataFrame) -> Iterator[dict]:
 
     Devolve uma configuracao por vez, para quem chama poder mostrar o progresso.
     """
-    check_label(train)
+    require_label(train)
     seeds = training_seeds(seed)
     splitter = RepeatedStratifiedKFold(
         n_splits=FOLDS, n_repeats=REPEATS, random_state=seeds.folds
@@ -204,7 +197,7 @@ def read_configuration(path: Path) -> dict[str, dict]:
     if not path.exists():
         raise FileNotFoundError(
             f"falta `{path.name}` em {path.parent}"
-            "\n       rode antes a busca:  python -m src.pipeline --search"
+            "\n       rode o comando sem --sem-busca, para a busca rodar antes:  python -m src.main"
         )
 
     frame = pd.read_csv(path, dtype=str, keep_default_na=False)
@@ -223,8 +216,8 @@ def build_models(
     Grava tambem o escore, a probabilidade de ataque, que a curva ROC usa (D-119). A
     decisao continua sendo a do `predict`, que corta em 0,5.
     """
-    check_label(train)
-    check_label(holdout)
+    require_label(train)
+    require_label(holdout)
 
     seeds = training_seeds(seed)
     features = holdout[list(ATTRIBUTES)]

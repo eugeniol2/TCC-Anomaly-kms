@@ -33,21 +33,21 @@ if str(RAIZ_DO_PROJETO) not in sys.path:
 import pandas as pd
 import streamlit as st
 
-from src.attack.build import build_attack
-from src.attack.parameters import AttackSpecification
+from src.scenario_engine.attack.build import build_attack
+from src.scenario_engine.attack.parameters import AttackSpecification
 from src.audit_logger.build import build_log
-from src.calibration.build import build_thresholds
-from src.dataset.build import build_dataset
-from src.globals.experiment import SIGMAS
-from src.globals.phases import EVALUATED, WARMUP
-from src.historical_profiles.build import build_profiles
+from src.policy_engine.calibration.build import build_thresholds
+from src.dataset_generator.dataset.build import build_dataset
+from src.shared.experiment import SIGMAS
+from src.shared.phases import EVALUATED, WARMUP
+from src.dataset_generator.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
-from src.partition.build import Partition, build_partition
-from src.population.build import build_population
-from src.population.parameters import KeyRepositorySpecification
-from src.traffic.build import build_traffic
-from src.traffic.parameters import TrafficSpecification
-from src.traffic.regimes import REGIMES
+from src.dataset_generator.partition.build import Partition, build_partition
+from src.pipeline.population import build_population
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.scenario_engine.traffic.build import build_traffic
+from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.scenario_engine.traffic.regimes import REGIMES
 from src.viewer.behaviors import (
     Comportamento,
     Pagina,

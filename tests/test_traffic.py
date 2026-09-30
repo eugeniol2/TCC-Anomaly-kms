@@ -26,21 +26,21 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.globals.experiment import SEEDS
-from src.globals.tables import MULTIVALUE_SEPARATOR
-from src.population.build import Population, build_population
-from src.population.parameters import KeyRepositorySpecification
-from src.traffic.build import COLUMNS, build_traffic
-from src.traffic.operations import OPERATIONS
-from src.attack.parameters import AttackSpecification
-from src.traffic.parameters import (
+from src.shared.experiment import SEEDS
+from src.shared.tables import MULTIVALUE_SEPARATOR
+from src.pipeline.population import Population, build_population
+from src.kms.repository.parameters import KeyRepositorySpecification
+from src.scenario_engine.traffic.build import COLUMNS, build_traffic
+from src.scenario_engine.traffic.operations import OPERATIONS
+from src.scenario_engine.attack.parameters import AttackSpecification
+from src.scenario_engine.traffic.parameters import (
     BUSINESS_WEEKDAYS,
     IDENTIFIER_DIGITS,
     IDENTIFIER_PREFIX,
     LONG_SESSION_CHANCE,
     TrafficSpecification,
 )
-from src.traffic.regimes import REGIMES, ScheduledRhythm
+from src.scenario_engine.traffic.regimes import REGIMES, ScheduledRhythm
 
 SPECIFICATION = TrafficSpecification()
 REPOSITORY_SPECIFICATION = KeyRepositorySpecification()
@@ -132,7 +132,7 @@ def test_reference_output_has_not_changed() -> None:
     Guarda o resumo criptografico em vez do CSV inteiro porque o arquivo tem
     cerca de 48 mil linhas: versiona-lo pesaria mais que o repositorio de
     codigo. A contrapartida e que a falha diz **que** mudou, nao **o que**
-    mudou, e o arquivo se regenera com `python -m src.traffic --seed 1`.
+    mudou, e o arquivo se regenera com `python -m src.scenario_engine.traffic --seed 1`.
 
     Quando falhar, confirme se a mudanca era intencional, registre a decisao e
     atualize o valor de referencia.

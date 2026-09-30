@@ -27,9 +27,9 @@ from sklearn.metrics import roc_auc_score
 from sklearn.tree import DecisionTreeClassifier
 from statsmodels.stats.multitest import multipletests
 
-from src.attack.build import ADMINISTRATOR
-from src.baseline.build import MECHANISM as RULES
-from src.dataset.build import ATTRIBUTES, LABEL
+from src.scenario_engine.attack.build import ADMINISTRATOR
+from src.policy_engine.baseline.build import MECHANISM as RULES
+from src.dataset_generator.dataset.build import ATTRIBUTES, LABEL
 from src.evaluation.parameters import (
     ALTERNATIVE,
     EXCLUSION_F1,
@@ -38,7 +38,7 @@ from src.evaluation.parameters import (
     STUMP_RANDOM_STATE,
     ZERO_METHOD,
 )
-from src.globals.layout import run_directory, seed_directory
+from src.shared import layout
 from src.models.parameters import MODEL_NAMES
 
 MECHANISMS = (RULES,) + MODEL_NAMES
@@ -267,7 +267,13 @@ def signed_rank_test(differences: pd.Series) -> tuple[float, float]:
     """Wilcoxon pareado, bilateral (D-116).
 
     Quando todas as diferencas sao zero nao ha o que testar: estatistica 0 e p 1.
+    Com menos de duas sementes, a execucao e parcial e o teste nao existe.
     """
+    is_partial = len(differences) < 2
+
+    if is_partial:
+        return np.nan, np.nan
+
     has_difference = bool((differences != 0).any())
 
     if not has_difference:
@@ -304,7 +310,7 @@ def comparison_row(metrics: pd.DataFrame, stumps: pd.Series, sigma: float, model
 
 def with_holm(rows: pd.DataFrame) -> pd.DataFrame:
     """Holm so sobre as condicoes mantidas (D-111); as excluidas ficam sem teste corrigido."""
-    kept = ~rows["excluded"]
+    kept = ~rows["excluded"] & rows["p_value"].notna()
     corrected = pd.Series(np.nan, index=rows.index)
 
     if kept.any():
@@ -363,10 +369,10 @@ def build_evaluation(runs: list[Run]) -> Evaluation:
 
 def read_administrators(root: Path, seed: int) -> frozenset[str]:
     """Os administradores da semente, lidos da populacao do ramo da semente."""
-    path = seed_directory(root, seed) / "operators.csv"
+    path = layout.seed_directory(root, seed) / layout.OPERATORS
 
     if not path.exists():
-        raise FileNotFoundError(f"falta `operators.csv` em {path.parent}")
+        raise FileNotFoundError(f"falta `{layout.OPERATORS}` em {path.parent}")
 
     operators = pd.read_csv(path)
     is_administrator = operators["profile"] == ADMINISTRATOR
@@ -376,7 +382,7 @@ def read_administrators(root: Path, seed: int) -> frozenset[str]:
 
 def read_run(root: Path, seed: int, sigma: float) -> Run:
     """Os arquivos de uma execucao, com erro claro quando falta algum."""
-    directory = run_directory(root, seed, sigma)
+    directory = layout.run_directory(root, seed, sigma)
 
     def table(name: str) -> pd.DataFrame:
         path = directory / name
@@ -386,10 +392,12 @@ def read_run(root: Path, seed: int, sigma: float) -> Run:
 
         return pd.read_csv(path)
 
-    timing = pd.concat([table("timing_rules.csv"), table("timing_ml.csv")], ignore_index=True)
+    timing = pd.concat(
+        [table(layout.TIMING_RULES), table(layout.TIMING_ML)], ignore_index=True
+    )
 
     return Run(
-        seed, sigma, table("train.csv"), table("holdout.csv"),
-        table("predictions_rules.csv"), table("predictions_ml.csv"), timing,
+        seed, sigma, table(layout.TRAIN), table(layout.HOLDOUT),
+        table(layout.PREDICTIONS_RULES), table(layout.PREDICTIONS_ML), timing,
         read_administrators(root, seed),
     )
