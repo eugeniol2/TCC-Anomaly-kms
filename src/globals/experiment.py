@@ -76,3 +76,6 @@ precisa vir antes de gastar as execucoes, e o conserto invalidaria as ja feitas.
 
 RESERVED_SEEDS = (HYPERPARAMETER_SEARCH_SEED, REHEARSAL_SEED)
 """As sementes das preparacoes. Nenhuma pertence a `SEEDS`."""
+
+PREPARATION_SIGMA = 0.5
+"""O sigma das duas preparatorias: o meio da varredura (D-032, D-107)."""

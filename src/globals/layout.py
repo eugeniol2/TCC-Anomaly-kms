@@ -10,9 +10,14 @@ sobre o periodo avaliado (D-049).
 
     data/
       runs.csv                        indice das 330 execucoes (D-012)
-      metrics.csv                     agregado final (M12)
+      metrics.csv                     M12, cada mecanismo em cada execucao
+      triviality.csv                  M12, a arvore rasa e as duplicatas
+      comparison.csv                  M12, Wilcoxon e Holm por sigma e modelo
+      timing.csv                      M12, o tempo de cada mecanismo
       preparation/
         seed-902/                     busca de hiperparametros (D-047)
+          config.csv                  M11, a configuracao escolhida (D-115)
+          search_results.csv          M11, a nota de cada configuracao da grade
         seed-903/                     ensaio do pipeline antes das 330 (D-107)
       seed-01/                        ---- ramo da semente, 30 execucoes ----
         operators.csv                 M1
@@ -33,6 +38,7 @@ sobre o periodo avaliado (D-049).
           predictions_rules.csv       M10
           timing_rules.csv            M10, o tempo, unico arquivo nao deterministico
           predictions_ml.csv          M11
+          timing_ml.csv               M11, o tempo dos dois modelos
         sigma-0.1/ ... sigma-1.0/
       seed-02/ ... seed-30/
 
@@ -60,7 +66,25 @@ que a mesma semente comprometeu o mesmo administrador nas 11 condicoes de sigma
 """
 
 METRICS = "metrics.csv"
-"""Saida do M12, agregando as 330 execucoes."""
+"""Saida do M12: as metricas de cada mecanismo em cada execucao."""
+
+TRIVIALITY = "triviality.csv"
+"""Saida do M12: a arvore rasa e a procura de duplicata, por execucao (D-028, D-029)."""
+
+COMPARISON = "comparison.csv"
+"""Saida do M12: Wilcoxon e Holm, por sigma e modelo (D-111, D-116)."""
+
+TIMING = "timing.csv"
+"""Saida do M12: o tempo de decisao de cada mecanismo, resumido (D-106)."""
+
+PREPARATION = "preparation"
+"""A pasta das preparatorias, dentro da raiz de dados."""
+
+CONFIGURATION = "config.csv"
+"""A configuracao dos modelos que a busca da 902 escolheu (D-115)."""
+
+SEARCH_RESULTS = "search_results.csv"
+"""A nota de cada configuracao da grade, na 902 (D-115)."""
 
 
 def seed_directory(root: Path, seed: int) -> Path:
@@ -93,5 +117,8 @@ def preparation_directory(root: Path, seed: int) -> Path:
 
     Os limiares do baseline nao passam por aqui: saem do aquecimento de cada
     execucao, no ramo da semente (D-043).
+
+    Dentro dela a preparatoria tem o mesmo layout de uma replica: e o orquestrador
+    rodando com `root / PREPARATION` como raiz.
     """
-    return root / "preparation" / f"seed-{seed}"
+    return seed_directory(root / PREPARATION, seed)

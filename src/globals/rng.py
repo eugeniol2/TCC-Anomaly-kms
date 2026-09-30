@@ -8,7 +8,8 @@ aviso.
 **Acrescentar um fluxo nao altera os existentes.** O `SeedSequence.spawn` deriva
 cada filho do indice dele, e nao de quantos filhos sao pedidos: os tres
 primeiros de `spawn(4)` sao identicos aos de `spawn(3)`. Foi assim que a
-particao ganhou o quarto fluxo sem mudar dado nenhum ja gerado (D-102).
+particao ganhou o quarto fluxo, e os modelos o quinto, sem mudar dado nenhum ja
+gerado (D-102, D-104).
 """
 
 from __future__ import annotations
@@ -31,7 +32,13 @@ Derivado so da semente, e nao de sigma: a particao e a mesma nas onze condicoes
 de uma semente, pela mesma logica da D-011.
 """
 
-STREAM_COUNT = 4
+MODELS = 4
+"""Sementes de treino dos modelos e dobras da busca (M11, D-104, D-115).
+
+Tambem so da semente: o modelo treina com a mesma semente nas onze condicoes.
+"""
+
+STREAM_COUNT = 5
 
 
 def stream(seed: int, subsystem: int) -> Generator:
