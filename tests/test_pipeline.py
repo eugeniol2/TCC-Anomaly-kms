@@ -26,15 +26,25 @@ from src.audit_logger.build import build_log
 from src.baseline.build import build_baseline
 from src.calibration.build import build_thresholds
 from src.dataset.build import build_dataset
-from src.globals.experiment import SIGMAS
-from src.globals.layout import RUNS_INDEX, run_directory, seed_directory
+from src.evaluation.build import MECHANISMS
+from src.globals.experiment import PREPARATION_SIGMA, REHEARSAL_SEED, SIGMAS
+from src.globals.layout import (
+    METRICS,
+    PREPARATION,
+    RUNS_INDEX,
+    TRIVIALITY,
+    run_directory,
+    seed_directory,
+)
 from src.globals.phases import EVALUATED, WARMUP
 from src.globals.timing import COLUMNS as TIMING_COLUMNS
 from src.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
+from src.models.build import build_models
 from src.partition.build import build_partition
 from src.pipeline.build import (
     Specifications,
+    run_rehearsal,
     run_seed_branch,
     run_sigma_branch,
     run_sweep,
@@ -43,7 +53,19 @@ from src.pipeline.build import (
 from src.population.build import build_population
 from src.traffic.build import build_traffic
 
-SPECIFICATIONS = Specifications()
+TEST_CONFIGURATION = {
+    "random_forest": {
+        "n_estimators": 10, "max_depth": None, "min_samples_leaf": 1,
+        "max_features": "sqrt", "class_weight": None,
+    },
+    "xgboost": {
+        "n_estimators": 10, "max_depth": 3, "learning_rate": 0.1,
+        "subsample": 1.0, "colsample_bytree": 1.0, "class_weight": "balanced",
+    },
+}
+"""Uma configuracao pequena, so para os testes rodarem rapido. A de verdade sai da 902."""
+
+SPECIFICATIONS = Specifications(models=TEST_CONFIGURATION)
 
 SEED = 3
 SAMPLE_SIGMAS = (0.0, 0.5, 1.0)
@@ -69,9 +91,11 @@ SIGMA_FILES = (
     "train.csv",
     "holdout.csv",
     "predictions_rules.csv",
+    "predictions_ml.csv",
 )
 
-TIMING_FILES = ("timing_rules.csv",)
+TIMING_FILES = {"timing_rules.csv": 1, "timing_ml.csv": 2}
+"""Os arquivos de tempo, e quantos mecanismos cada um mede."""
 """Os arquivos de tempo, fora de toda comparacao de conteudo.
 
 Tempo muda a cada execucao, entao eles nunca sao iguais aos de outra rodada, e
@@ -133,6 +157,9 @@ def modules_one_by_one(seed: int, sigma: float) -> dict[str, pd.DataFrame]:
         "sigma/predictions_rules.csv": build_baseline(
             partition.holdout, thresholds
         ).predictions,
+        "sigma/predictions_ml.csv": build_models(
+            seed, partition.train, partition.holdout, TEST_CONFIGURATION
+        ).predictions,
     }
 
 
@@ -188,12 +215,34 @@ def test_the_timing_files_are_written_with_their_columns(tmp_path: Path) -> None
     branch = run_seed_branch(SEED, tmp_path, SPECIFICATIONS)
     run_sigma_branch(SEED, 0.5, tmp_path, branch, SPECIFICATIONS)
 
-    for name in TIMING_FILES:
+    for name, mechanisms in TIMING_FILES.items():
         timing = pd.read_csv(run_directory(tmp_path, SEED, 0.5) / name)
 
         assert tuple(timing.columns) == TIMING_COLUMNS, name
-        assert len(timing) == 1, name
-        assert timing["median_nanoseconds"].iloc[0] > 0, name
+        assert len(timing) == mechanisms, name
+        assert (timing["median_nanoseconds"] > 0).all(), name
+
+
+def test_the_rehearsal_runs_the_whole_pipeline_on_the_reserved_seed(tmp_path: Path) -> None:
+    """A 903 passa por todos os modulos e grava metricas e arvore rasa (D-107)."""
+    evaluation = run_rehearsal(tmp_path, SPECIFICATIONS)
+    directory = run_directory(tmp_path / PREPARATION, REHEARSAL_SEED, PREPARATION_SIGMA)
+
+    assert len(evaluation.metrics) == len(MECHANISMS)
+    assert len(evaluation.triviality) == 1
+    assert (directory / METRICS).exists()
+    assert (directory / TRIVIALITY).exists()
+
+
+def test_the_sigma_branch_refuses_to_run_without_a_configuration(tmp_path: Path) -> None:
+    """Sem a busca da 902, nao ha modelo para treinar, e isso falha antes de escrever."""
+    unconfigured = Specifications()
+    branch = run_seed_branch(SEED, tmp_path, unconfigured)
+
+    with pytest.raises(ValueError, match="configuracao"):
+        run_sigma_branch(SEED, 0.5, tmp_path, branch, unconfigured)
+
+    assert not run_directory(tmp_path, SEED, 0.5).exists()
 
 
 @pytest.mark.parametrize("sigma", SAMPLE_SIGMAS)

@@ -37,11 +37,38 @@ from src.audit_logger.build import build_log
 from src.baseline.build import build_baseline
 from src.calibration.build import build_thresholds
 from src.dataset.build import build_dataset
-from src.globals.layout import RUNS_INDEX, run_directory, seed_directory
+from src.evaluation.build import (
+    Evaluation,
+    build_evaluation,
+    read_run,
+    run_metrics,
+    run_triviality,
+)
+from src.globals.experiment import (
+    HYPERPARAMETER_SEARCH_SEED,
+    PREPARATION_SIGMA,
+    REHEARSAL_SEED,
+    SEEDS,
+    SIGMAS,
+)
+from src.globals.layout import (
+    COMPARISON,
+    CONFIGURATION,
+    METRICS,
+    PREPARATION,
+    RUNS_INDEX,
+    SEARCH_RESULTS,
+    TIMING,
+    TRIVIALITY,
+    preparation_directory,
+    run_directory,
+    seed_directory,
+)
 from src.globals.phases import EVALUATED, WARMUP
 from src.globals.tables import write_csv
 from src.historical_profiles.build import build_profiles
 from src.kms.build import build_outcomes
+from src.models.build import build_models, chosen_configuration
 from src.partition.build import build_partition
 from src.population.build import build_population
 from src.population.parameters import KeyRepositorySpecification
@@ -60,6 +87,8 @@ class Specifications(NamedTuple):
     repository: KeyRepositorySpecification = KeyRepositorySpecification()
     traffic: TrafficSpecification = TrafficSpecification()
     attack: AttackSpecification = AttackSpecification()
+    models: dict[str, dict] | None = None
+    """A configuracao que a busca da 902 escolheu. Sem ela o M11 nao roda."""
 
 
 class SeedBranch(NamedTuple):
@@ -72,6 +101,17 @@ class SeedBranch(NamedTuple):
     thresholds: pd.DataFrame
 
 
+class EvaluatedSets(NamedTuple):
+    """O ramo de sigma ate a particao: o que o baseline e os modelos recebem."""
+
+    requests: pd.DataFrame
+    compromised: pd.DataFrame
+    run: pd.DataFrame
+    sessions: pd.DataFrame
+    train: pd.DataFrame
+    holdout: pd.DataFrame
+
+
 class SigmaBranch(NamedTuple):
     """O que uma execução (semente, sigma) produz."""
 
@@ -82,6 +122,7 @@ class SigmaBranch(NamedTuple):
     train: pd.DataFrame
     holdout: pd.DataFrame
     predictions_rules: pd.DataFrame
+    predictions_ml: pd.DataFrame
 
 
 def emit(frame: pd.DataFrame, directory: Path, name: str) -> pd.DataFrame:
@@ -127,14 +168,14 @@ def run_seed_branch(seed: int, root: Path, specifications: Specifications) -> Se
     return SeedBranch(operators, keys, requests, profiles, thresholds)
 
 
-def run_sigma_branch(
+def run_evaluated_sets(
     seed: int,
     sigma: float,
     root: Path,
     branch: SeedBranch,
     specifications: Specifications,
-) -> SigmaBranch:
-    """As semanas 5 a 8 de uma condição. Roda 330 vezes.
+) -> EvaluatedSets:
+    """As semanas 5 a 8 de uma condição, da campanha à partição.
 
     Recebe o ramo da semente pronto em vez de recomputá-lo: é o que garante
     que as onze condições compartilhem exatamente o mesmo aquecimento.
@@ -166,15 +207,37 @@ def run_sigma_branch(
     train = emit(partition.train, directory, "train.csv")
     holdout = emit(partition.holdout, directory, "holdout.csv")
 
-    baseline = build_baseline(holdout, branch.thresholds)
-    predictions_rules = emit(
-        baseline.predictions, directory, "predictions_rules.csv"
-    )
+    return EvaluatedSets(requests, compromised, run, sessions, train, holdout)
+
+
+def run_sigma_branch(
+    seed: int,
+    sigma: float,
+    root: Path,
+    branch: SeedBranch,
+    specifications: Specifications,
+) -> SigmaBranch:
+    """Uma condição inteira: os conjuntos, e as decisões do baseline e dos modelos.
+
+    Roda 330 vezes. Exige a configuração dos modelos, que sai da busca da 902.
+    """
+    is_unconfigured = specifications.models is None
+
+    if is_unconfigured:
+        raise ValueError("falta a configuracao dos modelos; rode antes a busca da 902")
+
+    directory = run_directory(root, seed, sigma)
+    sets = run_evaluated_sets(seed, sigma, root, branch, specifications)
+
+    baseline = build_baseline(sets.holdout, branch.thresholds)
+    predictions_rules = emit(baseline.predictions, directory, "predictions_rules.csv")
     emit(baseline.timing, directory, "timing_rules.csv")
 
-    return SigmaBranch(
-        requests, compromised, run, sessions, train, holdout, predictions_rules
-    )
+    models = build_models(seed, sets.train, sets.holdout, specifications.models)
+    predictions_ml = emit(models.predictions, directory, "predictions_ml.csv")
+    emit(models.timing, directory, "timing_ml.csv")
+
+    return SigmaBranch(*sets, predictions_rules, predictions_ml)
 
 
 def run_sweep(
@@ -208,3 +271,62 @@ def write_runs_index(rows: list[pd.DataFrame], root: Path) -> pd.DataFrame:
     )
 
     return emit(index, root, RUNS_INDEX)
+
+
+def run_search_preparation(root: Path, specifications: Specifications) -> pd.DataFrame:
+    """A preparatória 902 até a partição, em sigma 0,5: o treino da busca.
+
+    Grava tudo em `preparation/seed-902/`, com o layout de uma réplica. Para na
+    partição: o holdout da 902 não é consultado em momento nenhum (D-045).
+    """
+    preparation = root / PREPARATION
+    seed = HYPERPARAMETER_SEARCH_SEED
+
+    branch = run_seed_branch(seed, preparation, specifications)
+    sets = run_evaluated_sets(seed, PREPARATION_SIGMA, preparation, branch, specifications)
+
+    return sets.train
+
+
+def write_search(scores: list[dict], root: Path) -> pd.DataFrame:
+    """Grava a nota de cada configuração e a escolhida, e devolve a escolhida."""
+    directory = preparation_directory(root, HYPERPARAMETER_SEARCH_SEED)
+    results = emit(pd.DataFrame(scores), directory, SEARCH_RESULTS)
+
+    return emit(chosen_configuration(results), directory, CONFIGURATION)
+
+
+def run_rehearsal(root: Path, specifications: Specifications) -> Evaluation:
+    """A preparatória 903: o pipeline inteiro numa semente reservada, em sigma 0,5 (D-107).
+
+    Grava em `preparation/seed-903/`, e na pasta da execução as métricas e a árvore
+    rasa dela. É a primeira vez que se vê acerto, e numa semente fora das 30.
+    """
+    preparation = root / PREPARATION
+    seed = REHEARSAL_SEED
+
+    branch = run_seed_branch(seed, preparation, specifications)
+    run_sigma_branch(seed, PREPARATION_SIGMA, preparation, branch, specifications)
+
+    run = read_run(preparation, seed, PREPARATION_SIGMA)
+    directory = run_directory(preparation, seed, PREPARATION_SIGMA)
+
+    return Evaluation(
+        emit(run_metrics(run), directory, METRICS),
+        emit(run_triviality(run), directory, TRIVIALITY),
+        comparison=pd.DataFrame(),
+        timing=run.timing,
+    )
+
+
+def write_evaluation(root: Path) -> Evaluation:
+    """O M12 sobre a grade inteira, lida do disco: as quatro tabelas na raiz."""
+    runs = [read_run(root, seed, sigma) for seed in SEEDS for sigma in SIGMAS]
+    evaluation = build_evaluation(runs)
+
+    return Evaluation(
+        emit(evaluation.metrics, root, METRICS),
+        emit(evaluation.triviality, root, TRIVIALITY),
+        emit(evaluation.comparison, root, COMPARISON),
+        emit(evaluation.timing, root, TIMING),
+    )
