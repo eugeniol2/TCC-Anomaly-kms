@@ -344,7 +344,7 @@ def frames_da_fase_3(
     particao: Partition,
     detalhes: list[Step],
 ) -> list[Quadro]:
-    """Passos 8 a 12. Os dois últimos ainda não existem."""
+    """Passos 8 a 12. Os dois últimos existem, mas a tela não mostra resultado."""
     do_avaliado = requests[belongs_to(EVALUATED, requests["timestamp"])]
     positivas = int(sessoes["compromised"].sum())
 
@@ -446,9 +446,9 @@ def frames_da_fase_3(
             saidas=(),
             variaveis=variaveis_pendentes_do_m10_m11(),
             pendente=(
-                "O baseline já decide sobre o holdout, mas a tela não mostra as "
-                "decisões: ver acerto no holdout é um momento que o registro marca. "
-                "predictions_ml.csv ainda não existe."
+                "O baseline e os modelos já decidem sobre o holdout, mas a tela não "
+                "mostra as decisões: ver acerto é um momento que o registro marca, e o "
+                "primeiro é o ensaio da 903."
             ),
         ),
         Quadro(
@@ -466,6 +466,9 @@ def frames_da_fase_3(
             entradas=(),
             saidas=(),
             variaveis=variaveis_pendentes_do_m12(),
-            pendente="metrics.csv ainda não existe. Nenhum F1 foi calculado.",
+            pendente=(
+                "A avaliação está escrita e roda no fim da grade. Nenhum F1 das 30 "
+                "réplicas foi calculado."
+            ),
         ),
     ]

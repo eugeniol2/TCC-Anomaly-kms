@@ -57,8 +57,8 @@ from src.viewer.theory import (
 COLUNAS = ("variável", "valor", "o que é")
 
 MODELOS = ("Random Forest", "XGBoost")
-"""Os dois modelos supervisionados (D-051). Ainda nao existem no codigo, e a
-contagem de comparacoes da tela sai daqui, e nao de um 22 escrito a mao."""
+"""Os dois modelos supervisionados (D-051). A contagem de comparacoes da tela sai
+daqui, e nao de um 22 escrito a mao."""
 
 REGRAS_DE_GRANDEZA = len(THRESHOLD_ATTRIBUTES)
 REGRAS_DE_PERFIL = len(ATTRIBUTES) - REGRAS_DE_GRANDEZA

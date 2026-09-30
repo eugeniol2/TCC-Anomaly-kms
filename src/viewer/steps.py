@@ -86,9 +86,9 @@ FASES = (
         implementada=True,
         pendencia=(
             "Os passos abaixo param no `train.csv` e no `holdout.csv`, que são a "
-            "**entrada** dos modelos. O baseline de regras já decide sobre o "
-            "holdout, mas a tela não mostra as decisões; faltam os dois modelos "
-            "e a avaliação. Nenhum F1 foi calculado."
+            "**entrada** do baseline e dos modelos. Os dois já decidem, e a avaliação "
+            "está escrita, mas a tela não mostra resultado: nenhum F1 das 30 "
+            "réplicas foi calculado."
         ),
     ),
 )
@@ -827,9 +827,9 @@ def attack_steps(
             "condicoes, e as do atacante pela posicao na campanha. Por isso **as "
             "mesmas sessoes legitimas** estao no holdout em todo sigma, e o que muda "
             "de um ponto da curva ao outro e so o atacante.\n\n"
-            "**E aqui que a tela para hoje.** O baseline ja decide sobre este "
-            "holdout, mas as decisoes dele nao aparecem aqui; faltam os modelos e "
-            "a avaliacao."
+            "**E aqui que a tela para.** O baseline e os modelos ja decidem sobre "
+            "este holdout, mas as decisoes nao aparecem aqui: ver acerto e um "
+            "momento que o registro marca."
         ),
         entrada={"sessoes": len(sessoes), "semente": seed},
         saida=contagem_por_lado(particao),
