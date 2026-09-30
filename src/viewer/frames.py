@@ -1,23 +1,10 @@
-"""Os quadros do pipeline: entrada, entidade, saida.
+"""Os quadros do pipeline: o que entra, a entidade que processa, o que sai.
 
-Este modulo existe porque o `steps.py` responde a pergunta errada para quem
-esta conhecendo o trabalho. Ele mostra **funcoes** (`scope_pool`,
-`holders_by_scope`, `split_keys_by_scope`), que e granularidade de
-implementacao. Quem le a monografia precisa da granularidade da
-**arquitetura**: que dados entraram, que entidade os processou, que dados
-sairam.
-
-Um quadro aqui corresponde a **um passo do diagrama**, com uma excecao: o
-KMS e o Audit Logger, que o diagrama junta num passo so, sao dois quadros no
-aquecimento, porque juntos confundiam quem decide o desfecho com quem o
-registra. Por isso sao doze quadros para os onze passos do diagrama. A
-numeracao e a ordem de execucao, que nao segue os numeros de modulo porque o
-Scenario Engine e o par KMS · Audit Logger rodam duas vezes.
-
-O detalhe por funcao nao se perde: cada quadro carrega os passos do `steps.py`
-que lhe correspondem, e o app os mostra sob demanda. A ordem entre os dois e
-deliberada: primeiro o que entrou e o que saiu, depois, para quem quiser,
-como aquilo foi feito.
+Um quadro por passo, com os arquivos que o comando unico gravou. Sao treze,
+em tres fases: a preparacao dos dados, o aquecimento com a calibracao, e o
+periodo avaliado, do ataque a avaliacao. O KMS e o Audit Logger sao quadros
+separados no aquecimento, para nao confundir quem decide o desfecho com quem o
+registra; e as regras e os modelos tambem, porque sao os dois lados da comparacao.
 """
 
 from __future__ import annotations
@@ -27,448 +14,339 @@ from typing import Any
 
 import pandas as pd
 
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
 from src.dataset_generator.dataset.build import ATTRIBUTES, LABEL
-from src.shared.experiment import SIGMAS
-from src.shared.phases import EVALUATED, WARMUP, belongs_to
-from src.dataset_generator.partition.build import Partition
 from src.dataset_generator.partition.parameters import HOLDOUT_SHARE
 from src.kms.repository.parameters import KeyRepositorySpecification
+from src.policy_engine.baseline.build import MECHANISM as RULES
+from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.scenario_engine.attack.parameters import AttackSpecification
 from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.shared.phases import EVALUATED, WARMUP, belongs_to
+from src.viewer.data import GridFiles, RunFiles, SeedFiles
 from src.viewer.decisions import (
-    MODELOS,
     Variavel,
-    variaveis_do_m1,
-    variaveis_do_m2,
-    variaveis_do_m3,
     variaveis_do_audit_logger,
     variaveis_do_kms,
+    variaveis_do_m1,
+    variaveis_do_m10,
+    variaveis_do_m11,
+    variaveis_do_m12,
+    variaveis_do_m2,
+    variaveis_do_m3,
     variaveis_do_m4_m5,
     variaveis_do_m6,
     variaveis_do_m7,
     variaveis_do_m8,
     variaveis_do_m9,
-    variaveis_pendentes_do_m10_m11,
-    variaveis_pendentes_do_m12,
 )
 from src.viewer.formatting import com_virgula, porcento
-from src.viewer.steps import FASE_1, FASE_2, FASE_3, Step
+
+
+@dataclass(frozen=True)
+class Fase:
+    """Uma das tres fases, com os quadros que ela mostra."""
+
+    nome: str
+    quadros: tuple[int, ...]
+
+
+FASES = (
+    Fase("Fase 1 · Preparação dos dados", (1, 2)),
+    Fase("Fase 2 · Aquecimento e calibração", (3, 4, 5, 6, 7)),
+    Fase("Fase 3 · Ataque e comparação", (8, 9, 10, 11, 12, 13)),
+)
 
 
 @dataclass(frozen=True)
 class Painel:
-    """Um dado que entra ou sai de uma entidade.
-
-    `dado` pode ser uma tabela, uma lista ou um numero. O app decide como
-    mostrar; aqui so se declara o que e.
-    """
+    """Um arquivo ou parametro que entra ou sai de uma entidade."""
 
     nome: str
     dado: Any
     legenda: str = ""
 
     def tamanho(self) -> str:
-        """Quantas linhas, quando isso faz sentido."""
         is_tabela = isinstance(self.dado, pd.DataFrame)
 
-        if is_tabela:
-            return f"{len(self.dado)} linhas x {len(self.dado.columns)} colunas"
-
-        is_contavel = isinstance(self.dado, (list, tuple, dict, set))
-
-        if is_contavel:
-            return f"{len(self.dado)} itens"
-
-        return ""
+        return f"{len(self.dado)} linhas x {len(self.dado.columns)} colunas" if is_tabela else ""
 
 
 @dataclass(frozen=True)
 class Quadro:
-    """Um passo do diagrama: o que entrou, quem processou, o que saiu."""
+    """Um passo: o que entrou, a entidade que processou, o que saiu."""
 
     numero: int
-    fase: str
     entidade: str
     modulos: str
     resumo: str
     entradas: tuple[Painel, ...]
     saidas: tuple[Painel, ...]
-
     variaveis: tuple[Variavel, ...] = field(default_factory=tuple)
-    """As variáveis de decisão que regem esta entidade.
-
-    Vêm antes das tabelas na tela, e não depois, porque a pergunta que elas
-    respondem (por que este dado é assim) precede a de que dado é este.
-    """
-
-    detalhes: tuple[Step, ...] = field(default_factory=tuple)
-    """Os passos por funcao, para quem quiser abrir. Podem ser nenhum."""
-
-    pendente: str = ""
-    """Preenchido quando a entidade ainda não existe."""
+    aviso: str = ""
 
 
-def apenas(passos: list[Step], *modulos: str) -> tuple[Step, ...]:
-    """Os passos daqueles módulos, na ordem em que rodaram."""
-    return tuple(passo for passo in passos if passo.modulo in modulos)
+@dataclass(frozen=True)
+class Execucao:
+    """O que os quadros de uma execucao leem: a semente, o sigma e os arquivos."""
+
+    seed: int
+    sigma: float
+    semente: SeedFiles
+    avaliado: RunFiles | None
+    grade: GridFiles | None
+    configuracao: dict[str, dict]
 
 
 def recorte(inteiro: pd.DataFrame, parte: pd.DataFrame, periodo: str) -> str:
-    """A legenda de um painel que mostra so um pedaco do arquivo.
-
-    Mostrar o tamanho do arquivo inteiro ao lado de uma legenda que fala de
-    outro periodo engana: parece que as oito semanas inteiras entraram no KMS
-    quando entrou so a fatia daquela fase. O painel passa a mostrar **o
-    recorte**, e a legenda diz de onde ele saiu.
-    """
-    fatia = len(parte) / len(inteiro)
-
+    """A legenda de um painel que mostra so um pedaco do arquivo."""
     return (f"{periodo}, {len(parte)} das {len(inteiro)} linhas do arquivo, "
-            f"{porcento(fatia, 0)}")
-
-
-def frames_da_fase_1(
-    seed: int,
-    operators: pd.DataFrame,
-    keys: pd.DataFrame,
-    requests: pd.DataFrame,
-    detalhes: list[Step],
-) -> list[Quadro]:
-    """Passos 1 e 2 do diagrama: o mundo estático e o tráfego legítimo."""
-    return [
-        Quadro(
-            numero=1,
-            fase=FASE_1,
-            entidade="População e repositório de chaves",
-            modulos="M1",
-            resumo=(
-                "Constrói o **mundo estático**: quem existe e o que existe. Não "
-                "gera comportamento nenhum: nenhuma requisição, nenhum evento."
-            ),
-            entradas=(
-                Painel("semente", seed,
-                       "parâmetro, sem período, que determina tudo que não é σ"),
-            ),
-            saidas=(
-                Painel("operators.csv", operators,
-                       "estático, sem período, 44 operadores em três perfis"),
-                Painel("keys.csv", keys,
-                       "estático, sem período, 300 chaves em 12 escopos"),
-            ),
-            variaveis=variaveis_do_m1(KeyRepositorySpecification(), keys),
-            detalhes=apenas(detalhes, "M1"),
-        ),
-        Quadro(
-            numero=2,
-            fase=FASE_1,
-            entidade="Scenario Engine",
-            modulos="M2",
-            resumo=(
-                "Transforma as duas tabelas em **oito semanas de requisições**. "
-                "Cada operador abre sessões conforme o ritmo do seu regime, e "
-                "dentro de cada sessão pede chaves do seu alcance."
-            ),
-            entradas=(
-                Painel("operators.csv", operators,
-                       "estático: quem age, e com que ritmo"),
-                Painel("keys.csv", keys, "estático: o que pode ser pedido"),
-            ),
-            saidas=(
-                Painel("requests.csv", requests,
-                       "oito semanas, só tráfego legítimo, sem desfecho"),
-            ),
-            variaveis=variaveis_do_m2(TrafficSpecification()),
-            detalhes=apenas(detalhes, "M2"),
-        ),
-    ]
-
-
-def frames_da_fase_2(
-    requests: pd.DataFrame,
-    operators: pd.DataFrame,
-    keys: pd.DataFrame,
-    outcomes: pd.DataFrame,
-    log: pd.DataFrame,
-    perfis: pd.DataFrame,
-    sessoes: pd.DataFrame,
-    limiares: pd.DataFrame,
-    detalhes: list[Step],
-) -> list[Quadro]:
-    """Passos 3 a 7: o aquecimento e a calibração."""
-    do_aquecimento = requests[belongs_to(WARMUP, requests["timestamp"])]
-
-    return [
-        Quadro(
-            numero=3,
-            fase=FASE_2,
-            entidade="KMS",
-            modulos="M4",
-            resumo=(
-                "O **KMS decide** o desfecho de cada requisição, consultando a "
-                "política da chave: sucesso, negação por política, chave "
-                "desabilitada ou chave inexistente. Semanas 1 a 4, sem "
-                "atacante nenhum."
-            ),
-            entradas=(
-                Painel("operators.csv", operators,
-                       "estático: quem pode pedir, e em que escopos"),
-                Painel("keys.csv", keys,
-                       "estático: escopo e situação de cada chave"),
-                Painel("requests.csv", do_aquecimento,
-                       recorte(requests, do_aquecimento, "o que foi pedido nas semanas 1 a 4")),
-            ),
-            saidas=(
-                Painel("outcomes.csv", outcomes,
-                       "semanas 1 a 4, com duas colunas: event_id e outcome"),
-            ),
-            variaveis=variaveis_do_kms(),
-            detalhes=apenas(detalhes, "M4"),
-        ),
-        Quadro(
-            numero=4,
-            fase=FASE_2,
-            entidade="Audit Logger",
-            modulos="M5",
-            resumo=(
-                "O **Audit Logger registra**: junta cada requisição ao desfecho "
-                "que o KMS decidiu e grava o log de auditoria, com oito colunas. "
-                "Semanas 1 a 4."
-            ),
-            entradas=(
-                Painel("requests.csv", do_aquecimento,
-                       recorte(requests, do_aquecimento, "o que foi pedido nas semanas 1 a 4")),
-                Painel("outcomes.csv", outcomes,
-                       "semanas 1 a 4, o desfecho que o KMS decidiu para cada evento"),
-            ),
-            saidas=(
-                Painel("log.csv", log,
-                       "semanas 1 a 4, as oito colunas do log de auditoria"),
-            ),
-            variaveis=variaveis_do_audit_logger(),
-            detalhes=apenas(detalhes, "M5"),
-        ),
-        Quadro(
-            numero=5,
-            fase=FASE_2,
-            entidade="Perfis históricos",
-            modulos="M6",
-            resumo=(
-                "Observa o que cada operador fez nas **quatro semanas de "
-                "aquecimento**: a janela horária em que abriu sessão e as "
-                "origens de rede de onde veio."
-            ),
-            entradas=(
-                Painel("log.csv", log,
-                       "semanas 1 a 4, inteiras, porque a régua vê todo o aquecimento"),
-            ),
-            saidas=(
-                Painel("historical_profiles.csv", perfis,
-                       "**das semanas 1 a 4**, uma linha por operador: a "
-                       "janela horária e as origens que ele usou ali"),
-            ),
-            variaveis=variaveis_do_m6(),
-            detalhes=apenas(detalhes, "M6"),
-        ),
-        Quadro(
-            numero=6,
-            fase=FASE_2,
-            entidade="Dataset Generator",
-            modulos="M7",
-            resumo=(
-                "Agrupa o log por operador e, dentro dele, **por sessão**. Cada "
-                f"sessão vira uma linha com {len(ATTRIBUTES)} atributos, comparada "
-                "contra o "
-                "perfil daquele operador."
-            ),
-            entradas=(
-                Painel("log.csv", log,
-                       "semanas 1 a 4, inteiras, que é o que se mede"),
-                Painel("historical_profiles.csv", perfis,
-                       "**das semanas 1 a 4**, a régua: contra ela "
-                       "`atypical_hour` e `new_source_ip` são medidos, e é a "
-                       "mesma que medirá as semanas 5 a 8"),
-            ),
-            saidas=(
-                Painel("sessions.csv", sessoes,
-                       f"semanas 1 a 4, uma linha por sessão, {len(ATTRIBUTES)} "
-                       "atributos, sem rótulo; a Calibração lê o arquivo inteiro"),
-            ),
-            variaveis=variaveis_do_m7(),
-            detalhes=apenas(detalhes, "M7"),
-        ),
-        Quadro(
-            numero=7,
-            fase=FASE_2,
-            entidade="Calibração de limiares",
-            modulos="M8",
-            resumo=(
-                f"Percentil {PERCENTILE} de cada grandeza, sobre **todas** as "
-                f"sessões do aquecimento. {len(THRESHOLD_ATTRIBUTES)} limiares, um "
-                "por regra de grandeza."
-            ),
-            entradas=(
-                Painel("sessions.csv", sessoes,
-                       "semanas 1 a 4, **o mesmo arquivo do Dataset Generator**, "
-                       "inteiro"),
-            ),
-            saidas=(
-                Painel("thresholds.csv", limiares,
-                       f"**das semanas 1 a 4**, {len(THRESHOLD_ATTRIBUTES)} regras, um conjunto por "
-                       "semente, congelado daqui em diante"),
-            ),
-            variaveis=variaveis_do_m8(),
-            detalhes=apenas(detalhes, "M8"),
-        ),
-    ]
+            f"{porcento(len(parte) / len(inteiro), 0)}")
 
 
 def lado(parte: pd.DataFrame) -> str:
-    """A legenda de um lado da partição: tamanho e proporção, contados (D-023)."""
+    """Tamanho e proporcao de anomalias de um lado da particao, contados (D-023)."""
     positivas = int(parte[LABEL].sum())
 
     return (f"semanas 5 a 8, {len(parte)} sessões, {positivas} positivas "
             f"({porcento(positivas / len(parte), 2)})")
 
 
-def frames_da_fase_3(
-    seed: int,
-    sigma: float,
-    requests: pd.DataFrame,
-    perfis: pd.DataFrame,
-    campanha_requests: pd.DataFrame,
-    compromised: pd.DataFrame,
-    execucao: pd.DataFrame,
-    log: pd.DataFrame,
-    sessoes: pd.DataFrame,
-    particao: Partition,
-    detalhes: list[Step],
-) -> list[Quadro]:
-    """Passos 8 a 12. Os dois últimos existem, mas a tela não mostra resultado."""
-    do_avaliado = requests[belongs_to(EVALUATED, requests["timestamp"])]
-    positivas = int(sessoes["compromised"].sum())
+def do_mecanismo(tempo: pd.DataFrame, *mecanismos: str) -> pd.DataFrame:
+    return tempo[tempo["mechanism"].isin(mecanismos)].reset_index(drop=True)
 
-    return [
-        Quadro(
-            numero=8,
-            fase=FASE_3,
-            entidade="Scenario Engine · campanha de ataque",
-            modulos="M3",
-            resumo=(
-                f"Mescla **{AttackSpecification().campaign_sessions} sessões "
-                f"comprometidas** às semanas 5 a 8 do "
-                f"tráfego legítimo, sob a credencial de um administrador. Em "
-                f"σ **{com_virgula(sigma)}**."
-            ),
-            entradas=(
-                Painel("requests.csv", do_avaliado,
-                       recorte(requests, do_avaliado,
-                               "as semanas 5 a 8, onde a campanha entra")),
-                Painel("sigma", sigma,
-                       "parâmetro, sem período: 0,0 ostensivo, 1,0 indistinguível"),
-            ),
-            saidas=(
-                Painel("requests.csv", campanha_requests,
-                       "semanas 5 a 8, legítimo + ataque, renumerado"),
-                Painel("compromised_sessions.csv", compromised,
-                       "semanas 5 a 8, o rótulo, fora do log"),
-                Painel("run.csv", execucao,
-                       "uma linha por execução: qual administrador foi "
-                       "comprometido nesta semente"),
-            ),
-            variaveis=variaveis_do_m3(
-                sigma, AttackSpecification(), TrafficSpecification()
-            ),
-            detalhes=apenas(detalhes, "M3"),
-        ),
-        Quadro(
-            numero=9,
-            fase=FASE_3,
-            entidade="KMS · Audit Logger · Dataset Generator",
-            modulos="M4 · M5 · M7",
-            resumo=(
-                "**As mesmas entidades do aquecimento** (KMS, Audit Logger e Dataset "
-                "Generator), agora sobre as semanas "
-                "5 a 8 com ataque. Ao fim, o rótulo é juntado."
-            ),
-            entradas=(
-                Painel("requests.csv", campanha_requests,
-                       "semanas 5 a 8, legítimo com a campanha dentro"),
-                Painel("historical_profiles.csv", perfis,
-                       "**do aquecimento**, o mesmo arquivo dos Perfis históricos, "
-                       "nunca recalculado"),
-                Painel("compromised_sessions.csv", compromised,
-                       "semanas 5 a 8, o rótulo, que só é juntado aqui"),
-            ),
-            saidas=(
-                Painel("log.csv", log, "semanas 5 a 8, o log do período avaliado"),
-                Painel("sessions.csv", sessoes,
-                       f"semanas 5 a 8, {len(sessoes)} sessões, {positivas} "
-                       f"positivas ({porcento(positivas / len(sessoes), 2)}), já rotulado"),
-            ),
-            variaveis=variaveis_do_m4_m5() + variaveis_do_m7(),
-            detalhes=apenas(detalhes, "M4 · M5", "M7"),
-        ),
-        Quadro(
-            numero=10,
-            fase=FASE_3,
-            entidade="Partição experimental",
-            modulos="M9",
-            resumo=(
-                f"Divide o conjunto em treino e holdout, **por sessão** e "
-                f"estratificada por classe: {porcento(1 - HOLDOUT_SHARE, 0)} e "
-                f"{porcento(HOLDOUT_SHARE, 0)}. **A mesma divisão em todo σ** da "
-                f"semente."
-            ),
-            entradas=(
-                Painel("sessions.csv", sessoes,
-                       "semanas 5 a 8, o conjunto rotulado"),
-                Painel("semente", seed,
-                       "parâmetro: o sorteio depende só dela, e não de σ"),
-            ),
-            saidas=(
-                Painel("train.csv", particao.train, lado(particao.train)),
-                Painel("holdout.csv", particao.holdout, lado(particao.holdout)),
-            ),
-            variaveis=variaveis_do_m9(particao.holdout),
-            detalhes=apenas(detalhes, "M9"),
-        ),
-        Quadro(
-            numero=11,
-            fase=FASE_3,
-            entidade="Policy Engine · Modelos supervisionados",
-            modulos="M10 · M11",
-            resumo=(
-                "O baseline de **oito regras** e os dois modelos (Random Forest "
-                "e XGBoost) classificam o holdout, lado a lado."
-            ),
-            entradas=(),
-            saidas=(),
-            variaveis=variaveis_pendentes_do_m10_m11(),
-            pendente=(
-                "O baseline e os modelos já decidem sobre o holdout, mas a tela não "
-                "mostra as decisões: ver acerto é um momento que o registro marca, e o "
-                "primeiro é o ensaio da 903."
-            ),
-        ),
-        Quadro(
-            numero=12,
-            fase=FASE_3,
-            entidade="Avaliação e comparação",
-            modulos="M12",
-            resumo=(
-                "F1 com a matriz de confusão completa, Wilcoxon pareado com "
-                f"correção de Holm sobre até {len(SIGMAS) * len(MODELOS)} comparações, as das "
-                "condições que a trivialidade mantiver. "
-                "Aqui roda a verificação "
-                "de trivialidade."
-            ),
-            entradas=(),
-            saidas=(),
-            variaveis=variaveis_pendentes_do_m12(),
-            pendente=(
-                "A avaliação está escrita e roda no fim da grade. Nenhum F1 das 30 "
-                "réplicas foi calculado."
-            ),
-        ),
-    ]
+
+# Fase 1: a preparacao dos dados.
+
+
+def populacao(execucao: Execucao) -> Quadro:
+    semente = execucao.semente
+
+    return Quadro(
+        1, "População · Scenario Engine e KMS", "M1",
+        "Constrói o **mundo estático**: os operadores, do Scenario Engine, e o "
+        "repositório de chaves, do KMS. Nenhuma requisição ainda.",
+        (Painel("semente", execucao.seed, "determina tudo que não é σ"),),
+        (Painel("operators.csv", semente.operators, "44 operadores em três perfis"),
+         Painel("keys.csv", semente.keys, "300 chaves em 12 escopos")),
+        variaveis_do_m1(KeyRepositorySpecification(), semente.keys),
+    )
+
+
+def trafego_legitimo(execucao: Execucao) -> Quadro:
+    semente = execucao.semente
+
+    return Quadro(
+        2, "Scenario Engine · tráfego legítimo", "M2",
+        "Transforma as duas tabelas em **oito semanas de requisições**, cada operador "
+        "no ritmo do seu regime.",
+        (Painel("operators.csv", semente.operators, "quem age, e com que ritmo"),
+         Painel("keys.csv", semente.keys, "o que pode ser pedido")),
+        (Painel("requests.csv", semente.requests, "oito semanas, só legítimo, sem desfecho"),),
+        variaveis_do_m2(TrafficSpecification()),
+    )
+
+
+# Fase 2: o aquecimento e a calibracao.
+
+
+def pedidos_do_aquecimento(semente: SeedFiles) -> Painel:
+    parte = semente.requests[belongs_to(WARMUP, semente.requests["timestamp"])]
+
+    return Painel("requests.csv", parte,
+                  recorte(semente.requests, parte, "o que foi pedido nas semanas 1 a 4"))
+
+
+def kms(execucao: Execucao) -> Quadro:
+    semente = execucao.semente
+
+    return Quadro(
+        3, "KMS", "M4",
+        "O **KMS decide** o desfecho de cada requisição pela política da chave. "
+        "Semanas 1 a 4, sem atacante.",
+        (Painel("operators.csv", semente.operators, "quem pode pedir, e em que escopos"),
+         Painel("keys.csv", semente.keys, "escopo e situação de cada chave"),
+         pedidos_do_aquecimento(semente)),
+        (Painel("outcomes.csv", semente.outcomes, "semanas 1 a 4: event_id e outcome"),),
+        variaveis_do_kms(),
+    )
+
+
+def audit_logger(execucao: Execucao) -> Quadro:
+    semente = execucao.semente
+
+    return Quadro(
+        4, "Audit Logger", "M5",
+        "O **Audit Logger registra**: junta cada requisição ao desfecho e grava o log, "
+        "com oito colunas. Semanas 1 a 4.",
+        (pedidos_do_aquecimento(semente),
+         Painel("outcomes.csv", semente.outcomes, "o desfecho que o KMS decidiu")),
+        (Painel("log.csv", semente.log, "semanas 1 a 4, o log de auditoria"),),
+        variaveis_do_audit_logger(),
+    )
+
+
+def perfis_historicos(execucao: Execucao) -> Quadro:
+    semente = execucao.semente
+
+    return Quadro(
+        5, "Dataset Generator · perfis históricos", "M6",
+        "Observa o que cada operador fez nas **quatro semanas de aquecimento**: a "
+        "janela horária e as origens de rede.",
+        (Painel("log.csv", semente.log, "semanas 1 a 4, inteiras"),),
+        (Painel("historical_profiles.csv", semente.profiles, "a régua, uma linha por operador"),),
+        variaveis_do_m6(),
+    )
+
+
+def sessoes_do_aquecimento(execucao: Execucao) -> Quadro:
+    semente = execucao.semente
+
+    return Quadro(
+        6, "Dataset Generator · sessões", "M7",
+        f"Agrupa o log **por sessão**: cada uma vira uma linha com {len(ATTRIBUTES)} "
+        "atributos, comparada contra o perfil do operador.",
+        (Painel("log.csv", semente.log, "semanas 1 a 4"),
+         Painel("historical_profiles.csv", semente.profiles, "a régua")),
+        (Painel("sessions.csv", semente.sessions, "semanas 1 a 4, sem rótulo"),),
+        variaveis_do_m7(),
+    )
+
+
+def calibracao(execucao: Execucao) -> Quadro:
+    semente = execucao.semente
+
+    return Quadro(
+        7, "Policy Engine · calibração", "M8",
+        f"Percentil {PERCENTILE} de cada grandeza, sobre **todas** as sessões do "
+        f"aquecimento: {len(THRESHOLD_ATTRIBUTES)} limiares, congelados daqui em diante.",
+        (Painel("sessions.csv", semente.sessions, "semanas 1 a 4, inteiras"),),
+        (Painel("thresholds.csv", semente.thresholds, "um conjunto por semente"),),
+        variaveis_do_m8(),
+    )
+
+
+# Fase 3: o ataque e a comparacao.
+
+
+def campanha(execucao: Execucao) -> Quadro:
+    semente, avaliado = execucao.semente, execucao.avaliado
+    parte = semente.requests[belongs_to(EVALUATED, semente.requests["timestamp"])]
+
+    return Quadro(
+        8, "Scenario Engine · campanha de ataque", "M3",
+        f"Mescla **{AttackSpecification().campaign_sessions} sessões comprometidas** às "
+        f"semanas 5 a 8, sob a credencial de um administrador. Em σ "
+        f"**{com_virgula(execucao.sigma)}**.",
+        (Painel("requests.csv", parte, recorte(semente.requests, parte, "as semanas 5 a 8")),
+         Painel("sigma", execucao.sigma, "0,0 ostensivo, 1,0 indistinguível")),
+        (Painel("requests.csv", avaliado.requests, "legítimo + ataque, renumerado"),
+         Painel("compromised_sessions.csv", avaliado.compromised, "o rótulo, fora do log"),
+         Painel("run.csv", avaliado.run, "qual administrador foi comprometido")),
+        variaveis_do_m3(execucao.sigma, AttackSpecification(), TrafficSpecification()),
+    )
+
+
+def periodo_avaliado(execucao: Execucao) -> Quadro:
+    avaliado = execucao.avaliado
+    positivas = int(avaliado.sessions[LABEL].sum())
+
+    return Quadro(
+        9, "KMS · Audit Logger · Dataset Generator", "M4 · M5 · M7",
+        "**As mesmas entidades do aquecimento**, agora sobre as semanas 5 a 8 com "
+        "ataque. Ao fim, o rótulo é juntado.",
+        (Painel("requests.csv", avaliado.requests, "semanas 5 a 8, com a campanha"),
+         Painel("historical_profiles.csv", execucao.semente.profiles, "do aquecimento, nunca recalculado"),
+         Painel("compromised_sessions.csv", avaliado.compromised, "o rótulo")),
+        (Painel("log.csv", avaliado.log, "semanas 5 a 8"),
+         Painel("sessions.csv", avaliado.sessions,
+                f"{len(avaliado.sessions)} sessões, {positivas} positivas, já rotulado")),
+        variaveis_do_m4_m5() + variaveis_do_m7(),
+    )
+
+
+def particao(execucao: Execucao) -> Quadro:
+    avaliado = execucao.avaliado
+
+    return Quadro(
+        10, "Dataset Generator · partição", "M9",
+        f"Divide o conjunto em treino e holdout, **por sessão** e por classe: "
+        f"{porcento(1 - HOLDOUT_SHARE, 0)} e {porcento(HOLDOUT_SHARE, 0)}. A mesma "
+        "divisão em todo σ da semente.",
+        (Painel("sessions.csv", avaliado.sessions, "o conjunto rotulado"),
+         Painel("semente", execucao.seed, "o sorteio depende só dela")),
+        (Painel("train.csv", avaliado.train, lado(avaliado.train)),
+         Painel("holdout.csv", avaliado.holdout, lado(avaliado.holdout))),
+        variaveis_do_m9(avaliado.holdout),
+    )
+
+
+def regras(execucao: Execucao) -> Quadro:
+    avaliado = execucao.avaliado
+    alertas = int(avaliado.predictions_rules["predicted"].sum())
+
+    return Quadro(
+        11, "Policy Engine · as oito regras", "M10",
+        "O baseline decide cada sessão do holdout: **alerta com duas ou mais regras "
+        "disparadas**, contra os limiares do aquecimento.",
+        (Painel("holdout.csv", avaliado.holdout, "as sessões a decidir"),
+         Painel("thresholds.csv", execucao.semente.thresholds, "congelados desde o aquecimento")),
+        (Painel("predictions_rules.csv", avaliado.predictions_rules,
+                f"uma coluna por regra e a decisão; {alertas} alertas"),
+         Painel("tempo", do_mecanismo(avaliado.timing, RULES), "a decisão, cronometrada")),
+        variaveis_do_m10(),
+    )
+
+
+def modelos(execucao: Execucao) -> Quadro:
+    avaliado = execucao.avaliado
+
+    return Quadro(
+        12, "Modelos supervisionados", "M11",
+        "**Random Forest e XGBoost** treinam uma vez no treino e decidem o holdout, "
+        "com a configuração que a busca na 902 escolheu.",
+        (Painel("train.csv", avaliado.train, lado(avaliado.train)),
+         Painel("holdout.csv", avaliado.holdout, lado(avaliado.holdout))),
+        (Painel("predictions_ml.csv", avaliado.predictions_ml,
+                "a decisão e o escore de cada modelo"),
+         Painel("tempo", do_mecanismo(avaliado.timing, "random_forest", "xgboost"),
+                "a decisão, cronometrada")),
+        variaveis_do_m11(execucao.configuracao),
+    )
+
+
+def avaliacao(execucao: Execucao) -> Quadro:
+    grade = execucao.grade
+    entradas = (
+        Painel("predictions_rules.csv", execucao.avaliado.predictions_rules, "as regras"),
+        Painel("predictions_ml.csv", execucao.avaliado.predictions_ml, "os modelos"),
+    )
+    resumo = ("F1 com a matriz de confusão, no holdout inteiro e só entre "
+              "administradores, e a árvore rasa da trivialidade, **desta execução**. "
+              "A comparação entre as 30 sementes está na página Resultados.")
+
+    if grade is None:
+        return Quadro(13, "Avaliação", "M12", resumo, entradas, (), variaveis_do_m12(),
+                      aviso="Faltam as tabelas da avaliação: rode python -m src.main.")
+
+    def desta(tabela: pd.DataFrame) -> pd.DataFrame:
+        linhas = (tabela["seed"] == execucao.seed) & (tabela["sigma"] == execucao.sigma)
+        return tabela[linhas].drop(columns=["seed", "sigma"]).reset_index(drop=True)
+
+    return Quadro(
+        13, "Avaliação", "M12", resumo, entradas,
+        (Painel("metrics.csv", desta(grade.metrics), "desta execução, por mecanismo e recorte"),
+         Painel("triviality.csv", desta(grade.triviality), "a árvore rasa e as duplicatas")),
+        variaveis_do_m12(),
+    )
+
+
+QUADROS = (
+    populacao, trafego_legitimo,
+    kms, audit_logger, perfis_historicos, sessoes_do_aquecimento, calibracao,
+    campanha, periodo_avaliado, particao, regras, modelos, avaliacao,
+)
+"""Os treze quadros, na ordem de execucao. O numero de cada um e a posicao aqui."""
+
+
+def quadros_da_fase(fase: Fase, execucao: Execucao) -> list[Quadro]:
+    return [QUADROS[numero - 1](execucao) for numero in fase.quadros]

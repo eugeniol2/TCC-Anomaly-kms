@@ -39,7 +39,7 @@ src/
     figures/                 as figuras da monografia
   pipeline/                  a ordem: os passos de cada ramo e o experimento
   shared/                    sementes, calendário, pastas, CSV e cronômetro
-  viewer/                    a tela do Streamlit que mostra o pipeline por dentro
+  viewer/                    a tela do Streamlit: o pipeline passo a passo e os resultados
   examples/                  demonstração dos fluxos de aleatoriedade
 data/                        saída CSV de todos os módulos (não versionada)
 tests/                       determinismo, formato e invariantes, nas 30 sementes
@@ -175,11 +175,14 @@ Os números do experimento (58 sessões de ataque, 44 operadores, percentil 99..
 são parâmetros do comando: moram no `parameters.py` de cada entidade, cada um com a
 decisão que o fixou. A grade inteira ocupa cerca de 3,4 GB.
 
-A tela que mostra o pipeline por dentro, passo a passo e com os dados de verdade:
+Depois de rodar o comando, a tela que mostra o que ele gravou: o pipeline passo a passo,
+os comportamentos dos operadores e os resultados, com as figuras.
 
 ```
 streamlit run src/viewer/app.py
 ```
+
+Ela lê o `data/`, então precisa que o `python -m src.main` tenha rodado antes.
 
 ## Testes
 
@@ -187,7 +190,7 @@ streamlit run src/viewer/app.py
 python -m pytest
 ```
 
-São 1675 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
+São 1664 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
 módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
 específica de semente é o que passa despercebido.
 
@@ -200,7 +203,7 @@ específica de semente é o que passa despercebido.
 | `test_dataset.py` | 140 | perfis, sessões e limiares, e o rótulo só no período avaliado |
 | `test_partition.py` | 40 | cada sessão de um lado só, 23 positivas no holdout, a mesma divisão em todo sigma |
 | `test_baseline.py` | 63 | cada regra dispara onde a D-080 diz, qualquer par alerta e nenhuma regra sozinha, o rótulo não decide |
-| `test_viewer.py` | 39 | a tela mostra o que o pipeline produz, e as curvas batem com o gerador |
+| `test_viewer.py` | 28 | os treze quadros montam com arquivos gravados, sem painel vazio, e as curvas batem com o gerador |
 | `test_models.py` | 15 | o rótulo do holdout não decide, a mesma semente treina os mesmos modelos, a busca escolhe pela regra de empate |
 | `test_evaluation.py` | 19 | as métricas de uma matriz conhecida, o recorte dos administradores, a AUC, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
 | `test_pipeline.py` | 11 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |

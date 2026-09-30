@@ -32,7 +32,7 @@ from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRI
 from src.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
 from src.dataset_generator.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
 from src.shared.experiment import SEEDS, SIGMAS
-from src.shared.phases import EVALUATED_WEEKS, RULER_WEEKS, WEEK_COUNT
+from src.shared.phases import EVALUATED_WEEKS, RULER_WEEKS
 from src.dataset_generator.historical_profiles.build import HOUR_FORMAT
 from src.kms.policy import COLUMNS as OUTCOME_COLUMNS, OUTCOMES
 from src.dataset_generator.partition.build import holdout_count
@@ -387,8 +387,8 @@ def variaveis_do_m9(holdout: pd.DataFrame) -> tuple[Variavel, ...]:
     )
 
 
-def variaveis_pendentes_do_m10_m11() -> tuple[Variavel, ...]:
-    """O baseline e os modelos: decididos, não implementados."""
+def variaveis_do_m10() -> tuple[Variavel, ...]:
+    """O baseline de regras: quantas regras, e quando alerta."""
     return (
         Variavel("regras do baseline", f"{len(ATTRIBUTES)}, uma por atributo",
                  f"{REGRAS_DE_GRANDEZA} comparam contra limiar; {REGRAS_DE_PERFIL} "
@@ -396,51 +396,63 @@ def variaveis_pendentes_do_m10_m11() -> tuple[Variavel, ...]:
                  "D-080"),
         Variavel("ponto de operação", "duas ou mais regras disparadas",
                  "Quando o baseline emite alerta.", "D-075"),
-        # Medido em 28/09, nas 30 sementes, sobre as semanas 5 a 8 sem
-        # atacante e contra a regua. Escrito a mao porque o baseline ainda
-        # nao e modulo: quando o M10 existir, este numero sai dele.
-        Variavel("especificidade do baseline", "99,36 % contra tráfego limpo",
-                 "Alarme falso medido sem atacante, nas semanas 5 a 8: 0,64 % "
-                 "das sessões (0,26 % a 1,06 % entre as 30 sementes).",
-                 "D-080, D-075"),
-        Variavel("modelos", MODELOS,
-                 "Os dois modelos supervisionados da comparação.",
-                 "D-051, D-026"),
-        Variavel("reamostragem", "nenhuma, nem SMOTE",
-                 "Se a proporção entre classes é alterada antes do treino.",
-                 "D-024"),
-        Variavel("hiperparâmetros", "uma vez, na preparatória de semente 902",
-                 "Onde a configuração dos modelos é escolhida.", "D-032, D-045"),
+        Variavel("treino", "nenhum",
+                 "Os limiares chegam prontos do aquecimento e ficam congelados.",
+                 "D-033, D-046"),
+        Variavel("rótulo", "vai junto, não decide",
+                 "O `compromised` do holdout é copiado para a saída, ao lado da "
+                 "decisão, e não é consultado.",
+                 "D-113"),
     )
 
 
-def variaveis_pendentes_do_m12() -> tuple[Variavel, ...]:
-    """A avaliação: decidida, não implementada."""
+def variaveis_do_m11(configuracao: dict[str, dict]) -> tuple[Variavel, ...]:
+    """Os modelos: quais, com que configuração, e como treinam."""
+    escolhidas = tuple(
+        Variavel(f"configuração {modelo}",
+                 "; ".join(f"{nome}={valor}" for nome, valor in sorted(parametros.items())),
+                 "Escolhida pela busca na 902, uma entre as que empataram no topo.",
+                 "D-103, D-117")
+        for modelo, parametros in configuracao.items()
+    )
+
+    return (
+        Variavel("modelos", MODELOS,
+                 "Os dois modelos supervisionados da comparação.",
+                 "D-051, D-026"),
+    ) + escolhidas + (
+        Variavel("treino", "uma vez, no treino",
+                 "Cada modelo treina uma vez e decide sobre o holdout, cortando em 0,5.",
+                 "D-105, D-114"),
+        Variavel("reamostragem", "nenhuma, nem SMOTE",
+                 "Se a proporção entre classes é alterada antes do treino. O peso "
+                 "por classe não é reamostragem.",
+                 "D-024, D-105"),
+    )
+
+
+def variaveis_do_m12() -> tuple[Variavel, ...]:
+    """A avaliação: as métricas, o teste e a trivialidade."""
     return (
         Variavel("desfecho primário", "F1, sempre com a matriz de confusão",
                  "A métrica que responde a pergunta de pesquisa.", "D-021"),
+        Variavel("desfecho secundário", "o mesmo F1, só nas sessões de administradores",
+                 "Onde o atalho de reconhecer o papel some.", "D-119"),
         Variavel("métricas secundárias",
-                 "acurácia, precisão, revocação, especificidade",
-                 "O que mais é reportado em toda condição.", "D-022"),
+                 "acurácia, precisão, revocação, especificidade, ROC AUC",
+                 "O que mais é reportado em toda condição. A AUC só nos modelos.",
+                 "D-022, D-119"),
         Variavel("teste estatístico",
-                 "Wilcoxon pareado, correção de Holm, "
-                 f"até {len(SIGMAS) * len(MODELOS)} comparações",
-                 "As condições de σ que a verificação de trivialidade mantiver × "
-                 f"{len(MODELOS)} modelos, cada um contra o baseline. As excluídas são "
-                 "reportadas só de forma descritiva.",
-                 "D-027, D-051, D-111"),
+                 "Wilcoxon pareado bilateral, correção de Holm, α de 0,05",
+                 "Sobre as condições que a trivialidade mantiver × "
+                 f"{len(MODELOS)} modelos; na grade, 16 comparações.",
+                 "D-111, D-116, D-120"),
+        Variavel("trivialidade", "árvore de profundidade 1, F1 ≥ 0,95 exclui",
+                 "Treina no treino e mede no holdout, sem peso por classe.",
+                 "D-028, D-116"),
+        Variavel("tempo de inferência", "só a decisão, mediana de 10, um núcleo",
+                 "Métrica de primeira classe, em microssegundos por sessão.", "D-025, D-106"),
         Variavel("grade", f"{len(SEEDS)} sementes × {len(SIGMAS)} σ = "
                           f"{len(SEEDS) * len(SIGMAS)} execuções",
                  "Quantas execuções a comparação usa.", "D-004, D-039"),
-        Variavel("trivialidade", "árvore de profundidade 1, F1 ≥ 0,95 exclui",
-                 "O critério que decide se uma condição entra na comparação. Treina "
-                 "no treino e mede no holdout.",
-                 "D-028, D-114"),
-        Variavel("treino dos modelos", "uma vez, no treino",
-                 "Cada modelo treina uma vez e decide sobre o holdout, sem retreino.",
-                 "D-114"),
-        Variavel("tempo de inferência", "só a decisão, mediana de 10, um núcleo",
-                 "Métrica de primeira classe, em microssegundos por sessão.", "D-025, D-106"),
-        Variavel("semanas", f"{WEEK_COUNT}, em {RULER_WEEKS} + {EVALUATED_WEEKS}",
-                 "O período simulado de cada execução.", "D-096"),
     )
