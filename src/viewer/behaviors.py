@@ -25,15 +25,16 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.scenario_engine.attack.stealth import HourWindow, Stealth, stealth_of
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.scenario_engine.attack.stealth import HourWindow, Stealth, stealth_of
 from src.shared.phases import EVALUATED, belongs_to
-from src.scenario_engine.traffic.calendar import business_days_among, simulated_days
-from src.scenario_engine.traffic.operations import OPERATION_MIX, OPERATIONS
-from src.scenario_engine.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
-from src.scenario_engine.traffic.regimes import REGIMES, ArrivalRhythm, Regime, ScheduledRhythm
-from src.scenario_engine.traffic.sessions import draw_request_count
-from src.scenario_engine.population.profiles import PROFILES
+from src.entities.scenario_engine.traffic.calendar import business_days_among, simulated_days
+from src.entities.scenario_engine.traffic.operations import OPERATION_MIX, OPERATIONS
+from src.entities.scenario_engine.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
+from src.entities.scenario_engine.traffic.regimes import REGIMES, ArrivalRhythm, Regime, ScheduledRhythm
+from src.entities.scenario_engine.traffic.sessions import draw_request_count
+from src.entities.scenario_engine.population.profiles import PROFILES
+from src.formulas.distributions import negative_binomial_success
 from src.viewer.formatting import com_virgula, porcento
 from src.viewer.theory import Teoria, teoria_da_geometrica
 
@@ -383,7 +384,7 @@ def secao_contagem_pascal(ritmo: ArrivalRhythm, contagens: pd.Series) -> Teoria:
     """Quantas sessões por dia útil, no regime superdisperso."""
     media = ritmo.sessions_per_business_day
     dispersao = ritmo.dispersion
-    sucesso = dispersao / (dispersao + media)
+    sucesso = negative_binomial_success(media, dispersao)
     eixo = eixo_de_contagem(contagens)
 
     variancia_teorica = media / sucesso

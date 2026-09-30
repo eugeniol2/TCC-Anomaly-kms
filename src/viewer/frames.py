@@ -14,13 +14,13 @@ from typing import Any
 
 import pandas as pd
 
-from src.dataset_generator.dataset.build import ATTRIBUTES, LABEL
-from src.dataset_generator.partition.parameters import HOLDOUT_SHARE
-from src.kms.repository.parameters import KeyRepositorySpecification
-from src.policy_engine.baseline.build import MECHANISM as RULES
-from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.entities.dataset_generator.dataset.build import ATTRIBUTES, LABEL
+from src.entities.dataset_generator.partition.parameters import HOLDOUT_SHARE
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.policy_engine.baseline.build import MECHANISM as RULES
+from src.entities.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
 from src.shared.phases import EVALUATED, WARMUP, belongs_to
 from src.viewer.data import GridFiles, RunFiles, SeedFiles
 from src.viewer.decisions import (

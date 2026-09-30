@@ -11,10 +11,10 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from src.kms.repository.keys import build_key_repository
-from src.kms.repository.parameters import KeyRepositorySpecification
-from src.kms.repository.scopes import scope_pool
-from src.scenario_engine.population.operators import build_operators_covering_pool
+from src.entities.kms.repository.keys import build_key_repository
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.kms.repository.scopes import scope_pool
+from src.entities.scenario_engine.population.operators import build_operators_covering_pool
 from src.shared.rng import POPULATION, stream
 
 

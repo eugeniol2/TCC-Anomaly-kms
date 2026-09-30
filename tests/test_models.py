@@ -15,18 +15,18 @@ import pytest
 from numpy.random import PCG64, Generator, SeedSequence
 from sklearn.model_selection import ParameterGrid
 
-import src.models.build as models_build
-from src.scenario_engine.attack.build import build_attack
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.audit_logger.build import build_log
-from src.dataset_generator.dataset.build import IDENTIFIERS, LABEL, build_dataset
+import src.entities.models.build as models_build
+from src.entities.scenario_engine.attack.build import build_attack
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.audit_logger.build import build_log
+from src.entities.dataset_generator.dataset.build import IDENTIFIERS, LABEL, build_dataset
 from src.shared.phases import EVALUATED, WARMUP
 from src.shared.rng import PARTITION, stream
 from src.shared.tables import write_csv
 from src.shared.timing import COLUMNS as TIMING_COLUMNS
-from src.dataset_generator.historical_profiles.build import build_profiles
-from src.kms.build import build_outcomes
-from src.models.build import (
+from src.entities.dataset_generator.historical_profiles.build import build_profiles
+from src.entities.kms.build import build_outcomes
+from src.entities.models.build import (
     COLUMNS,
     build_models,
     chosen_configuration,
@@ -35,12 +35,12 @@ from src.models.build import (
     training_seeds,
     xgboost,
 )
-from src.models.parameters import GRIDS, MODEL_NAMES
-from src.dataset_generator.partition.build import Partition, build_partition
+from src.entities.models.parameters import GRIDS, MODEL_NAMES
+from src.entities.dataset_generator.partition.build import Partition, build_partition
 from src.pipeline.population import build_population
-from src.kms.repository.parameters import KeyRepositorySpecification
-from src.scenario_engine.traffic.build import build_traffic
-from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.scenario_engine.traffic.build import build_traffic
+from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
 
 TEST_CONFIGURATION = {
     "random_forest": {

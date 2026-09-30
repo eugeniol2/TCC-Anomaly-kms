@@ -25,27 +25,27 @@ from typing import Any
 
 import pandas as pd
 
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.scenario_engine.attack.stealth import stealth_of
-from src.audit_logger.build import COLUMNS as LOG_COLUMNS
-from src.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
-from src.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
-from src.dataset_generator.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.scenario_engine.attack.stealth import stealth_of
+from src.entities.audit_logger.build import COLUMNS as LOG_COLUMNS
+from src.entities.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.entities.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
+from src.entities.dataset_generator.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
 from src.shared.experiment import SEEDS, SIGMAS
 from src.shared.phases import EVALUATED_WEEKS, RULER_WEEKS
-from src.dataset_generator.historical_profiles.build import HOUR_FORMAT
-from src.kms.policy import COLUMNS as OUTCOME_COLUMNS, OUTCOMES
-from src.dataset_generator.partition.build import holdout_count
-from src.dataset_generator.partition.parameters import HOLDOUT_SHARE
-from src.kms.repository.parameters import KeyRepositorySpecification
-from src.scenario_engine.population.profiles import PROFILES
-from src.scenario_engine.traffic.parameters import (
+from src.entities.dataset_generator.historical_profiles.build import HOUR_FORMAT
+from src.entities.kms.policy import COLUMNS as OUTCOME_COLUMNS, OUTCOMES
+from src.entities.dataset_generator.partition.build import holdout_count
+from src.entities.dataset_generator.partition.parameters import HOLDOUT_SHARE
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.scenario_engine.population.profiles import PROFILES
+from src.entities.scenario_engine.traffic.parameters import (
     IDENTIFIER_DIGITS,
     IDENTIFIER_PREFIX,
     PRIMARY_ADDRESS_SHARE,
     TrafficSpecification,
 )
-from src.scenario_engine.traffic.regimes import REGIMES
+from src.entities.scenario_engine.traffic.regimes import REGIMES
 from src.viewer.behaviors import linhas_do_atacante
 from src.viewer.formatting import com_virgula, porcento, valor_escrito
 from src.viewer.theory import (

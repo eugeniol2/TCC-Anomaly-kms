@@ -21,12 +21,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.scenario_engine.attack.build import build_attack
-from src.audit_logger.build import build_log
-from src.policy_engine.baseline.build import build_baseline
-from src.policy_engine.calibration.build import build_thresholds
-from src.dataset_generator.dataset.build import build_dataset
-from src.evaluation.build import MECHANISMS, SCOPES
+from src.entities.scenario_engine.attack.build import build_attack
+from src.entities.audit_logger.build import build_log
+from src.entities.policy_engine.baseline.build import build_baseline
+from src.entities.policy_engine.calibration.build import build_thresholds
+from src.entities.dataset_generator.dataset.build import build_dataset
+from src.metrics.evaluation.build import MECHANISMS, SCOPES
 from src.shared.experiment import PREPARATION_SIGMA, REHEARSAL_SEED, SIGMAS
 from src.shared.layout import (
     METRICS,
@@ -38,10 +38,10 @@ from src.shared.layout import (
 )
 from src.shared.phases import EVALUATED, WARMUP
 from src.shared.timing import COLUMNS as TIMING_COLUMNS
-from src.dataset_generator.historical_profiles.build import build_profiles
-from src.kms.build import build_outcomes
-from src.models.build import build_models
-from src.dataset_generator.partition.build import build_partition
+from src.entities.dataset_generator.historical_profiles.build import build_profiles
+from src.entities.kms.build import build_outcomes
+from src.entities.models.build import build_models
+from src.entities.dataset_generator.partition.build import build_partition
 from src.pipeline.build import (
     Specifications,
     run_seed_branch,
@@ -51,7 +51,7 @@ from src.pipeline.build import (
 )
 from src.pipeline.population import build_population
 from src.pipeline.experiment import run_rehearsal
-from src.scenario_engine.traffic.build import build_traffic
+from src.entities.scenario_engine.traffic.build import build_traffic
 
 TEST_CONFIGURATION = {
     "random_forest": {

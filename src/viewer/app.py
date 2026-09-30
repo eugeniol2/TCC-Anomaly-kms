@@ -23,10 +23,10 @@ if str(RAIZ_DO_PROJETO) not in sys.path:
 import pandas as pd
 import streamlit as st
 
-from src.models.build import read_configuration
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.scenario_engine.traffic.parameters import TrafficSpecification
-from src.scenario_engine.traffic.regimes import REGIMES
+from src.entities.models.build import read_configuration
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
+from src.entities.scenario_engine.traffic.regimes import REGIMES
 from src.shared import layout
 from src.shared.experiment import HYPERPARAMETER_SEARCH_SEED, SEEDS, SIGMAS
 from src.viewer.behaviors import (

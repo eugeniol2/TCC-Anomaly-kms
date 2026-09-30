@@ -13,8 +13,8 @@ import pandas as pd
 import pytest
 from statsmodels.stats.multitest import multipletests
 
-from src.dataset_generator.dataset.build import ATTRIBUTES, LABEL
-from src.evaluation.build import (
+from src.entities.dataset_generator.dataset.build import ATTRIBUTES, LABEL
+from src.metrics.evaluation.build import (
     ADMINISTRATORS,
     COMPARISON_COLUMNS,
     MECHANISMS,
@@ -24,44 +24,30 @@ from src.evaluation.build import (
     Run,
     build_evaluation,
     comparison,
-    confusion,
     duplicates,
-    rates,
     read_run,
+    rounded_rates,
     run_metrics,
     run_triviality,
-    signed_rank_test,
     stump,
     timing_summary,
 )
-from src.evaluation.parameters import EXCLUSION_F1
-from src.models.parameters import MODEL_NAMES
+from src.metrics.evaluation.parameters import EXCLUSION_F1
+from src.entities.models.parameters import MODEL_NAMES
+from src.formulas.classification import confusion
 
 
-# A matriz de confusao e as taxas.
+# As taxas como o M12 as grava.
 
 
-def test_the_rates_of_a_known_matrix() -> None:
-    """Verdade 1 1 0 0 0, decisao 1 0 1 0 0: um de cada erro."""
+def test_the_rates_are_written_with_four_places() -> None:
+    """Verdade 1 1 0 0 0, decisao 1 0 1 0 0: um de cada erro, e 2/3 de especificidade."""
     counts = confusion([1, 1, 0, 0, 0], [1, 0, 1, 0, 0])
 
-    assert counts == {
-        "true_positives": 1, "false_positives": 1,
-        "true_negatives": 2, "false_negatives": 1,
-    }
-    assert rates(counts) == {
+    assert rounded_rates(counts) == {
         "f1": 0.5, "precision": 0.5, "recall": 0.5,
         "accuracy": 0.6, "specificity": 0.6667,
     }
-
-
-def test_no_alert_gives_zero_precision_and_zero_f1() -> None:
-    """Sem alerta nenhum a precisao nao tem denominador, e vale zero (D-116)."""
-    values = rates(confusion([1, 0, 0], [0, 0, 0]))
-
-    assert values["precision"] == 0.0
-    assert values["f1"] == 0.0
-    assert values["specificity"] == 1.0
 
 
 # Uma execucao sintetica.
@@ -226,16 +212,6 @@ def stump_rows(stump_f1: dict[float, float], seeds: int = 30) -> pd.DataFrame:
         for sigma, value in stump_f1.items()
         for seed in range(1, seeds + 1)
     ])
-
-
-def test_no_difference_at_all_is_p_one() -> None:
-    assert signed_rank_test(pd.Series([0.0] * 30)) == (0.0, 1.0)
-
-
-def test_a_consistent_gain_is_significant() -> None:
-    statistic, p_value = signed_rank_test(pd.Series(np.linspace(0.01, 0.3, 30)))
-
-    assert p_value < 0.001
 
 
 def test_holm_runs_only_over_the_kept_conditions() -> None:

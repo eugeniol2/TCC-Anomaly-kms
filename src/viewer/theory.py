@@ -27,7 +27,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src.scenario_engine.traffic.sessions import address_weights
+from src.entities.scenario_engine.traffic.sessions import address_weights
+from src.formulas.distributions import chance_never_drawn, share_above, share_above_with_tail
 from src.viewer.formatting import com_virgula, porcento
 
 # A cor não mora aqui. Os passos da paleta mudam entre o tema claro e o
@@ -85,44 +86,20 @@ def teoria_da_cauda(
     # depois dele vira uma linha rente ao eixo, que se le como "acaba aqui".
     # E o contrario do que o grafico existe para mostrar.
     #
-    # Calculada **analiticamente**, e nao somando uma densidade truncada: a
-    # soma daria zero no ultimo ponto do eixo, que e o proprio artefato que
-    # esta curva veio corrigir.
+    # A conta, analitica, esta em `share_above_with_tail`.
     tipicos = np.arange(menor, maior + 1)
-    quantos = len(tipicos)
-    sobrevive = 1.0 - 1.0 / excesso
 
     # Comeca poucos eventos antes do teto, onde as curvas ainda coincidem, para
     # que o leitor veja as duas juntas e depois se separarem.
     inicio = maior - 4
     comprimentos = np.arange(inicio, teto_ostensivo + 30)
 
-    def passa_de(n: int, com_cauda: bool) -> float:
-        """Chance de a sessao ter mais de `n` eventos."""
-        maiores = (tipicos > n).sum() / quantos
-
-        if not com_cauda:
-            return maiores
-
-        # Tipico acima de n ja passa, com ou sem excesso. Tipico abaixo so
-        # passa se a sessao se estendeu o bastante: a geometrica sobrevive
-        # a `n - t` com (1 - p) elevado a essa diferenca.
-        alcancados = 0.0
-
-        for t in tipicos:
-            is_abaixo = t <= n
-
-            if is_abaixo:
-                alcancados += chance * sobrevive ** (n - t)
-
-        return maiores + alcancados / quantos
-
     passa_de_fechada = []
     passa_de_com_cauda = []
 
     for n in comprimentos:
-        passa_de_fechada.append(passa_de(n, False))
-        passa_de_com_cauda.append(passa_de(n, True))
+        passa_de_fechada.append(share_above(n, tipicos))
+        passa_de_com_cauda.append(share_above_with_tail(n, tipicos, chance, excesso))
 
     dados = pd.DataFrame({
         "eventos na sessão": comprimentos,
@@ -130,8 +107,8 @@ def teoria_da_cauda(
         "com cauda": passa_de_com_cauda,
     })
 
-    acima = passa_de(maior, com_cauda=True)
-    alcanca = passa_de(teto_ostensivo, com_cauda=True)
+    acima = share_above_with_tail(maior, tipicos, chance, excesso)
+    alcanca = share_above_with_tail(teto_ostensivo, tipicos, chance, excesso)
 
     return Teoria(
         titulo="Por que a faixa de comprimento precisou de cauda",
@@ -204,7 +181,7 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
     # Sessoes na regua, mediana nas 30 sementes. E o expoente que decide se o
     # endereco raro falta: regua mais longa o derruba, e foi o custo da D-096.
     SESSOES_NA_REGUA = 32
-    ausencia = (1 - quarto) ** SESSOES_NA_REGUA
+    ausencia = chance_never_drawn(quarto, SESSOES_NA_REGUA)
 
     return Teoria(
         titulo="Por que a origem de rede decai geometricamente",

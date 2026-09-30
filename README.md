@@ -13,42 +13,63 @@ documentação do gerador é parte do trabalho.
 
 ## Estrutura
 
-As pastas de `src/` são as **entidades da arquitetura da proposta** (Figura 1), e cada
-módulo mora na entidade a que pertence.
+O `src/` se divide por **contexto**. As entidades da arquitetura da proposta (Figura 1)
+ficam em `entities/`, cada módulo na entidade a que pertence; a avaliação, que mede o que
+elas decidiram, fica em `metrics/`; e a matemática sem domínio, em `formulas/`.
 
 ```
 src/
-  main.py                    o comando único: roda tudo, de ponta a ponta
-  scenario_engine/           o gerador de cenários
-    population/              M1  os operadores, com perfil, regime e escopos
-    traffic/                 M2  o tráfego legítimo das oito semanas
-    attack/                  M3  a campanha de ataque, interpolada por sigma
-  kms/                       o Experimental KMS
-    repository/              M1  o repositório de chaves e os escopos
-    build.py, policy.py      M4  o desfecho de cada requisição, pela política
-  audit_logger/              M5  o log de auditoria
-  dataset_generator/         da auditoria ao conjunto de dados
-    historical_profiles/     M6  o perfil histórico de cada operador, da régua
-    dataset/                 M7  uma linha por sessão, com os oito atributos
-    partition/               M9  treino e holdout, a mesma divisão em todo sigma
-  policy_engine/             o baseline de regras
-    calibration/             M8  os limiares, da régua
-    baseline/                M10 as oito regras decidindo sobre o holdout
-  models/                    M11 Random Forest e XGBoost, e a busca de hiperparâmetros
-  evaluation/                M12 métricas, trivialidade, Wilcoxon com Holm e tempo
-    figures/                 as figuras da monografia
-  pipeline/                  a ordem: os passos de cada ramo e o experimento
-  shared/                    sementes, calendário, pastas, CSV e cronômetro
-  viewer/                    a tela do Streamlit: o pipeline passo a passo e os resultados
-  examples/                  demonstração dos fluxos de aleatoriedade
-data/                        saída CSV de todos os módulos (não versionada)
-tests/                       determinismo, formato e invariantes, nas 30 sementes
+  main.py                      o comando único: roda tudo, de ponta a ponta
+  entities/                    as caixas da Figura 1
+    scenario_engine/           o gerador de cenários
+      population/              M1  os operadores, com perfil, regime e escopos
+      traffic/                 M2  o tráfego legítimo das oito semanas
+      attack/                  M3  a campanha de ataque, interpolada por sigma
+    kms/                       o Experimental KMS
+      repository/              M1  o repositório de chaves e os escopos
+      build.py, policy.py      M4  o desfecho de cada requisição, pela política
+    audit_logger/              M5  o log de auditoria
+    dataset_generator/         da auditoria ao conjunto de dados
+      historical_profiles/     M6  o perfil histórico de cada operador, da régua
+      dataset/                 M7  uma linha por sessão, com os oito atributos
+      partition/               M9  treino e holdout, a mesma divisão em todo sigma
+    policy_engine/             o baseline de regras
+      calibration/             M8  os limiares, da régua
+      baseline/                M10 as oito regras decidindo sobre o holdout
+    models/                    M11 Random Forest e XGBoost, e a busca de hiperparâmetros
+  metrics/                     medir e comparar
+    evaluation/                M12 métricas, trivialidade, Wilcoxon com Holm e tempo
+    figures/                   as figuras da monografia
+  formulas/                    a matemática, sem domínio e sem número próprio
+  pipeline/                    a ordem: os passos de cada ramo e o experimento
+  shared/                      sementes, calendário, pastas, CSV e cronômetro
+  viewer/                      a tela do Streamlit: o pipeline passo a passo e os resultados
+  examples/                    demonstração dos fluxos de aleatoriedade
+data/                          saída CSV de todos os módulos (não versionada)
+tests/                         determinismo, formato e invariantes, nas 30 sementes
 ```
 
 Cada módulo é um pacote com a lógica em `build.py`, os números que o governam em
 `parameters.py` quando os tem, e um arquivo por conceito. O M1 se divide entre duas
 entidades, porque os operadores e as chaves saem do mesmo sorteio; quem os monta, nessa
 ordem, é o `src/pipeline/population.py`.
+
+As dependências andam num sentido só: `formulas` não importa nada do projeto, as
+entidades não importam `metrics`, e `metrics` lê o que as entidades gravaram. Um teste
+confere as duas primeiras. Por isso o cronômetro fica em `shared/` e não em `metrics/`: o
+baseline e os modelos o usam para medir o próprio tempo.
+
+| `formulas/` | A conta | Quem usa |
+|---|---|---|
+| `interpolation.py` | interpolação linear entre dois extremos | o atacante, em cada sigma |
+| `apportionment.py` | maiores restos | as chaves repartidas entre escopos |
+| `distributions.py` | pesos geométricos, `p` da binomial negativa, cauda da sessão, chance de faltar | a origem de rede, o ritmo do administrador, o viewer |
+| `rounding.py` | meio para cima | o tamanho do holdout |
+| `classification.py` | matriz de confusão, F1 e as outras taxas, ponto ROC, AUC, razão entre classes | a avaliação, as figuras, o peso do XGBoost |
+| `hypothesis_tests.py` | Wilcoxon pareado, correção de Holm | a comparação |
+
+O que é definição do domínio fica na entidade, mesmo sendo conta: os oito atributos da
+sessão são o Dataset Generator, e as unidades do tempo são o cronômetro.
 
 A pasta `data/` espelha a dependencia dos modulos. Como o atacante age apenas nas
 semanas 5 a 8, tudo que deriva do aquecimento e independente de sigma, e o
@@ -106,8 +127,8 @@ inspecionável antes do próximo.
 | M8 | Policy Engine | `calibration` | `sessions.csv` (aquecimento inteiro) | `thresholds.csv` |
 | M9 | Dataset Generator | `partition` | `sessions.csv` (semanas 5 a 8) | `train.csv`, `holdout.csv` |
 | M10 | Policy Engine | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv`, `timing_rules.csv` |
-| M11 | Modelos | `models` | `train.csv`, `holdout.csv`, `config.csv` da 902 | `predictions_ml.csv`, `timing_ml.csv` |
-| M12 | Avaliação | `evaluation` | as 330 execuções | `metrics.csv`, `triviality.csv`, `comparison.csv`, `timing.csv`, `figures/` |
+| M11 | Pipeline de ML | `models` | `train.csv`, `holdout.csv`, `config.csv` da 902 | `predictions_ml.csv`, `timing_ml.csv` |
+| M12 | Avaliação Comparativa | `evaluation` | as 330 execuções | `metrics.csv`, `triviality.csv`, `comparison.csv`, `timing.csv`, `figures/` |
 
 As oito semanas simuladas têm dois papéis. As semanas 1 a 4 constroem a **régua** (o
 perfil histórico de cada operador **e** os limiares do baseline, do mesmo período) e as
@@ -190,7 +211,7 @@ Ela lê o `data/`, então precisa que o `python -m src.main` tenha rodado antes.
 python -m pytest
 ```
 
-São 1664 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
+São 1681 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
 módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
 específica de semente é o que passa despercebido.
 
@@ -205,7 +226,8 @@ específica de semente é o que passa despercebido.
 | `test_baseline.py` | 63 | cada regra dispara onde a D-080 diz, qualquer par alerta e nenhuma regra sozinha, o rótulo não decide |
 | `test_viewer.py` | 28 | os treze quadros montam com arquivos gravados, sem painel vazio, e as curvas batem com o gerador |
 | `test_models.py` | 15 | o rótulo do holdout não decide, a mesma semente treina os mesmos modelos, a busca escolhe pela regra de empate |
-| `test_evaluation.py` | 19 | as métricas de uma matriz conhecida, o recorte dos administradores, a AUC, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
+| `test_evaluation.py` | 16 | as taxas gravadas com quatro casas, o recorte dos administradores, a AUC, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
+| `test_formulas.py` | 20 | cada fórmula num caso de resposta conhecida, e as dependências num sentido só: `formulas` não importa o projeto, as entidades não importam `metrics` |
 | `test_pipeline.py` | 11 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
 | `test_main.py` | 8 | o comando único: os parâmetros, as sementes reservadas recusadas, e o `--ate` parando na entidade certa |
 | `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |

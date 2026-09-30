@@ -24,25 +24,25 @@ from functools import lru_cache
 import pandas as pd
 import pytest
 
-from src.audit_logger.build import COLUMNS as LOG_COLUMNS
-from src.audit_logger.build import build_log
+from src.entities.audit_logger.build import COLUMNS as LOG_COLUMNS
+from src.entities.audit_logger.build import build_log
 from src.shared.experiment import SEEDS
 from src.shared.phases import EVALUATED, WARMUP, belongs_to
 from src.shared.tables import MULTIVALUE_SEPARATOR
-from src.kms.build import build_outcomes, requests_of_phase
-from src.kms.policy import (
+from src.entities.kms.build import build_outcomes, requests_of_phase
+from src.entities.kms.policy import (
     DENIED_BY_POLICY,
     DISABLED_KEY,
     OUTCOMES,
     SUCCESS,
     UNKNOWN_KEY,
 )
-from src.kms.policy import COLUMNS as OUTCOME_COLUMNS
-from src.kms.policy import Repository, outcome_of, read_repository
+from src.entities.kms.policy import COLUMNS as OUTCOME_COLUMNS
+from src.entities.kms.policy import Repository, outcome_of, read_repository
 from src.pipeline.population import Population, build_population
-from src.kms.repository.parameters import KeyRepositorySpecification
-from src.scenario_engine.traffic.build import build_traffic
-from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.scenario_engine.traffic.build import build_traffic
+from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
 
 REPOSITORY_SPECIFICATION = KeyRepositorySpecification()
 TRAFFIC_SPECIFICATION = TrafficSpecification()

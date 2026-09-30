@@ -22,24 +22,24 @@ from functools import lru_cache
 import pandas as pd
 import pytest
 
-from src.scenario_engine.attack.build import (
+from src.entities.scenario_engine.attack.build import (
     COMPROMISED_COLUMNS,
     RUN_COLUMNS,
     AttackOutput,
     administrators_of,
     build_attack,
 )
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.scenario_engine.attack.stealth import stealth_of
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.scenario_engine.attack.stealth import stealth_of
 from src.shared.experiment import SEEDS, SIGMAS
 from src.shared.phases import EVALUATED, WARMUP, belongs_to
-from src.scenario_engine.traffic.build import COLUMNS as REQUEST_COLUMNS
-from src.scenario_engine.traffic.build import build_traffic
-from src.scenario_engine.traffic.operators import read_operators
-from src.scenario_engine.traffic.parameters import TrafficSpecification
-from src.scenario_engine.traffic.regimes import REGIMES
+from src.entities.scenario_engine.traffic.build import COLUMNS as REQUEST_COLUMNS
+from src.entities.scenario_engine.traffic.build import build_traffic
+from src.entities.scenario_engine.traffic.operators import read_operators
+from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
+from src.entities.scenario_engine.traffic.regimes import REGIMES
 from src.pipeline.population import Population, build_population
-from src.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
 
 REPOSITORY_SPECIFICATION = KeyRepositorySpecification()
 TRAFFIC_SPECIFICATION = TrafficSpecification()

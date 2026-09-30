@@ -21,14 +21,14 @@ import pytest
 from src.pipeline.build import Specifications, run_seed_branch, run_sigma_branch
 from src.pipeline.experiment import write_evaluation
 from src.pipeline.population import build_population
-from src.kms.repository.parameters import KeyRepositorySpecification
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.scenario_engine.population.profiles import PROFILES
-from src.scenario_engine.traffic.build import build_traffic
-from src.scenario_engine.traffic.calendar import daily_session_count
-from src.scenario_engine.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
-from src.scenario_engine.traffic.regimes import REGIMES
-from src.scenario_engine.traffic.sessions import address_weights, draw_request_count, request_instants
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.scenario_engine.population.profiles import PROFILES
+from src.entities.scenario_engine.traffic.build import build_traffic
+from src.entities.scenario_engine.traffic.calendar import daily_session_count
+from src.entities.scenario_engine.traffic.parameters import PRIMARY_ADDRESS_SHARE, TrafficSpecification
+from src.entities.scenario_engine.traffic.regimes import REGIMES
+from src.entities.scenario_engine.traffic.sessions import address_weights, draw_request_count, request_instants
 from src.viewer.behaviors import (
     ORDEM,
     Pagina,

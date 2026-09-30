@@ -3,7 +3,8 @@
 Mora aqui, e nao no `parameters.py` de um modulo, porque o baseline (M10) e os
 modelos (M11) precisam medir **do mesmo jeito**, e importar do vizinho quebraria
 a fronteira entre modulos. E a mesma razao que pos o calendario em
-`globals/phases.py` (D-079).
+`shared/phases.py` (D-079). E nao em `src/metrics`: as duas entidades que o usam
+passariam a depender da avaliacao, que ja depende delas (D-123).
 
 **E a unica medicao nao deterministica do pipeline.** O arquivo que ela produz
 (`timing_rules.csv`, e depois o dos modelos) muda a cada execucao, e por isso

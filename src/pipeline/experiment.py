@@ -18,15 +18,15 @@ from typing import Callable, NamedTuple
 
 import pandas as pd
 
-from src.evaluation.build import (
+from src.metrics.evaluation.build import (
     Evaluation,
     build_evaluation,
     read_run,
     run_metrics,
     run_triviality,
 )
-from src.evaluation.figures.build import draw_f1_by_sigma, draw_roc, save_figure
-from src.models.build import (
+from src.metrics.figures.build import draw_f1_by_sigma, draw_roc, save_figure
+from src.entities.models.build import (
     chosen_configuration,
     configuration_of,
     configuration_scores,

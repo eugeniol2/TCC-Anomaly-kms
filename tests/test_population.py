@@ -18,9 +18,9 @@ import pandas as pd
 import pytest
 
 from src.pipeline.population import Population, build_population
-from src.scenario_engine.population.operators import holders_by_scope
-from src.scenario_engine.population.profiles import PROFILES, Profile
-from src.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.scenario_engine.population.operators import holders_by_scope
+from src.entities.scenario_engine.population.profiles import PROFILES, Profile
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
 from src.shared.experiment import SEEDS
 from src.shared.tables import MULTIVALUE_SEPARATOR
 

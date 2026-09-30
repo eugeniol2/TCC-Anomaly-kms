@@ -21,21 +21,21 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from src.audit_logger.build import build_log
-from src.dataset_generator.dataset.build import build_dataset
-from src.dataset_generator.historical_profiles.build import build_profiles
-from src.dataset_generator.partition.build import build_partition
-from src.kms.build import build_outcomes
-from src.kms.repository.parameters import KeyRepositorySpecification
-from src.models.build import build_models
+from src.entities.audit_logger.build import build_log
+from src.entities.dataset_generator.dataset.build import build_dataset
+from src.entities.dataset_generator.historical_profiles.build import build_profiles
+from src.entities.dataset_generator.partition.build import build_partition
+from src.entities.kms.build import build_outcomes
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.models.build import build_models
 from src.pipeline.population import build_population
 from src.pipeline.stages import LAST_STAGE, Step, reaches, run_steps
-from src.policy_engine.baseline.build import build_baseline
-from src.policy_engine.calibration.build import build_thresholds
-from src.scenario_engine.attack.build import build_attack
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.scenario_engine.traffic.build import build_traffic
-from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.entities.policy_engine.baseline.build import build_baseline
+from src.entities.policy_engine.calibration.build import build_thresholds
+from src.entities.scenario_engine.attack.build import build_attack
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.scenario_engine.traffic.build import build_traffic
+from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
 from src.shared import layout
 from src.shared.phases import EVALUATED, WARMUP
 from src.shared.tables import write_csv

@@ -26,20 +26,20 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.scenario_engine.attack.build import build_attack
-from src.scenario_engine.attack.parameters import AttackSpecification
-from src.audit_logger.build import build_log
-from src.policy_engine.baseline.build import (
+from src.entities.scenario_engine.attack.build import build_attack
+from src.entities.scenario_engine.attack.parameters import AttackSpecification
+from src.entities.audit_logger.build import build_log
+from src.entities.policy_engine.baseline.build import (
     COLUMNS,
     HISTORY_ATTRIBUTES,
     RULE_ATTRIBUTES,
     RULE_COLUMNS,
     build_baseline,
 )
-from src.policy_engine.baseline.parameters import HISTORY_RULE_FIRES, MINIMUM_RULES_FIRED
-from src.policy_engine.calibration.build import build_thresholds
-from src.policy_engine.calibration.parameters import THRESHOLD_ATTRIBUTES
-from src.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL, build_dataset
+from src.entities.policy_engine.baseline.parameters import HISTORY_RULE_FIRES, MINIMUM_RULES_FIRED
+from src.entities.policy_engine.calibration.build import build_thresholds
+from src.entities.policy_engine.calibration.parameters import THRESHOLD_ATTRIBUTES
+from src.entities.dataset_generator.dataset.build import ATTRIBUTES, LABEL, build_dataset
 from src.shared.phases import EVALUATED, WARMUP
 from src.shared.tables import write_csv
 from src.shared.timing import (
@@ -49,13 +49,13 @@ from src.shared.timing import (
     median_nanoseconds,
     timing_row,
 )
-from src.dataset_generator.historical_profiles.build import build_profiles
-from src.kms.build import build_outcomes
-from src.dataset_generator.partition.build import build_partition
+from src.entities.dataset_generator.historical_profiles.build import build_profiles
+from src.entities.kms.build import build_outcomes
+from src.entities.dataset_generator.partition.build import build_partition
 from src.pipeline.population import Population, build_population
-from src.kms.repository.parameters import KeyRepositorySpecification
-from src.scenario_engine.traffic.build import build_traffic
-from src.scenario_engine.traffic.parameters import TrafficSpecification
+from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.scenario_engine.traffic.build import build_traffic
+from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
 
 REPOSITORY_SPECIFICATION = KeyRepositorySpecification()
 TRAFFIC_SPECIFICATION = TrafficSpecification()
