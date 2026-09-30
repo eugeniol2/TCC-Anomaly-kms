@@ -223,8 +223,8 @@ de 11 condições de sigma (0,0 a 1,0) por 30 réplicas, totalizando 330 execuç
 
 ## Estado
 
-**Os doze módulos estão implementados, e o orquestrador.** A busca da 902 já rodou; falta
-o ensaio da 903 e a grade. Nenhuma métrica de detecção das 30 réplicas foi calculada.
+**Os doze módulos estão implementados, e o orquestrador.** A busca da 902, a grade das 330
+e o ensaio da 903 já rodaram; os resultados estão nas quatro tabelas da raiz de `data/`.
 
 O ramo da semente produz a régua inteira (o perfil histórico e os limiares do baseline,
 das quatro semanas de aquecimento). O ramo de sigma produz o conjunto rotulado das
