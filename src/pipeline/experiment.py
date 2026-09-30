@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
-from typing import Callable, NamedTuple
+from typing import NamedTuple
 
 import pandas as pd
 
@@ -48,8 +48,6 @@ from src.shared.experiment import (
     REHEARSAL_SEED,
 )
 
-Report = Callable[[str], None]
-
 
 class Options(NamedTuple):
     """O que rodar e onde gravar. Os numeros do experimento nao passam por aqui."""
@@ -66,7 +64,6 @@ class Experiment:
     """O estado do experimento enquanto os passos rodam."""
 
     options: Options
-    report: Report
     specifications: Specifications = field(default_factory=Specifications)
 
 
@@ -84,19 +81,19 @@ def search_training_set(root: Path, specifications: Specifications) -> pd.DataFr
     return run_sigma_branch(branch, PREPARATION_SIGMA, until="dataset_generator").train
 
 
-def run_search(root: Path, specifications: Specifications, report: Report) -> dict[str, dict]:
+def run_search(root: Path, specifications: Specifications) -> dict[str, dict]:
     """Avalia cada configuracao da grade e grava a nota de todas e a escolhida."""
     started = perf_counter()
     train = search_training_set(root, specifications)
-    report(f"busca na 902: {len(train)} sessoes de treino, "
-           f"{int(train['compromised'].sum())} positivas")
+    print(f"busca na 902: {len(train)} sessoes de treino, "
+          f"{int(train['compromised'].sum())} positivas")
 
     scores = []
 
     for score in configuration_scores(HYPERPARAMETER_SEARCH_SEED, train):
         scores.append(score)
-        report(f"    {score['model']:<14} {score['position'] + 1:>3}   "
-               f"F1 {score['mean_f1']:.4f}   {perf_counter() - started:.0f}s")
+        print(f"    {score['model']:<14} {score['position'] + 1:>3}   "
+              f"F1 {score['mean_f1']:.4f}   {perf_counter() - started:.0f}s")
 
     directory = layout.preparation_directory(root, HYPERPARAMETER_SEARCH_SEED)
     results = emit(pd.DataFrame(scores), directory, layout.SEARCH_RESULTS)
@@ -112,9 +109,9 @@ def configure_models(experiment: Experiment) -> None:
 
     if options.reuse_search:
         configuration = read_configuration(directory / layout.CONFIGURATION)
-        experiment.report(f"busca reaproveitada: {directory / layout.CONFIGURATION}")
+        print(f"busca reaproveitada: {directory / layout.CONFIGURATION}")
     else:
-        configuration = run_search(options.root, experiment.specifications, experiment.report)
+        configuration = run_search(options.root, experiment.specifications)
 
     experiment.specifications = experiment.specifications._replace(models=configuration)
 
@@ -143,8 +140,8 @@ def rehearse(experiment: Experiment) -> None:
     evaluation = run_rehearsal(experiment.options.root, experiment.specifications)
     summary = evaluation.metrics[["mechanism", "scope", "f1", "recall", "specificity"]]
 
-    experiment.report("ensaio na 903, sigma 0,5:")
-    experiment.report(summary.to_string(index=False))
+    print("ensaio na 903, sigma 0,5:")
+    print(summary.to_string(index=False))
 
 
 # A grade, a avaliacao e as figuras.
@@ -154,17 +151,17 @@ def run_grid(experiment: Experiment) -> None:
     """As execucoes pedidas, semente a semente, e o indice agregado."""
     options = experiment.options
     rows = []
-    experiment.report(f"grade: ate {options.until}")
+    print(f"grade: ate {options.until}")
 
     for seed in options.seeds:
         started = perf_counter()
         rows.extend(run_sweep(seed, options.sigmas, options.root,
                               experiment.specifications, options.until))
-        experiment.report(f"  semente {seed:>2}: {len(options.sigmas)} condicoes, "
-                          f"{perf_counter() - started:.1f}s")
+        print(f"  semente {seed:>2}: {len(options.sigmas)} condicoes, "
+              f"{perf_counter() - started:.1f}s")
 
     index = write_runs_index(rows, options.root)
-    experiment.report(f"grade: {len(index)} execucoes, indice em {options.root / layout.RUNS_INDEX}")
+    print(f"grade: {len(index)} execucoes, indice em {options.root / layout.RUNS_INDEX}")
 
 
 def write_evaluation(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ...]) -> Evaluation:
@@ -188,10 +185,10 @@ def write_evaluation(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ..
 def evaluate(experiment: Experiment) -> None:
     options = experiment.options
     write_evaluation(options.root, options.seeds, options.sigmas)
-    experiment.report("avaliacao:")
+    print("avaliacao:")
 
     for name in (layout.METRICS, layout.TRIVIALITY, layout.COMPARISON, layout.TIMING):
-        experiment.report(f"  {options.root / name}")
+        print(f"  {options.root / name}")
 
 
 def draw_figures(experiment: Experiment) -> None:
@@ -204,12 +201,12 @@ def draw_figures(experiment: Experiment) -> None:
         "f1_sigma": draw_f1_by_sigma(metrics, comparison),
         "roc": draw_roc(options.root, options.seeds, options.sigmas),
     }
-    experiment.report("figuras:")
+    print("figuras:")
 
     for name, figure in figures.items():
         if figure is not None:
             for path in save_figure(figure, directory, name):
-                experiment.report(f"  {path}")
+                print(f"  {path}")
 
 
 EXPERIMENT_STEPS = (
@@ -223,9 +220,9 @@ EXPERIMENT_STEPS = (
 passo: cada passo roda se o `--ate` o alcanca, e os outros sao pulados."""
 
 
-def run_experiment(options: Options, report: Report) -> None:
+def run_experiment(options: Options) -> None:
     """O experimento inteiro, na ordem do protocolo, ate a entidade pedida."""
-    experiment = Experiment(options, report)
+    experiment = Experiment(options)
     for stage, run in EXPERIMENT_STEPS:
         if reaches(options.until, stage):
             run(experiment)

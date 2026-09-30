@@ -21,10 +21,6 @@ SEED = 3
 SIGMA = 0.5
 
 
-def quiet(_: str) -> None:
-    """O relatorio do comando, descartado nos testes."""
-
-
 # Os parametros.
 
 
@@ -73,7 +69,8 @@ def test_the_stages_follow_the_architecture() -> None:
 
 
 def run_until(root: Path, until: str) -> None:
-    run_experiment(Options((SEED,), (SIGMA,), root, until, reuse_search=False), quiet)
+    """Roda o comando recortado. O que ele escreve no terminal o pytest guarda e descarta."""
+    run_experiment(Options((SEED,), (SIGMA,), root, until, reuse_search=False))
 
 
 def test_until_kms_stops_after_the_kms(tmp_path: Path) -> None:

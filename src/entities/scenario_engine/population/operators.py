@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
 import pandas as pd
 from numpy.random import Generator
 
@@ -50,18 +48,15 @@ def draw_usual_ips(rng: Generator, quantity: int) -> list[str]:
     return addresses
 
 
-def take_addresses(addresses: Iterator[str], quantity: int) -> str:
-    """Retira `quantity` enderecos do sorteio. O primeiro e o principal.
+def take_addresses(addresses: list[str], start: int, quantity: int) -> str:
+    """Os `quantity` enderecos a partir da posicao `start`, ja unidos. O primeiro e o principal.
 
     A ordem importa para o M2: o principal responde pela maior parte das
     sessoes e os demais aparecem cada vez mais raramente, de modo que um
     endereco pouco usado possa nao ocorrer no aquecimento e produzir origem de
     rede nova em sessao legitima do periodo avaliado (D-040).
     """
-    taken = []
-
-    for _ in range(quantity):
-        taken.append(next(addresses))
+    taken = addresses[start:start + quantity]
 
     return MULTIVALUE_SEPARATOR.join(taken)
 
@@ -89,13 +84,19 @@ def draw_address_counts(rng: Generator) -> list[int]:
 
 
 def draw_address_groups(rng: Generator) -> list[str]:
-    """Os enderecos habituais de cada operador, ja unidos, na ordem da tabela."""
+    """Os enderecos habituais de cada operador, ja unidos, na ordem da tabela.
+
+    Os enderecos sao sorteados todos de uma vez, e cada operador leva os seus em
+    sequencia: `start` anda o tanto que o operador anterior levou.
+    """
     counts = draw_address_counts(rng)
-    addresses = iter(draw_usual_ips(rng, sum(counts)))
+    addresses = draw_usual_ips(rng, sum(counts))
     groups = []
+    start = 0
 
     for count in counts:
-        groups.append(take_addresses(addresses, count))
+        groups.append(take_addresses(addresses, start, count))
+        start += count
 
     return groups
 
@@ -113,8 +114,9 @@ def draw_scopes(rng: Generator, pool: list[str], quantity: int) -> str:
 
 def build_operators(rng: Generator, pool: list[str]) -> pd.DataFrame:
     """Tabela de operadores, um bloco por perfil da Tabela 1."""
-    address_groups = iter(draw_address_groups(rng))
+    address_groups = draw_address_groups(rng)
     rows = []
+    position = 0
 
     for profile in PROFILES:
         for number in range(1, profile.operators + 1):
@@ -124,9 +126,10 @@ def build_operators(rng: Generator, pool: list[str]) -> pd.DataFrame:
                     "profile": profile.name,
                     "scopes": draw_scopes(rng, pool, profile.scopes_each),
                     "regime": profile.regime,
-                    "usual_ips": next(address_groups),
+                    "usual_ips": address_groups[position],
                 }
             )
+            position += 1
 
     return pd.DataFrame(rows)
 

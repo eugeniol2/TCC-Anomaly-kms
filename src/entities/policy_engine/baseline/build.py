@@ -127,14 +127,13 @@ def predictions_of(sessions: pd.DataFrame, cutoffs: np.ndarray) -> pd.DataFrame:
     fired = fired_rules(attributes, cutoffs).astype(int)
 
     rules = pd.DataFrame(fired, columns=list(RULE_COLUMNS), index=sessions.index)
-    rules_fired = rules.sum(axis=1)
-    predicted = decide(attributes, cutoffs).astype(int)
 
-    return sessions[list(IDENTIFIERS)].join(rules).assign(
-        rules_fired=rules_fired,
-        predicted=predicted,
-        **{LABEL: sessions[LABEL]},
-    )[list(COLUMNS)].reset_index(drop=True)
+    predictions = sessions[list(IDENTIFIERS)].join(rules)
+    predictions["rules_fired"] = rules.sum(axis=1)
+    predictions["predicted"] = decide(attributes, cutoffs).astype(int)
+    predictions[LABEL] = sessions[LABEL]
+
+    return predictions[list(COLUMNS)].reset_index(drop=True)
 
 
 def build_baseline(holdout: pd.DataFrame, thresholds: pd.DataFrame) -> Baseline:

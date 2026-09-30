@@ -111,8 +111,11 @@ def lado(parte: pd.DataFrame) -> str:
             f"({porcento(positivas / len(parte), 2)})")
 
 
-def do_mecanismo(tempo: pd.DataFrame, *mecanismos: str) -> pd.DataFrame:
-    return tempo[tempo["mechanism"].isin(mecanismos)].reset_index(drop=True)
+def do_mecanismo(tempo: pd.DataFrame, mecanismos: list[str]) -> pd.DataFrame:
+    """Só as linhas de tempo dos mecanismos pedidos."""
+    linhas = tempo["mechanism"].isin(mecanismos)
+
+    return tempo[linhas].reset_index(drop=True)
 
 
 # Fase 1: a preparacao dos dados.
@@ -292,7 +295,7 @@ def regras(execucao: Execucao) -> Quadro:
          Painel("thresholds.csv", execucao.semente.thresholds, "congelados desde o aquecimento")),
         (Painel("predictions_rules.csv", avaliado.predictions_rules,
                 f"uma coluna por regra e a decisão; {alertas} alertas"),
-         Painel("tempo", do_mecanismo(avaliado.timing, RULES), "a decisão, cronometrada")),
+         Painel("tempo", do_mecanismo(avaliado.timing, [RULES]), "a decisão, cronometrada")),
         variaveis_do_m10(),
     )
 
@@ -308,10 +311,19 @@ def modelos(execucao: Execucao) -> Quadro:
          Painel("holdout.csv", avaliado.holdout, lado(avaliado.holdout))),
         (Painel("predictions_ml.csv", avaliado.predictions_ml,
                 "a decisão e o escore de cada modelo"),
-         Painel("tempo", do_mecanismo(avaliado.timing, "random_forest", "xgboost"),
+         Painel("tempo", do_mecanismo(avaliado.timing, ["random_forest", "xgboost"]),
                 "a decisão, cronometrada")),
         variaveis_do_m11(execucao.configuracao),
     )
+
+
+def da_execucao(tabela: pd.DataFrame, execucao: Execucao) -> pd.DataFrame:
+    """Só as linhas de uma tabela da grade que são desta semente e deste sigma."""
+    da_semente = tabela["seed"] == execucao.seed
+    do_sigma = tabela["sigma"] == execucao.sigma
+    linhas = tabela[da_semente & do_sigma]
+
+    return linhas.drop(columns=["seed", "sigma"]).reset_index(drop=True)
 
 
 def avaliacao(execucao: Execucao) -> Quadro:
@@ -328,14 +340,13 @@ def avaliacao(execucao: Execucao) -> Quadro:
         return Quadro(13, "Avaliação", "M12", resumo, entradas, (), variaveis_do_m12(),
                       aviso="Faltam as tabelas da avaliação: rode python -m src.main.")
 
-    def desta(tabela: pd.DataFrame) -> pd.DataFrame:
-        linhas = (tabela["seed"] == execucao.seed) & (tabela["sigma"] == execucao.sigma)
-        return tabela[linhas].drop(columns=["seed", "sigma"]).reset_index(drop=True)
+    metricas = da_execucao(grade.metrics, execucao)
+    trivialidade = da_execucao(grade.triviality, execucao)
 
     return Quadro(
         13, "Avaliação", "M12", resumo, entradas,
-        (Painel("metrics.csv", desta(grade.metrics), "desta execução, por mecanismo e recorte"),
-         Painel("triviality.csv", desta(grade.triviality), "a árvore rasa e as duplicatas")),
+        (Painel("metrics.csv", metricas, "desta execução, por mecanismo e recorte"),
+         Painel("triviality.csv", trivialidade, "a árvore rasa e as duplicatas")),
         variaveis_do_m12(),
     )
 

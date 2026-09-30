@@ -46,7 +46,7 @@ from src.viewer.data import (
     read_seed,
 )
 from src.viewer.decisions import como_tabela
-from src.viewer.formatting import porcento
+from src.viewer.formatting import com_virgula, porcento
 from src.viewer.frames import FASES, Execucao, Fase, Painel, Quadro, quadros_da_fase
 from src.viewer.results import tabela_da_comparacao, tabela_do_tempo
 from src.viewer.theory import Teoria
@@ -205,18 +205,23 @@ def slots_do_tema() -> tuple[str, ...]:
 
 def mostrar_grafico(teoria: Teoria) -> None:
     """Barras para dominio discreto, linha para continuo."""
+    eixo_x = teoria.dados.columns[0]
     series = list(teoria.dados.columns[1:])
-    comum = {
-        "data": teoria.dados, "x": teoria.dados.columns[0], "y": series,
-        "color": list(slots_do_tema()[:len(series)]),
-        "x_label": teoria.rotulo_x, "y_label": teoria.rotulo_y,
-        "height": ALTURA_DO_GRAFICO, "use_container_width": True,
-    }
+    cores = list(slots_do_tema()[:len(series)])
 
     if teoria.forma == "barras":
-        st.bar_chart(stack=False, horizontal=teoria.horizontal, **comum)
+        st.bar_chart(
+            data=teoria.dados, x=eixo_x, y=series, color=cores,
+            x_label=teoria.rotulo_x, y_label=teoria.rotulo_y,
+            height=ALTURA_DO_GRAFICO, use_container_width=True,
+            stack=False, horizontal=teoria.horizontal,
+        )
     else:
-        st.line_chart(**comum)
+        st.line_chart(
+            data=teoria.dados, x=eixo_x, y=series, color=cores,
+            x_label=teoria.rotulo_x, y_label=teoria.rotulo_y,
+            height=ALTURA_DO_GRAFICO, use_container_width=True,
+        )
 
 
 def mostrar_secao(teoria: Teoria) -> None:
@@ -302,7 +307,7 @@ def escolher_sigma() -> float:
     return float(st.sidebar.select_slider(
         "Furtividade σ", options=list(SIGMAS), key=SIGMA_ESCOLHIDO,
         persist_state=PERSISTE,
-        format_func=lambda valor: f"{valor:.1f}".replace(".", ","),
+        format_func=com_virgula,
         help="0,0 é ostensivo; 1,0 é indistinguível de uma sessão legítima.",
     ))
 
@@ -384,14 +389,19 @@ def mostrar_sigma_do_atacante(regime: str) -> None:
     sigma = float(st.select_slider(
         "Furtividade σ", options=list(SIGMAS), key=SIGMA_DO_ATACANTE,
         persist_state=PERSISTE,
-        format_func=lambda valor: f"{valor:.1f}".replace(".", ","),
+        format_func=com_virgula,
     ))
 
-    especificacoes = (REGIMES[regime], TrafficSpecification(), AttackSpecification())
-    st.dataframe(tabela_do_atacante(sigma, *especificacoes),
-                 use_container_width=True, hide_index=True)
+    regime_escolhido = REGIMES[regime]
+    trafego = TrafficSpecification()
+    ataque = AttackSpecification()
+
+    tabela = tabela_do_atacante(sigma, regime_escolhido, trafego, ataque)
+    tamanhos = tamanhos_da_sessao(sigma, regime_escolhido, trafego, ataque)
+
+    st.dataframe(tabela, use_container_width=True, hide_index=True)
     mostrar_grafico(Teoria(
-        titulo="", texto="", dados=tamanhos_da_sessao(sigma, *especificacoes),
+        titulo="", texto="", dados=tamanhos,
         rotulo_x="requisições na sessão", rotulo_y="fração das sessões",
     ))
     st.caption("**O que ler no gráfico.** Quanto mais as duas cores se sobrepõem, "

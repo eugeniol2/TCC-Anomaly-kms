@@ -56,6 +56,11 @@ class AttackOutput(NamedTuple):
     run: pd.DataFrame
 
 
+def identifier_of(operator: Operator) -> str:
+    """Como os administradores se ordenam: pelo identificador."""
+    return operator.operator_id
+
+
 def administrators_of(operators: list[Operator]) -> list[Operator]:
     """Os oito administradores, em ordem estavel de identificador.
 
@@ -71,7 +76,7 @@ def administrators_of(operators: list[Operator]) -> list[Operator]:
         if is_administrator:
             holders.append(operator)
 
-    return sorted(holders, key=lambda operator: operator.operator_id)
+    return sorted(holders, key=identifier_of)
 
 
 def draw_compromised_admin(rng: Generator, operators: list[Operator]) -> Operator:

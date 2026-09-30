@@ -91,13 +91,32 @@ def xgboost(parameters: dict, labels: pd.Series, random_state: int):
     )
 
 
-MODEL_FACTORIES = {"random_forest": random_forest, "xgboost": xgboost}
+def new_model(name: str, parameters: dict, labels: pd.Series, random_state: int):
+    """O modelo daquele nome, ainda sem treino."""
+    if name == "random_forest":
+        return random_forest(parameters, labels, random_state)
+
+    if name == "xgboost":
+        return xgboost(parameters, labels, random_state)
+
+    raise ValueError(f"modelo desconhecido: {name}")
+
+
+def seed_of(seeds: TrainingSeeds, name: str) -> int:
+    """A semente de treino daquele modelo."""
+    if name == "random_forest":
+        return seeds.random_forest
+
+    if name == "xgboost":
+        return seeds.xgboost
+
+    raise ValueError(f"modelo desconhecido: {name}")
 
 
 def fitted(name: str, parameters: dict, sessions: pd.DataFrame, random_state: int):
     """Um modelo treinado nas sessoes dadas, so com os oito atributos."""
     labels = sessions[LABEL]
-    model = MODEL_FACTORIES[name](parameters, labels, random_state)
+    model = new_model(name, parameters, labels, random_state)
 
     return model.fit(sessions[list(ATTRIBUTES)], labels)
 
@@ -141,7 +160,7 @@ def configuration_scores(seed: int, train: pd.DataFrame) -> Iterator[dict]:
     folds = list(splitter.split(train, train[LABEL]))
 
     for name in MODEL_NAMES:
-        random_state = getattr(seeds, name)
+        random_state = seed_of(seeds, name)
 
         for position, parameters in enumerate(ParameterGrid(GRIDS[name])):
             scores = []
@@ -242,16 +261,16 @@ def build_models(
     seeds = training_seeds(seed)
     features = holdout[list(ATTRIBUTES)]
 
-    outputs = {}
+    predictions = holdout[list(IDENTIFIERS)].copy()
     timings = []
 
     for name in MODEL_NAMES:
-        model = fitted(name, configuration[name], train, getattr(seeds, name))
-        outputs[name] = model.predict(features).astype(int)
-        outputs[score_column(name)] = model.predict_proba(features)[:, 1].round(6)
+        model = fitted(name, configuration[name], train, seed_of(seeds, name))
+        predictions[name] = model.predict(features).astype(int)
+        predictions[score_column(name)] = model.predict_proba(features)[:, 1].round(6)
         timings.append(time_decision(name, len(holdout), lambda: model.predict(features)))
 
-    predictions = holdout[list(IDENTIFIERS)].assign(**outputs, **{LABEL: holdout[LABEL]})
+    predictions[LABEL] = holdout[LABEL]
 
     return Models(
         predictions[list(COLUMNS)].reset_index(drop=True),

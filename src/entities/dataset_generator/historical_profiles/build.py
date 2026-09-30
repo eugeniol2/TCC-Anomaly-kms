@@ -131,6 +131,13 @@ def window_width_hours(profiles: pd.DataFrame) -> pd.Series:
     return (closes - opens).dt.total_seconds() / 3600
 
 
+def joined_distinct(addresses: pd.Series) -> str:
+    """As origens distintas de um operador, ordenadas e unidas por separador."""
+    distinct = sorted(set(addresses))
+
+    return MULTIVALUE_SEPARATOR.join(distinct)
+
+
 def profile_of(openings: pd.DataFrame) -> pd.DataFrame:
     """A janela e as origens de cada operador, do log do aquecimento."""
     hours = hour_of_day(openings["moment"])
@@ -138,9 +145,7 @@ def profile_of(openings: pd.DataFrame) -> pd.DataFrame:
 
     grouped = dated.groupby("operator_id")
 
-    addresses = grouped["source_ip"].apply(
-        lambda seen: MULTIVALUE_SEPARATOR.join(sorted(set(seen)))
-    )
+    addresses = grouped["source_ip"].apply(joined_distinct)
 
     return pd.DataFrame({
         "operator_id": grouped.size().index,

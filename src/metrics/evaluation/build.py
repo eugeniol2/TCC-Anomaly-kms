@@ -142,8 +142,9 @@ def run_metrics(run: Run) -> pd.DataFrame:
         raise ValueError(f"semente {run.seed}, sigma {run.sigma}: predicoes de sessoes diferentes")
 
     truth = run.predictions_rules[LABEL]
+    every_session = np.full(len(truth), True)
     is_administrator = run.predictions_rules["operator_id"].isin(run.administrators)
-    rows_of = {ALL_SESSIONS: truth.index == truth.index, ADMINISTRATORS: is_administrator}
+    rows_of = {ALL_SESSIONS: every_session, ADMINISTRATORS: is_administrator}
 
     rows = []
 
@@ -151,13 +152,16 @@ def run_metrics(run: Run) -> pd.DataFrame:
         for scope, selected in rows_of.items():
             counts = confusion(truth[selected], decided[selected])
             chosen_score = None if score is None else score[selected]
-            rows.append({
+
+            row = {
                 "seed": run.seed, "sigma": run.sigma, "mechanism": mechanism,
                 "scope": scope, "sessions": int(selected.sum()),
                 "positives": int(truth[selected].sum()),
-                **counts, **rounded_rates(counts),
-                "roc_auc": area_under_curve(truth[selected], chosen_score),
-            })
+            }
+            row.update(counts)
+            row.update(rounded_rates(counts))
+            row["roc_auc"] = area_under_curve(truth[selected], chosen_score)
+            rows.append(row)
 
     return pd.DataFrame(rows)[list(METRIC_COLUMNS)]
 
@@ -217,11 +221,10 @@ def partition_counts(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, in
 
 
 def run_triviality(run: Run) -> pd.DataFrame:
-    row = {
-        "seed": run.seed, "sigma": run.sigma,
-        **partition_counts(run.train, run.holdout),
-        **stump(run.train, run.holdout), **duplicates(run.train, run.holdout),
-    }
+    row = {"seed": run.seed, "sigma": run.sigma}
+    row.update(partition_counts(run.train, run.holdout))
+    row.update(stump(run.train, run.holdout))
+    row.update(duplicates(run.train, run.holdout))
 
     return pd.DataFrame([row])[list(TRIVIALITY_COLUMNS)]
 
@@ -356,24 +359,31 @@ def read_administrators(root: Path, seed: int) -> frozenset[str]:
     return frozenset(operators.loc[is_administrator, "operator_id"])
 
 
+def read_table(directory: Path, name: str) -> pd.DataFrame:
+    """Um arquivo de uma execucao, com erro claro quando falta."""
+    path = directory / name
+
+    if not path.exists():
+        raise FileNotFoundError(f"falta `{name}` em {directory}")
+
+    return pd.read_csv(path)
+
+
 def read_run(root: Path, seed: int, sigma: float) -> Run:
     """Os arquivos de uma execucao, com erro claro quando falta algum."""
     directory = layout.run_directory(root, seed, sigma)
 
-    def table(name: str) -> pd.DataFrame:
-        path = directory / name
-
-        if not path.exists():
-            raise FileNotFoundError(f"falta `{name}` em {directory}")
-
-        return pd.read_csv(path)
-
-    timing = pd.concat(
-        [table(layout.TIMING_RULES), table(layout.TIMING_ML)], ignore_index=True
-    )
+    timing_rules = read_table(directory, layout.TIMING_RULES)
+    timing_ml = read_table(directory, layout.TIMING_ML)
+    timing = pd.concat([timing_rules, timing_ml], ignore_index=True)
 
     return Run(
-        seed, sigma, table(layout.TRAIN), table(layout.HOLDOUT),
-        table(layout.PREDICTIONS_RULES), table(layout.PREDICTIONS_ML), timing,
-        read_administrators(root, seed),
+        seed=seed,
+        sigma=sigma,
+        train=read_table(directory, layout.TRAIN),
+        holdout=read_table(directory, layout.HOLDOUT),
+        predictions_rules=read_table(directory, layout.PREDICTIONS_RULES),
+        predictions_ml=read_table(directory, layout.PREDICTIONS_ML),
+        timing=timing,
+        administrators=read_administrators(root, seed),
     )

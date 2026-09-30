@@ -45,12 +45,25 @@ from src.metrics.figures.parameters import (
 from src.shared import layout
 from src.shared.experiment import SIGMAS
 
-WITH_COMMA = FuncFormatter(lambda value, _: f"{value:.1f}".replace(".", ","))
-WITH_COMMA_FINE = FuncFormatter(lambda value, _: f"{value:.2f}".replace(".", ","))
-
-
 def comma(value: float, places: int = 2) -> str:
     return f"{value:.{places}f}".replace(".", ",")
+
+
+def axis_label_one_place(value: float, position: int) -> str:
+    """O rotulo de um eixo com uma casa e virgula.
+
+    O matplotlib chama com o valor e a posicao do rotulo; a posicao nao se usa.
+    """
+    return comma(value, 1)
+
+
+def axis_label_two_places(value: float, position: int) -> str:
+    """O rotulo de um eixo com duas casas e virgula, para o eixo recortado da ROC."""
+    return comma(value, 2)
+
+
+WITH_COMMA = FuncFormatter(axis_label_one_place)
+WITH_COMMA_FINE = FuncFormatter(axis_label_two_places)
 
 
 def styled_axes(axes) -> None:
@@ -168,8 +181,9 @@ def draw_roc_panel(axes, predictions: tuple[pd.DataFrame, pd.DataFrame], sigma: 
                   label=f"{style['label']} (AUC {comma(area, 3)})")
 
     rules_style = MECHANISM_STYLE[RULES]
-    point = baseline_point(rules)
-    axes.plot(*point, linestyle="none", marker=rules_style["marker"], markersize=MARKER_SIZE + 2,
+    rules_false_positive, rules_true_positive = baseline_point(rules)
+    axes.plot(rules_false_positive, rules_true_positive, linestyle="none",
+              marker=rules_style["marker"], markersize=MARKER_SIZE + 2,
               color=rules_style["color"], markeredgecolor=SURFACE, markeredgewidth=1.5,
               label=rules_style["label"], zorder=5)
 

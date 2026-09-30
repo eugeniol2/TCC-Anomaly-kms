@@ -511,8 +511,15 @@ FAIXAS_NO_GRAFICO = 20
 def largura_de_faixa(media: float) -> int:
     """A largura redonda de faixa, em segundos, para ~20 barras até 4 médias."""
     alvo = 4 * media / FAIXAS_NO_GRAFICO
+    escolhida = LARGURAS_DE_FAIXA[0]
 
-    return min(LARGURAS_DE_FAIXA, key=lambda largura: abs(largura - alvo))
+    for largura in LARGURAS_DE_FAIXA:
+        is_mais_perto = abs(largura - alvo) < abs(escolhida - alvo)
+
+        if is_mais_perto:
+            escolhida = largura
+
+    return escolhida
 
 
 def barras_da_exponencial(media: float) -> pd.DataFrame:
@@ -670,6 +677,18 @@ SEMENTE_DO_GRAFICO = 20260927
 # sorteios nao pertencem ao experimento, so ilustram a tela.
 
 
+def sortear_tamanhos(
+    rng: np.random.Generator, faixa: tuple[int, int], trafego: TrafficSpecification
+) -> pd.Series:
+    """Os tamanhos de `AMOSTRAS_DO_GRAFICO` sessões, sorteados como o gerador sorteia."""
+    tamanhos = []
+
+    for _ in range(AMOSTRAS_DO_GRAFICO):
+        tamanhos.append(draw_request_count(rng, faixa, trafego))
+
+    return pd.Series(tamanhos)
+
+
 def tamanhos_da_sessao(
     sigma: float, regime: Regime, trafego: TrafficSpecification, ataque: AttackSpecification
 ) -> pd.DataFrame:
@@ -683,16 +702,8 @@ def tamanhos_da_sessao(
     rng = np.random.default_rng(SEMENTE_DO_GRAFICO)
     faixa_do_atacante = stealth_of(sigma, regime, trafego, ataque).requests_range
 
-    def sortear(faixa: tuple[int, int]) -> pd.Series:
-        tamanhos = []
-
-        for _ in range(AMOSTRAS_DO_GRAFICO):
-            tamanhos.append(draw_request_count(rng, faixa, trafego))
-
-        return pd.Series(tamanhos)
-
-    atacante = sortear(faixa_do_atacante)
-    legitima = sortear(regime.requests_range)
+    atacante = sortear_tamanhos(rng, faixa_do_atacante, trafego)
+    legitima = sortear_tamanhos(rng, regime.requests_range, trafego)
 
     eixo = np.arange(1, int(max(atacante.max(), legitima.max())) + 1)
 

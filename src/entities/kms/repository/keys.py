@@ -70,14 +70,16 @@ def build_keys(rng: Generator, sizes: dict[str, int]) -> pd.DataFrame:
     nao decide acesso, nem aqui nem no M4. A tabela teve uma coluna `owner` ate
     24/09; ela nunca foi consumida por modulo nenhum.
     """
-    identifiers = iter(draw_key_ids(rng, sum(sizes.values())))
+    identifiers = draw_key_ids(rng, sum(sizes.values()))
 
     rows = []
+    position = 0
 
     for scope in sorted(sizes):
         for _ in range(sizes[scope]):
-            row = {"key_id": next(identifiers), "scope": scope, "status": "active"}
+            row = {"key_id": identifiers[position], "scope": scope, "status": "active"}
             rows.append(row)
+            position += 1
 
     return pd.DataFrame(rows)
 

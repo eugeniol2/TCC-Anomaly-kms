@@ -37,6 +37,13 @@ estagios diferentes, e dois nomes para um conceito so seria ruido.
 """
 
 
+def start_then_operator(scheduled: tuple[datetime, Operator]) -> tuple[datetime, str]:
+    """Como as sessoes se ordenam: pelo instante de abertura, e no empate pelo operador."""
+    start, operator = scheduled
+
+    return start, operator.operator_id
+
+
 def plan_sessions(
     rng: Generator, operators: list[Operator], specification: TrafficSpecification
 ) -> list[PlannedSession]:
@@ -55,7 +62,7 @@ def plan_sessions(
         for start in starts:
             scheduled.append((start, operator))
 
-    scheduled.sort(key=lambda item: (item[0], item[1].operator_id))
+    scheduled.sort(key=start_then_operator)
 
     planned = []
 

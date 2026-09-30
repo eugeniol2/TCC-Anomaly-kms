@@ -108,8 +108,21 @@ def columns_of(phase: str) -> tuple[str, ...]:
     return IDENTIFIERS + ATTRIBUTES
 
 
+def count_failures(outcomes: pd.Series) -> int:
+    """Quantos desfechos da sessao nao foram sucesso."""
+    return (outcomes != SUCCESS).sum()
+
+
+def count_denials(outcomes: pd.Series) -> int:
+    """Quantos desfechos da sessao foram negacao por politica."""
+    return (outcomes == DENIED_BY_POLICY).sum()
+
+
 def per_session(log: pd.DataFrame) -> pd.DataFrame:
-    """As grandezas brutas de cada sessao, antes de virarem atributo."""
+    """As grandezas brutas de cada sessao, antes de virarem atributo.
+
+    O `apply` roda a funcao uma vez por sessao, com os desfechos daquela sessao.
+    """
     dated = log.assign(moment=pd.to_datetime(log["timestamp"]))
     grouped = dated.groupby("session_id", sort=True)
 
@@ -120,10 +133,8 @@ def per_session(log: pd.DataFrame) -> pd.DataFrame:
         "closed_at": grouped["moment"].max(),
         "events": grouped.size(),
         "distinct_keys": grouped["key_id"].nunique(),
-        "failures": grouped["outcome"].apply(lambda seen: (seen != SUCCESS).sum()),
-        "denials": grouped["outcome"].apply(
-            lambda seen: (seen == DENIED_BY_POLICY).sum()
-        ),
+        "failures": grouped["outcome"].apply(count_failures),
+        "denials": grouped["outcome"].apply(count_denials),
     })
 
 
@@ -146,15 +157,17 @@ def with_rate_attributes(sessions: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def as_address_set(joined: str) -> frozenset[str]:
+    """As origens observadas, de texto unido por separador para conjunto."""
+    return frozenset(str(joined).split(MULTIVALUE_SEPARATOR)) # |
+
+
 def read_profiles(profiles: pd.DataFrame) -> pd.DataFrame:
     """Indexa o perfil por operador, com as origens ja como conjunto."""
     indexed = profiles.set_index("operator_id")
+    addresses = indexed["observed_ips"].apply(as_address_set)
 
-    return indexed.assign(
-        seen_addresses=indexed["observed_ips"].apply(
-            lambda joined: frozenset(str(joined).split(MULTIVALUE_SEPARATOR))
-        )
-    )
+    return indexed.assign(seen_addresses=addresses)
 
 
 def with_history_attributes(

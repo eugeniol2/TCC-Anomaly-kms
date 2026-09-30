@@ -89,7 +89,7 @@ def parse_options(arguments: list[str] | None = None) -> Options:
 
 def main() -> None:
     try:
-        run_experiment(parse_options(), report=print)
+        run_experiment(parse_options())
     except FileNotFoundError as missing:
         raise SystemExit(f"erro: {missing}")
 

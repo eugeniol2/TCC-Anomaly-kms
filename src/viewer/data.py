@@ -82,8 +82,8 @@ def missing_files(directory: Path, names: tuple[str, ...]) -> list[str]:
     return absent
 
 
-def read_all(directory: Path, names: tuple[str, ...]) -> list[pd.DataFrame]:
-    """Le os arquivos, na ordem dada, com erro claro quando falta algum."""
+def read_all(directory: Path, names: tuple[str, ...]) -> dict[str, pd.DataFrame]:
+    """Le os arquivos, cada um pelo nome, com erro claro quando falta algum."""
     absent = missing_files(directory, names)
 
     if absent:
@@ -91,30 +91,60 @@ def read_all(directory: Path, names: tuple[str, ...]) -> list[pd.DataFrame]:
             f"faltam {', '.join(absent)} em {directory}; rode antes: python -m src.main"
         )
 
-    frames = []
+    frames = {}
 
     for name in names:
-        frames.append(pd.read_csv(directory / name))
+        frames[name] = pd.read_csv(directory / name)
 
     return frames
 
 
 def read_seed(root: Path, seed: int) -> SeedFiles:
-    return SeedFiles(*read_all(layout.seed_directory(root, seed), SEED_NAMES))
+    files = read_all(layout.seed_directory(root, seed), SEED_NAMES)
+
+    return SeedFiles(
+        operators=files[layout.OPERATORS],
+        keys=files[layout.KEYS],
+        requests=files[layout.REQUESTS],
+        outcomes=files[layout.OUTCOMES],
+        log=files[layout.LOG],
+        profiles=files[layout.HISTORICAL_PROFILES],
+        sessions=files[layout.SESSIONS],
+        thresholds=files[layout.THRESHOLDS],
+    )
 
 
 def read_run(root: Path, seed: int, sigma: float) -> RunFiles:
     directory = layout.run_directory(root, seed, sigma)
-    files = read_all(directory, RUN_NAMES)
+    files = read_all(directory, RUN_NAMES + (layout.TIMING_RULES, layout.TIMING_ML))
     timing = pd.concat(
-        read_all(directory, (layout.TIMING_RULES, layout.TIMING_ML)), ignore_index=True
+        [files[layout.TIMING_RULES], files[layout.TIMING_ML]], ignore_index=True
     )
 
-    return RunFiles(*files, timing)
+    return RunFiles(
+        requests=files[layout.REQUESTS],
+        compromised=files[layout.COMPROMISED_SESSIONS],
+        run=files[layout.RUN],
+        outcomes=files[layout.OUTCOMES],
+        log=files[layout.LOG],
+        sessions=files[layout.SESSIONS],
+        train=files[layout.TRAIN],
+        holdout=files[layout.HOLDOUT],
+        predictions_rules=files[layout.PREDICTIONS_RULES],
+        predictions_ml=files[layout.PREDICTIONS_ML],
+        timing=timing,
+    )
 
 
 def read_grid(root: Path) -> GridFiles:
-    return GridFiles(*read_all(root, GRID_NAMES))
+    files = read_all(root, GRID_NAMES)
+
+    return GridFiles(
+        metrics=files[layout.METRICS],
+        triviality=files[layout.TRIVIALITY],
+        comparison=files[layout.COMPARISON],
+        timing=files[layout.TIMING],
+    )
 
 
 def figure_paths(root: Path) -> dict[str, Path]:

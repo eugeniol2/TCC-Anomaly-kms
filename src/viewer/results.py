@@ -36,6 +36,13 @@ def p_valor(valor: float) -> str:
     return "< 0,001" if valor < 0.001 else numero(valor)
 
 
+def inteiro_com_milhar(valor: float) -> str:
+    """Um inteiro com ponto de milhar, como no texto: 1.234.567."""
+    com_virgula_de_milhar = f"{valor:,.0f}"
+
+    return com_virgula_de_milhar.replace(",", ".")
+
+
 def com_intervalo(
     meios: pd.Series, baixos: pd.Series, altos: pd.Series, casas: int = 3
 ) -> list[str]:
@@ -79,8 +86,6 @@ def tabela_do_tempo(timing: pd.DataFrame) -> pd.DataFrame:
             timing["q3_microseconds"],
             casas=2,
         ),
-        "sessões por segundo": timing["median_sessions_per_second"].map(
-            lambda valor: f"{valor:,.0f}".replace(",", ".")
-        ),
+        "sessões por segundo": timing["median_sessions_per_second"].map(inteiro_com_milhar),
         "execuções": timing["runs"],
     })
