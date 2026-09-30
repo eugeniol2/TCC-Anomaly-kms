@@ -182,7 +182,7 @@ streamlit run src/viewer/app.py
 python -m pytest
 ```
 
-São 1662 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
+São 1667 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
 módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
 específica de semente é o que passa despercebido.
 
@@ -196,8 +196,8 @@ específica de semente é o que passa despercebido.
 | `test_partition.py` | 40 | cada sessão de um lado só, 23 positivas no holdout, a mesma divisão em todo sigma |
 | `test_baseline.py` | 63 | cada regra dispara onde a D-080 diz, qualquer par alerta e nenhuma regra sozinha, o rótulo não decide |
 | `test_viewer.py` | 39 | a tela mostra o que o pipeline produz, e as curvas batem com o gerador |
-| `test_models.py` | 14 | o rótulo do holdout não decide, a mesma semente treina os mesmos modelos, a busca escolhe pela regra de empate |
-| `test_evaluation.py` | 15 | as métricas de uma matriz conhecida, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
+| `test_models.py` | 15 | o rótulo do holdout não decide, a mesma semente treina os mesmos modelos, a busca escolhe pela regra de empate |
+| `test_evaluation.py` | 19 | as métricas de uma matriz conhecida, o recorte dos administradores, a AUC, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
 | `test_pipeline.py` | 11 | o orquestrador grava o mesmo que os módulos gravariam, e sempre os mesmos bytes |
 | `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |
 
