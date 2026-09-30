@@ -83,10 +83,18 @@ def spread_over_requests(
     surplus = request_count - len(session_keys)
     repeated = rng.integers(0, len(session_keys), size=surplus)
 
-    sequence = list(session_keys) + [session_keys[index] for index in repeated]
-    order = rng.permutation(request_count)
+    sequence = list(session_keys)
 
-    return [sequence[index] for index in order]
+    for index in repeated:
+        sequence.append(session_keys[index])
+
+    order = rng.permutation(request_count)
+    spread = []
+
+    for index in order:
+        spread.append(sequence[index])
+
+    return spread
 
 
 def apply_deviations(
@@ -127,7 +135,12 @@ def session_targets(
     quantity = distinct_key_count(rng, ceiling, specification)
 
     chosen = rng.choice(len(keys.in_reach), size=quantity, replace=False)
-    session_keys = tuple(keys.in_reach[index] for index in chosen)
+    picked = []
+
+    for index in chosen:
+        picked.append(keys.in_reach[index])
+
+    session_keys = tuple(picked)
 
     spread = spread_over_requests(rng, session_keys, request_count)
 

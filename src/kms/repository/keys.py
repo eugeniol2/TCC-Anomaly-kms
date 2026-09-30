@@ -46,7 +46,12 @@ def split_keys_by_scope(
     weights = rng.dirichlet(np.full(len(pool), specification.concentration)) # gera uma distribuicao de Dirichlet para determinar a proporcao de chaves por escopo
     extra = largest_remainder(weights, total - reserved)
 
-    return {scope: floor + int(count) for scope, count in zip(pool, extra)}
+    sizes = {}
+
+    for scope, count in zip(pool, extra):
+        sizes[scope] = floor + int(count)
+
+    return sizes
 
 
 def draw_key_ids(rng: Generator, quantity: int) -> list[str]:
@@ -81,15 +86,12 @@ def build_keys(rng: Generator, sizes: dict[str, int]) -> pd.DataFrame:
     """
     identifiers = iter(draw_key_ids(rng, sum(sizes.values())))
 
-    rows = [
-        {
-            "key_id": next(identifiers),
-            "scope": scope,
-            "status": "active",
-        }
-        for scope in sorted(sizes)
-        for _ in range(sizes[scope])
-    ]
+    rows = []
+
+    for scope in sorted(sizes):
+        for _ in range(sizes[scope]):
+            row = {"key_id": next(identifiers), "scope": scope, "status": "active"}
+            rows.append(row)
 
     return pd.DataFrame(rows)
 

@@ -26,7 +26,17 @@ interno: saem de `SeedSequence.spawn`, cuja mistura com efeito avalanche faz
 sementes vizinhas produzirem estados iniciais sem correlacao (D-039).
 """
 
-SIGMAS = tuple(step / 10 for step in range(11))
+def sigma_steps() -> tuple[float, ...]:
+    """Os onze valores de sigma, de 0,0 a 1,0, em passo de 0,1."""
+    sigmas = []
+
+    for step in range(11):
+        sigmas.append(step / 10)
+
+    return tuple(sigmas)
+
+
+SIGMAS = sigma_steps()
 """Furtividade do atacante, de 0,0 a 1,0 em passo de 0,1.
 
 Em 0,0 o atacante e ostensivo em todas as cinco dimensoes comportamentais: taxa

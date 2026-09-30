@@ -82,14 +82,14 @@ class Variavel:
 
 def como_tabela(variaveis: tuple[Variavel, ...]) -> pd.DataFrame:
     """As variáveis numa tabela de três colunas, para o app mostrar de uma vez."""
-    linhas = [
-        {
+    linhas = []
+
+    for variavel in variaveis:
+        linhas.append({
             "variável": variavel.nome,
             "valor": valor_escrito(variavel.valor),
             "o que é": variavel.significado,
-        }
-        for variavel in variaveis
-    ]
+        })
 
     return pd.DataFrame(linhas, columns=list(COLUNAS))
 
@@ -98,24 +98,23 @@ def variaveis_do_m1(
     repositorio: KeyRepositorySpecification, chaves: pd.DataFrame | None = None
 ) -> tuple[Variavel, ...]:
     """A escala da população e a forma do repositório de chaves."""
-    por_perfil = ", ".join(
-        f"{perfil.operators} {perfil.name}" for perfil in PROFILES
-    )
-    escopos_por_perfil = "; ".join(
-        f"{perfil.name}: {perfil.scopes_each}" for perfil in PROFILES
-    )
-    enderecos_por_perfil = "; ".join(
-        f"{perfil.name}: {perfil.addresses_range[0]} a {perfil.addresses_range[1]}"
-        for perfil in PROFILES
-    )
+    por_perfil = []
+    escopos_por_perfil = []
+    enderecos_por_perfil = []
+
+    for perfil in PROFILES:
+        menor, maior = perfil.addresses_range
+        por_perfil.append(f"{perfil.operators} {perfil.name}")
+        escopos_por_perfil.append(f"{perfil.name}: {perfil.scopes_each}")
+        enderecos_por_perfil.append(f"{perfil.name}: {menor} a {maior}")
 
     return (
-        Variavel("PROFILES", por_perfil,
+        Variavel("PROFILES", ", ".join(por_perfil),
                  "Quantos operadores de cada perfil.", "D-035"),
-        Variavel("scopes_each", escopos_por_perfil,
+        Variavel("scopes_each", "; ".join(escopos_por_perfil),
                  "Quantos escopos cada perfil detém, o que define o alcance dele.",
                  "D-035"),
-        Variavel("addresses_range", enderecos_por_perfil,
+        Variavel("addresses_range", "; ".join(enderecos_por_perfil),
                  "Quantas origens de rede habituais cada operador tem, sorteado "
                  "na faixa.",
                  "D-041"),
@@ -153,15 +152,17 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
     lote = REGIMES["periodic_batch"]
     # Uma linha por regime: os tres numa celula so ficavam longos demais
     # para ler, e a coluna de valor cortava o ultimo.
-    regimes = tuple(
-        Variavel(f"regime {perfil.regime}", perfil.name,
-                 f"Regime do perfil {perfil.name}. O ritmo, o tamanho e o "
-                 "passo dele estão na página Comportamentos.",
-                 "D-007, D-058")
-        for perfil in PROFILES
-    )
+    regimes = []
 
-    return regimes + (
+    for perfil in PROFILES:
+        regimes.append(Variavel(
+            f"regime {perfil.regime}", perfil.name,
+            f"Regime do perfil {perfil.name}. O ritmo, o tamanho e o "
+            "passo dele estão na página Comportamentos.",
+            "D-007, D-058",
+        ))
+
+    return tuple(regimes) + (
         Variavel("week_count", trafego.week_count,
                  f"Semanas simuladas: {RULER_WEEKS} de régua (o perfil e os "
                  f"limiares, do mesmo período) e {EVALUATED_WEEKS} avaliadas.",
@@ -315,26 +316,38 @@ def dimensoes_do_atacante(
     linha da chave inexistente.
     """
     regime = REGIMES["occasional_custody"]
-    ostensivo, deste, legitimo = (
-        linhas_do_atacante(stealth_of(valor, regime, trafego, ataque))
-        for valor in (0.0, sigma, 1.0)
-    )
+    ostensivo = linhas_do_atacante(stealth_of(0.0, regime, trafego, ataque))
+    deste = linhas_do_atacante(stealth_of(sigma, regime, trafego, ataque))
+    legitimo = linhas_do_atacante(stealth_of(1.0, regime, trafego, ataque))
 
-    return tuple(
-        Variavel(nome, f"{zero}  →  {um}",
-                 f"Do ostensivo (σ 0,0) ao legítimo (σ 1,0). Neste σ: {meio}.",
-                 "D-082")
-        for (nome, zero), (_, meio), (_, um) in zip(ostensivo, deste, legitimo)
-    )
+    dimensoes = []
+
+    for (nome, zero), (_, meio), (_, um) in zip(ostensivo, deste, legitimo):
+        dimensoes.append(Variavel(
+            nome, f"{zero}  →  {um}",
+            f"Do ostensivo (σ 0,0) ao legítimo (σ 1,0). Neste σ: {meio}.",
+            "D-082",
+        ))
+
+    return tuple(dimensoes)
+
+
+def operadores_do_perfil(nome: str) -> int:
+    """Quantos operadores a população tem daquele perfil."""
+    for perfil in PROFILES:
+        is_procurado = perfil.name == nome
+
+        if is_procurado:
+            return perfil.operators
+
+    raise KeyError(f"perfil inexistente: {nome}")
 
 
 def variaveis_do_m3(
     sigma: float, ataque: AttackSpecification, trafego: TrafficSpecification
 ) -> tuple[Variavel, ...]:
     """A campanha: quantas sessões, quem, e o que σ move."""
-    administradores = next(
-        perfil.operators for perfil in PROFILES if perfil.name == "administrator"
-    )
+    administradores = operadores_do_perfil("administrator")
     condicoes = len(SIGMAS)
 
     return (
@@ -408,19 +421,25 @@ def variaveis_do_m10() -> tuple[Variavel, ...]:
 
 def variaveis_do_m11(configuracao: dict[str, dict]) -> tuple[Variavel, ...]:
     """Os modelos: quais, com que configuração, e como treinam."""
-    escolhidas = tuple(
-        Variavel(f"configuração {modelo}",
-                 "; ".join(f"{nome}={valor}" for nome, valor in sorted(parametros.items())),
-                 "Escolhida pela busca na 902, uma entre as que empataram no topo.",
-                 "D-103, D-117")
-        for modelo, parametros in configuracao.items()
-    )
+    escolhidas = []
+
+    for modelo, parametros in configuracao.items():
+        pares = []
+
+        for nome, valor in sorted(parametros.items()):
+            pares.append(f"{nome}={valor}")
+
+        escolhidas.append(Variavel(
+            f"configuração {modelo}", "; ".join(pares),
+            "Escolhida pela busca na 902, uma entre as que empataram no topo.",
+            "D-103, D-117",
+        ))
 
     return (
         Variavel("modelos", MODELOS,
                  "Os dois modelos supervisionados da comparação.",
                  "D-051, D-026"),
-    ) + escolhidas + (
+    ) + tuple(escolhidas) + (
         Variavel("treino", "uma vez, no treino",
                  "Cada modelo treina uma vez e decide sobre o holdout, cortando em 0,5.",
                  "D-105, D-114"),

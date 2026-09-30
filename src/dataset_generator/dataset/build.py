@@ -183,10 +183,11 @@ def with_history_attributes(
     # fracao de hora nao conseguia garantir (D-090, D-095).
     is_inside = (hours >= opens) & (hours <= closes)
 
-    is_known = [
-        row.source_ip in history.loc[row.operator_id, "seen_addresses"]
-        for row in sessions.itertuples()
-    ]
+    is_known = []
+
+    for row in sessions.itertuples():
+        seen_addresses = history.loc[row.operator_id, "seen_addresses"]
+        is_known.append(row.source_ip in seen_addresses)
 
     return sessions.assign(
         atypical_hour=(~is_inside).astype(int),

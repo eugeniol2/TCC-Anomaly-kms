@@ -169,7 +169,12 @@ def run_grid(experiment: Experiment) -> None:
 
 def write_evaluation(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ...]) -> Evaluation:
     """O M12 sobre as execucoes pedidas, lidas do disco: as quatro tabelas na raiz."""
-    runs = [read_run(root, seed, sigma) for seed in seeds for sigma in sigmas]
+    runs = []
+
+    for seed in seeds:
+        for sigma in sigmas:
+            runs.append(read_run(root, seed, sigma))
+
     evaluation = build_evaluation(runs)
 
     return Evaluation(

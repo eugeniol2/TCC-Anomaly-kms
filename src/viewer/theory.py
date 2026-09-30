@@ -107,14 +107,22 @@ def teoria_da_cauda(
         # Tipico acima de n ja passa, com ou sem excesso. Tipico abaixo so
         # passa se a sessao se estendeu o bastante: a geometrica sobrevive
         # a `n - t` com (1 - p) elevado a essa diferenca.
-        alcancados = [
-            chance * sobrevive ** (n - t) for t in tipicos if t <= n
-        ]
+        alcancados = 0.0
 
-        return maiores + sum(alcancados) / quantos
+        for t in tipicos:
+            is_abaixo = t <= n
 
-    passa_de_fechada = np.array([passa_de(n, False) for n in comprimentos])
-    passa_de_com_cauda = np.array([passa_de(n, True) for n in comprimentos])
+            if is_abaixo:
+                alcancados += chance * sobrevive ** (n - t)
+
+        return maiores + alcancados / quantos
+
+    passa_de_fechada = []
+    passa_de_com_cauda = []
+
+    for n in comprimentos:
+        passa_de_fechada.append(passa_de(n, False))
+        passa_de_com_cauda.append(passa_de(n, True))
 
     dados = pd.DataFrame({
         "eventos na sessão": comprimentos,
@@ -182,10 +190,13 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
     de decisão que a tabela mostra ao lado do gráfico.
     """
     pesos = address_weights(maximo_de_enderecos)
-    posicoes = np.arange(maximo_de_enderecos)
+    enderecos = []
+
+    for posicao in range(maximo_de_enderecos):
+        enderecos.append(f"{posicao + 1}º")
 
     dados = pd.DataFrame({
-        "endereço": [f"{posicao + 1}º" for posicao in posicoes],
+        "endereço": enderecos,
         "chance de ser usado": pesos,
     })
 

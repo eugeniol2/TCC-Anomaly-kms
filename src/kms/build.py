@@ -38,10 +38,11 @@ def build_outcomes(
     of_phase = requests_of_phase(requests, phase)
     repository = read_repository(keys, operators)
 
-    outcomes = [
-        outcome_of(row.operator_id, row.key_id, repository)
-        for row in of_phase.itertuples()
-    ]
+    outcomes = []
+
+    for row in of_phase.itertuples():
+        outcome = outcome_of(row.operator_id, row.key_id, repository)
+        outcomes.append(outcome)
 
     return pd.DataFrame(
         {"event_id": of_phase["event_id"], "outcome": outcomes},

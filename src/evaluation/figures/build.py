@@ -40,8 +40,10 @@ from src.evaluation.figures.parameters import (
     TEXT_PRIMARY,
     TEXT_SECONDARY,
 )
+from src.models.build import score_column
 from src.models.parameters import MODEL_NAMES
 from src.shared import layout
+from src.shared.experiment import SIGMAS
 
 WITH_COMMA = FuncFormatter(lambda value, _: f"{value:.1f}".replace(".", ","))
 WITH_COMMA_FINE = FuncFormatter(lambda value, _: f"{value:.2f}".replace(".", ","))
@@ -102,7 +104,7 @@ def draw_f1_panel(axes, summary: pd.DataFrame, excluded: list[float], title: str
     axes.set_title(title, fontsize=10.5, color=TEXT_PRIMARY, loc="left")
     axes.set_xlim(-0.05, 1.05)
     axes.set_ylim(-0.02, 1.04)
-    axes.set_xticks([step / 10 for step in range(11)])
+    axes.set_xticks(SIGMAS)
     axes.xaxis.set_major_formatter(WITH_COMMA)
     axes.yaxis.set_major_formatter(WITH_COMMA)
     axes.set_xlabel("σ (furtividade do atacante)", color=TEXT_PRIMARY)
@@ -137,9 +139,13 @@ def pooled_predictions(
     root: Path, seeds: tuple[int, ...], sigma: float
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """As predicoes das sementes naquele sigma, empilhadas."""
-    directories = [layout.run_directory(root, seed, sigma) for seed in seeds]
-    rules = [pd.read_csv(directory / layout.PREDICTIONS_RULES) for directory in directories]
-    models = [pd.read_csv(directory / layout.PREDICTIONS_ML) for directory in directories]
+    rules = []
+    models = []
+
+    for seed in seeds:
+        directory = layout.run_directory(root, seed, sigma)
+        rules.append(pd.read_csv(directory / layout.PREDICTIONS_RULES))
+        models.append(pd.read_csv(directory / layout.PREDICTIONS_ML))
 
     return pd.concat(rules, ignore_index=True), pd.concat(models, ignore_index=True)
 
@@ -160,8 +166,8 @@ def draw_roc_panel(axes, predictions: tuple[pd.DataFrame, pd.DataFrame], sigma: 
 
     for name in MODEL_NAMES:
         style = MECHANISM_STYLE[name]
-        false_positive, true_positive, _ = roc_curve(models[LABEL], models[f"{name}_score"])
-        area = roc_auc_score(models[LABEL], models[f"{name}_score"])
+        false_positive, true_positive, _ = roc_curve(models[LABEL], models[score_column(name)])
+        area = roc_auc_score(models[LABEL], models[score_column(name)])
         axes.plot(false_positive, true_positive, color=style["color"], linewidth=LINE_WIDTH,
                   label=f"{style['label']} (AUC {comma(area, 3)})")
 
@@ -185,7 +191,13 @@ def draw_roc(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ...]) -> F
 
     So desenha os sigmas da faixa que a execucao rodou; se nenhum, nao ha figura.
     """
-    chosen = [sigma for sigma in ROC_SIGMAS if sigma in sigmas]
+    chosen = []
+
+    for sigma in ROC_SIGMAS:
+        was_run = sigma in sigmas
+
+        if was_run:
+            chosen.append(sigma)
 
     if not chosen:
         return None
@@ -208,10 +220,12 @@ def draw_roc(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ...]) -> F
 def save_figure(figure: Figure, directory: Path, name: str) -> list[Path]:
     """Grava a figura em PNG e em PDF vetorial, e devolve os caminhos."""
     directory.mkdir(parents=True, exist_ok=True)
-    paths = [directory / f"{name}.{suffix}" for suffix in ("png", "pdf")]
+    paths = []
 
-    for path in paths:
+    for suffix in ("png", "pdf"):
+        path = directory / f"{name}.{suffix}"
         figure.savefig(path, dpi=RESOLUTION, facecolor=figure.get_facecolor())
+        paths.append(path)
 
     plt.close(figure)
 

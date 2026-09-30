@@ -166,16 +166,24 @@ def frequencia_medida(valores: pd.Series, eixo: np.ndarray) -> np.ndarray:
     return valores.value_counts(normalize=True).reindex(eixo, fill_value=0).to_numpy()
 
 
+def horas_do_lote(ritmo: ScheduledRhythm) -> str:
+    """As horas fixas do lote, escritas como `02h, 08h, 14h, 20h`."""
+    horas = []
+
+    for hora in ritmo.hours:
+        horas.append(f"{hora:02d}h")
+
+    return ", ".join(horas)
+
+
 def descrever_ritmo(ritmo: ScheduledRhythm | ArrivalRhythm) -> tuple[str, str, str]:
     """Dias, horário e lei da contagem, como a tabela comparativa os mostra."""
     is_lote = isinstance(ritmo, ScheduledRhythm)
 
     if is_lote:
-        horas = ", ".join(f"{hora:02d}h" for hora in ritmo.hours)
-
         return (
             "todos",
-            f"{horas} (±{ritmo.jitter_minutes} min)",
+            f"{horas_do_lote(ritmo)} (±{ritmo.jitter_minutes} min)",
             f"fixa: {len(ritmo.hours)} por dia",
         )
 
@@ -632,11 +640,22 @@ def tabela_do_atacante(
         f"σ {com_virgula(sigma)} (escolhido)": sigma,
         "σ 1,0 (legítimo)": 1.0,
     }
-    tabela = {"dimensão": [nome for nome, _ in linhas_do_atacante(stealth_of(0.0, regime, trafego, ataque))]}
+    ostensivo = stealth_of(0.0, regime, trafego, ataque)
+    dimensoes = []
+
+    for nome, _ in linhas_do_atacante(ostensivo):
+        dimensoes.append(nome)
+
+    tabela = {"dimensão": dimensoes}
 
     for rotulo, valor in colunas.items():
         stealth = stealth_of(valor, regime, trafego, ataque)
-        tabela[rotulo] = [escrito for _, escrito in linhas_do_atacante(stealth)]
+        escritos = []
+
+        for _, escrito in linhas_do_atacante(stealth):
+            escritos.append(escrito)
+
+        tabela[rotulo] = escritos
 
     return pd.DataFrame(tabela)
 
@@ -664,7 +683,12 @@ def tamanhos_da_sessao(
     faixa_do_atacante = stealth_of(sigma, regime, trafego, ataque).requests_range
 
     def sortear(faixa: tuple[int, int]) -> pd.Series:
-        return pd.Series([draw_request_count(rng, faixa, trafego) for _ in range(AMOSTRAS_DO_GRAFICO)])
+        tamanhos = []
+
+        for _ in range(AMOSTRAS_DO_GRAFICO):
+            tamanhos.append(draw_request_count(rng, faixa, trafego))
+
+        return pd.Series(tamanhos)
 
     atacante = sortear(faixa_do_atacante)
     legitima = sortear(regime.requests_range)
@@ -743,7 +767,7 @@ class Metodo(NamedTuple):
 
 def metodos_do_lote(ritmo: ScheduledRhythm) -> list[Metodo]:
     """O calendário do `periodic_batch`: nada é sorteado, só o desvio."""
-    horas = ", ".join(f"{hora:02d}h" for hora in ritmo.hours)
+    horas = horas_do_lote(ritmo)
 
     return [
         Metodo("quantas sessões no dia", "nenhum: contagem fixa",
@@ -846,12 +870,15 @@ def tabela_de_metodos(metodos: list[Metodo], coluna_do_valor: str) -> str:
         f"| # | o que se decide | método | {coluna_do_valor} | função |\n"
         "|---|---|---|---|---|\n"
     )
-    linhas = "".join(
-        f"| {numero} | {metodo.etapa} | {metodo.metodo} | {metodo.parametro} | `{metodo.funcao}` |\n"
-        for numero, metodo in enumerate(metodos, start=1)
-    )
+    linhas = []
 
-    return cabecalho + linhas
+    for numero, metodo in enumerate(metodos, start=1):
+        linhas.append(
+            f"| {numero} | {metodo.etapa} | {metodo.metodo} | {metodo.parametro} "
+            f"| `{metodo.funcao}` |\n"
+        )
+
+    return cabecalho + "".join(linhas)
 
 
 def secao_metodos(regime: Regime, perfil: str) -> Teoria:
@@ -961,15 +988,19 @@ def montar_pagina(
     """A aba inteira, para o tráfego de uma semente."""
     sessoes = sessoes_do_trafego(requests, operators)
 
-    comportamentos = tuple(
-        montar_comportamento(
-            nome, requests, operators, sessoes, (trafego, ataque)
+    comportamentos = []
+
+    for nome in ORDEM:
+        comportamentos.append(
+            montar_comportamento(nome, requests, operators, sessoes, (trafego, ataque))
         )
-        for nome in ORDEM
-    )
+
     # A origem de rede fecha a visao geral, e nao cada aba de regime: os tres
     # escolhem o endereco pela mesma geometrica, so muda quantos ele tem.
-    mais_enderecos = max(perfil.addresses_range[1] for perfil in PROFILES)
+    mais_enderecos = 0
+
+    for perfil in PROFILES:
+        mais_enderecos = max(mais_enderecos, perfil.addresses_range[1])
 
     gerais = (
         secao_do_que_e_regime(),
@@ -980,4 +1011,6 @@ def montar_pagina(
         secao_do_excesso(trafego),
     )
 
-    return Pagina(quadro_comparativo(sessoes, operators, trafego), gerais, comportamentos)
+    return Pagina(
+        quadro_comparativo(sessoes, operators, trafego), gerais, tuple(comportamentos)
+    )

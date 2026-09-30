@@ -55,13 +55,16 @@ def read_repository(keys: pd.DataFrame, operators: pd.DataFrame) -> Repository:
     """
     from src.shared.tables import MULTIVALUE_SEPARATOR
 
+    scopes_by_operator = {}
+
+    for row in operators.itertuples():
+        scopes = row.scopes.split(MULTIVALUE_SEPARATOR)
+        scopes_by_operator[row.operator_id] = frozenset(scopes)
+
     return Repository(
         scope_by_key=dict(zip(keys["key_id"], keys["scope"])),
         disabled=frozenset(keys.loc[keys["status"] == "disabled", "key_id"]),
-        scopes_by_operator={
-            row.operator_id: frozenset(row.scopes.split(MULTIVALUE_SEPARATOR))
-            for row in operators.itertuples()
-        },
+        scopes_by_operator=scopes_by_operator,
     )
 
 

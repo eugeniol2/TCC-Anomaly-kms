@@ -63,9 +63,13 @@ def administrators_of(operators: list[Operator]) -> list[Operator]:
     `operators.csv` trocaria o administrador comprometido da mesma semente, e
     o pareamento da D-011 dependeria da ordenacao de um arquivo.
     """
-    holders = [
-        operator for operator in operators if operator.profile == ADMINISTRATOR
-    ]
+    holders = []
+
+    for operator in operators:
+        is_administrator = operator.profile == ADMINISTRATOR
+
+        if is_administrator:
+            holders.append(operator)
 
     return sorted(holders, key=lambda operator: operator.operator_id)
 
@@ -97,19 +101,24 @@ def plan_campaign(
     stealth = stealth_of(sigma, regime, traffic, attack)
 
     starts = campaign_starts(rng, attack.campaign_sessions, stealth)
-    planned = [
-        CompromisedSession(f"attack_{number:05d}", admin, start)
-        for number, start in enumerate(starts, start=1)
-    ]
+    planned = []
+
+    for number, start in enumerate(starts, start=1):
+        session = CompromisedSession(f"attack_{number:05d}", admin, start)
+        planned.append(session)
 
     return planned, stealth
 
 
 def known_addresses_of(operators: list[Operator]) -> frozenset[str]:
     """Todo endereco habitual da populacao, para o inedito ser mesmo inedito."""
-    return frozenset(
-        address for operator in operators for address in operator.usual_ips
-    )
+    addresses = set()
+
+    for operator in operators:
+        for address in operator.usual_ips:
+            addresses.add(address)
+
+    return frozenset(addresses)
 
 
 def legitimate_of_evaluated(requests: pd.DataFrame) -> pd.DataFrame:
@@ -139,10 +148,11 @@ def renumbered(merged: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, str]]:
     """
     ordered = chronological(merged)
 
-    identifiers = {
-        session: f"session_{number:05d}"
-        for number, session in enumerate(ordered["session_id"].unique(), start=1)
-    }
+    identifiers = {}
+
+    for number, session in enumerate(ordered["session_id"].unique(), start=1):
+        identifiers[session] = f"session_{number:05d}"
+
     ordered = ordered.assign(session_id=ordered["session_id"].map(identifiers))
 
     return with_event_ids(ordered), identifiers
@@ -174,11 +184,11 @@ def build_attack(
     keys = repository[admin.operator_id]
     known = known_addresses_of(operators)
 
-    attacker_rows = [
-        row
-        for session in planned
-        for row in compromised_rows(rng, session, keys, stealth, traffic, known)
-    ]
+    attacker_rows = []
+
+    for session in planned:
+        rows = compromised_rows(rng, session, keys, stealth, traffic, known)
+        attacker_rows.extend(rows)
 
     merged = pd.concat(
         [legitimate_of_evaluated(requests), pd.DataFrame(attacker_rows)],
@@ -186,9 +196,14 @@ def build_attack(
     )
     numbered, identifiers = renumbered(merged)
 
-    compromised = pd.DataFrame(
-        {"session_id": [identifiers[session.session_id] for session in planned]}
-    ).sort_values("session_id", ignore_index=True)
+    compromised_ids = []
+
+    for session in planned:
+        compromised_ids.append(identifiers[session.session_id])
+
+    compromised = pd.DataFrame({"session_id": compromised_ids}).sort_values(
+        "session_id", ignore_index=True
+    )
 
     run = pd.DataFrame(
         [{"seed": seed, "sigma": sigma, "compromised_admin": admin.operator_id}]

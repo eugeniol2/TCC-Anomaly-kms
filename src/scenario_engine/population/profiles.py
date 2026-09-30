@@ -72,7 +72,12 @@ nunca e personificado pelo atacante.
 
 def total_operators() -> int:
     """Soma dos operadores de todos os perfis legitimos."""
-    return sum(profile.operators for profile in PROFILES)
+    total = 0
+
+    for profile in PROFILES:
+        total += profile.operators
+
+    return total
 
 
 def total_scope_assignments() -> int:
@@ -82,4 +87,9 @@ def total_scope_assignments() -> int:
     numero, a cobertura completa por sorteio deixa de ser provavel, e acima
     dele e impossivel: sobraria escopo sem nenhum detentor.
     """
-    return sum(profile.operators * profile.scopes_each for profile in PROFILES)
+    total = 0
+
+    for profile in PROFILES:
+        total += profile.operators * profile.scopes_each
+
+    return total

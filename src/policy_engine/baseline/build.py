@@ -32,16 +32,36 @@ from src.shared.timing import time_decision
 MECHANISM = "rules"
 """Como o baseline aparece no arquivo de tempo, ao lado dos dois modelos."""
 
-HISTORY_ATTRIBUTES = tuple(
-    attribute for attribute in ATTRIBUTES if attribute not in THRESHOLD_ATTRIBUTES
-)
-"""As duas regras de historico: os atributos que nao tem limiar no M8."""
+def history_attributes() -> tuple[str, ...]:
+    """As duas regras de historico: os atributos que nao tem limiar no M8."""
+    attributes = []
+
+    for attribute in ATTRIBUTES:
+        has_threshold = attribute in THRESHOLD_ATTRIBUTES
+
+        if not has_threshold:
+            attributes.append(attribute)
+
+    return tuple(attributes)
+
+
+HISTORY_ATTRIBUTES = history_attributes()
 
 RULE_ATTRIBUTES = THRESHOLD_ATTRIBUTES + HISTORY_ATTRIBUTES
 """A ordem das oito regras: as seis de grandeza, depois as duas de historico."""
 
-RULE_COLUMNS = tuple(f"rule_{attribute}" for attribute in RULE_ATTRIBUTES)
-"""Uma coluna por regra, 0 ou 1. O prefixo separa a regra do atributo que ela le."""
+
+def rule_columns() -> tuple[str, ...]:
+    """Uma coluna por regra, 0 ou 1. O prefixo separa a regra do atributo que ela le."""
+    columns = []
+
+    for attribute in RULE_ATTRIBUTES:
+        columns.append(f"rule_{attribute}")
+
+    return tuple(columns)
+
+
+RULE_COLUMNS = rule_columns()
 
 COLUMNS = IDENTIFIERS + RULE_COLUMNS + ("rules_fired", "predicted", LABEL)
 """As colunas do `predictions_rules.csv` (D-113).

@@ -87,14 +87,15 @@ def build_thresholds(sessions: pd.DataFrame) -> pd.DataFrame:
             "o `sessions.csv` recebido e da fase avaliada?"
         )
 
-    rows = [
-        {
+    rows = []
+
+    for attribute in THRESHOLD_ATTRIBUTES:
+        threshold = round(threshold_of(calibration[attribute]), 4)
+        rows.append({
             "attribute": attribute,
-            "threshold": round(threshold_of(calibration[attribute]), 4),
+            "threshold": threshold,
             "percentile": PERCENTILE,
             "sessions": len(calibration),
-        }
-        for attribute in THRESHOLD_ATTRIBUTES
-    ]
+        })
 
     return pd.DataFrame(rows)[list(COLUMNS)]

@@ -58,7 +58,12 @@ def take_addresses(addresses: Iterator[str], quantity: int) -> str:
     endereco pouco usado possa nao ocorrer no aquecimento e produzir origem de
     rede nova em sessao legitima do periodo avaliado (D-040).
     """
-    return MULTIVALUE_SEPARATOR.join(next(addresses) for _ in range(quantity))
+    taken = []
+
+    for _ in range(quantity):
+        taken.append(next(addresses))
+
+    return MULTIVALUE_SEPARATOR.join(taken)
 
 
 def draw_address_counts(rng: Generator) -> list[int]:
@@ -76,7 +81,9 @@ def draw_address_counts(rng: Generator) -> list[int]:
     for profile in PROFILES:
         lowest, highest = profile.addresses_range
         drawn = rng.integers(lowest, highest + 1, profile.operators)
-        counts.extend(int(count) for count in drawn)
+
+        for count in drawn:
+            counts.append(int(count))
 
     return counts
 
@@ -85,16 +92,23 @@ def draw_address_groups(rng: Generator) -> list[str]:
     """Os enderecos habituais de cada operador, ja unidos, na ordem da tabela."""
     counts = draw_address_counts(rng)
     addresses = iter(draw_usual_ips(rng, sum(counts)))
+    groups = []
 
-    return [take_addresses(addresses, count) for count in counts]
+    for count in counts:
+        groups.append(take_addresses(addresses, count))
+
+    return groups
 
 
 def draw_scopes(rng: Generator, pool: list[str], quantity: int) -> str:
     """Subconjunto de escopos de um operador, nunca a totalidade do repositorio."""
     chosen_indexes = rng.choice(len(pool), size=quantity, replace=False)
-    chosen_scopes = sorted(pool[index] for index in chosen_indexes)
+    chosen_scopes = []
 
-    return MULTIVALUE_SEPARATOR.join(chosen_scopes)
+    for index in chosen_indexes:
+        chosen_scopes.append(pool[index])
+
+    return MULTIVALUE_SEPARATOR.join(sorted(chosen_scopes))
 
 
 def build_operators(rng: Generator, pool: list[str]) -> pd.DataFrame:

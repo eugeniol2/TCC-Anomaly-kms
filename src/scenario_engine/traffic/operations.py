@@ -32,7 +32,12 @@ def in_operation_order(mix: dict[str, float]) -> tuple[float, ...]:
     por posicao. Reordenar `OPERATIONS` deixa de reatribuir porcentagens, e
     operacao ausente de uma mistura falha aqui em vez de passar batido.
     """
-    return tuple(mix[operation] for operation in OPERATIONS)
+    shares = []
+
+    for operation in OPERATIONS:
+        shares.append(mix[operation])
+
+    return tuple(shares)
 
 
 OPERATION_MIX: dict[str, tuple[float, ...]] = {
@@ -59,5 +64,9 @@ def draw_operations(rng: Generator, profile: str, quantity: int) -> list[str]:
     """As operacoes de uma sessao, sorteadas pela mistura do perfil."""
     probabilities = OPERATION_MIX[profile]
     chosen = rng.choice(len(OPERATIONS), size=quantity, p=np.asarray(probabilities))
+    operations = []
 
-    return [OPERATIONS[index] for index in chosen]
+    for index in chosen:
+        operations.append(OPERATIONS[index])
+
+    return operations

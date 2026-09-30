@@ -131,14 +131,16 @@ def compromised_rows(
         rng, keys, quantity, targeting_specification(traffic, stealth)
     )
 
-    return [
-        {
+    rows = []
+
+    for instant, operation, target in zip(instants, operations, targets):
+        rows.append({
             "session_id": session.session_id,
             "operator_id": operator.operator_id,
             "timestamp": instant.isoformat(timespec="seconds"),
             "source_ip": source_address,
             "operation": operation,
             "key_id": target,
-        }
-        for instant, operation, target in zip(instants, operations, targets)
-    ]
+        })
+
+    return rows

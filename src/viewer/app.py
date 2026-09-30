@@ -274,7 +274,11 @@ def mostrar_quadro(quadro: Quadro, titular: bool) -> None:
 
 def escolher_fase() -> Fase:
     st.sidebar.title("Fase")
-    rotulos = [fase.nome for fase in FASES]
+    rotulos = []
+
+    for fase in FASES:
+        rotulos.append(fase.nome)
+
     st.session_state.setdefault(FASE_ESCOLHIDA, rotulos[0])
 
     escolhido = st.sidebar.radio("Fase", rotulos, key=FASE_ESCOLHIDA,
@@ -312,8 +316,10 @@ def andar(rotulos: list[str], passos: int) -> None:
 def navegacao(quadros: list[Quadro]) -> tuple[int, bool]:
     """Seletor de passo, botoes e progresso. O seletor e a unica fonte do passo."""
     total = len(quadros)
-    rotulos = [f"{posicao} de {total}  ·  {quadro.entidade}"
-               for posicao, quadro in enumerate(quadros, start=1)]
+    rotulos = []
+
+    for posicao, quadro in enumerate(quadros, start=1):
+        rotulos.append(f"{posicao} de {total}  ·  {quadro.entidade}")
 
     st.sidebar.divider()
     st.sidebar.subheader("Passo")
@@ -417,7 +423,12 @@ def pagina_dos_comportamentos() -> None:
                 "ela dura, o que pede e de onde vem.")
 
     pagina = comportamentos(seed)
-    abas = st.tabs(["Visão geral"] + [c.regime for c in pagina.comportamentos])
+    nomes_das_abas = ["Visão geral"]
+
+    for comportamento in pagina.comportamentos:
+        nomes_das_abas.append(comportamento.regime)
+
+    abas = st.tabs(nomes_das_abas)
 
     with abas[0]:
         st.dataframe(pagina.quadro, use_container_width=True, hide_index=True)

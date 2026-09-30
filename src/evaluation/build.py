@@ -39,6 +39,7 @@ from src.evaluation.parameters import (
     ZERO_METHOD,
 )
 from src.shared import layout
+from src.models.build import score_column
 from src.models.parameters import MODEL_NAMES
 
 MECHANISMS = (RULES,) + MODEL_NAMES
@@ -133,7 +134,12 @@ def rates(counts: dict[str, int]) -> dict[str, float]:
         "specificity": tn / (tn + fp),
     }
 
-    return {name: round(value, 4) for name, value in values.items()}
+    rounded = {}
+
+    for name, value in values.items():
+        rounded[name] = round(value, 4)
+
+    return rounded
 
 
 def area_under_curve(truth: pd.Series, score: pd.Series | None) -> float:
@@ -155,7 +161,7 @@ def mechanism_outputs(run: Run) -> dict[str, tuple[pd.Series, pd.Series | None]]
     outputs = {RULES: (run.predictions_rules["predicted"], None)}
 
     for name in MODEL_NAMES:
-        outputs[name] = (run.predictions_ml[name], run.predictions_ml[f"{name}_score"])
+        outputs[name] = (run.predictions_ml[name], run.predictions_ml[score_column(name)])
 
     return outputs
 
@@ -218,10 +224,20 @@ def duplicates(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, int]:
     A segunda pode nao ser: duas sessoes diferentes podem ter os mesmos oito numeros.
     """
     shared = set(train["session_id"]) & set(holdout["session_id"])
-    seen = set(map(tuple, train[list(ATTRIBUTES)].to_numpy()))
-    repeated = sum(tuple(row) in seen for row in holdout[list(ATTRIBUTES)].to_numpy())
+    seen = set()
 
-    return {"shared_sessions": len(shared), "repeated_sessions": int(repeated)}
+    for row in train[list(ATTRIBUTES)].to_numpy():
+        seen.add(tuple(row))
+
+    repeated = 0
+
+    for row in holdout[list(ATTRIBUTES)].to_numpy():
+        is_repeated = tuple(row) in seen
+
+        if is_repeated:
+            repeated += 1
+
+    return {"shared_sessions": len(shared), "repeated_sessions": repeated}
 
 
 def partition_counts(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, int]:
@@ -325,11 +341,11 @@ def with_holm(rows: pd.DataFrame) -> pd.DataFrame:
 def comparison(metrics: pd.DataFrame, triviality: pd.DataFrame) -> pd.DataFrame:
     """Uma linha por sigma e modelo: a diferenca de F1 contra o baseline, e o teste."""
     stumps = triviality.groupby("sigma")["stump_f1"].median()
-    rows = [
-        comparison_row(metrics, stumps, sigma, model)
-        for sigma in sorted(metrics["sigma"].unique())
-        for model in MODEL_NAMES
-    ]
+    rows = []
+
+    for sigma in sorted(metrics["sigma"].unique()):
+        for model in MODEL_NAMES:
+            rows.append(comparison_row(metrics, stumps, sigma, model))
 
     return with_holm(pd.DataFrame(rows))[list(COMPARISON_COLUMNS)]
 
@@ -355,9 +371,18 @@ def timing_summary(timings: pd.DataFrame) -> pd.DataFrame:
 
 def build_evaluation(runs: list[Run]) -> Evaluation:
     """Das execucoes as quatro tabelas."""
-    metrics = pd.concat([run_metrics(run) for run in runs], ignore_index=True)
-    triviality = pd.concat([run_triviality(run) for run in runs], ignore_index=True)
-    timings = pd.concat([run.timing for run in runs], ignore_index=True)
+    metric_frames = []
+    triviality_frames = []
+    timing_frames = []
+
+    for run in runs:
+        metric_frames.append(run_metrics(run))
+        triviality_frames.append(run_triviality(run))
+        timing_frames.append(run.timing)
+
+    metrics = pd.concat(metric_frames, ignore_index=True)
+    triviality = pd.concat(triviality_frames, ignore_index=True)
+    timings = pd.concat(timing_frames, ignore_index=True)
 
     return Evaluation(
         metrics, triviality, comparison(metrics, triviality), timing_summary(timings)

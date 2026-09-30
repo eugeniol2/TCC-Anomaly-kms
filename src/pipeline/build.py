@@ -266,8 +266,13 @@ def run_sweep(
     Devolve as linhas de `run.csv`, que o indice agregado junta.
     """
     branch = run_seed_branch(seed, root, specifications, until)
+    rows = []
 
-    return [run_sigma_branch(branch, sigma, until).run for sigma in sigmas]
+    for sigma in sigmas:
+        sigma_branch = run_sigma_branch(branch, sigma, until)
+        rows.append(sigma_branch.run)
+
+    return rows
 
 
 def write_runs_index(rows: list[pd.DataFrame], root: Path) -> pd.DataFrame:

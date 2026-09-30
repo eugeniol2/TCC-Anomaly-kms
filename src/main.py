@@ -23,18 +23,21 @@ from src.shared.experiment import RESERVED_SEEDS, SEEDS, SIGMAS
 from src.shared.layout import DEFAULT_ROOT
 
 ALL_SEEDS = f"{SEEDS[0]}-{SEEDS[-1]}"
-ALL_SIGMAS = ",".join(str(sigma) for sigma in SIGMAS)
 
 
 def seeds_from(text: str) -> tuple[int, ...]:
     """Sementes escritas como faixa ("1-30") ou lista ("1,2,5")."""
     is_range = "-" in text
+    seeds = []
 
     if is_range:
-        first, last = (int(bound) for bound in text.split("-"))
-        seeds = tuple(range(first, last + 1))
+        first_text, last_text = text.split("-")
+
+        for seed in range(int(first_text), int(last_text) + 1):
+            seeds.append(seed)
     else:
-        seeds = tuple(int(seed) for seed in text.split(","))
+        for seed_text in text.split(","):
+            seeds.append(int(seed_text))
 
     reserved = sorted(set(seeds) & set(RESERVED_SEEDS))
 
@@ -43,25 +46,34 @@ def seeds_from(text: str) -> tuple[int, ...]:
             f"sementes reservadas as preparatorias, fora das replicas: {reserved}"
         )
 
-    return seeds
+    return tuple(seeds)
 
 
 def sigmas_from(text: str) -> tuple[float, ...]:
     """Sigmas escritos como lista ("0.5" ou "0.0,0.5,1.0"), cada um entre 0 e 1."""
-    sigmas = tuple(float(sigma) for sigma in text.split(","))
-    outside = [sigma for sigma in sigmas if not 0.0 <= sigma <= 1.0]
+    sigmas = []
+    outside = []
+
+    for sigma_text in text.split(","):
+        sigma = float(sigma_text)
+        is_outside = not 0.0 <= sigma <= 1.0
+
+        if is_outside:
+            outside.append(sigma)
+
+        sigmas.append(sigma)
 
     if outside:
         raise argparse.ArgumentTypeError(f"sigma fora da faixa 0,0 a 1,0: {outside}")
 
-    return sigmas
+    return tuple(sigmas)
 
 
 def parse_options(arguments: list[str] | None = None) -> Options:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--sementes", type=seeds_from, default=seeds_from(ALL_SEEDS),
+    parser.add_argument("--sementes", type=seeds_from, default=SEEDS,
                         help=f"faixa ou lista de sementes (padrao {ALL_SEEDS})")
-    parser.add_argument("--sigmas", type=sigmas_from, default=sigmas_from(ALL_SIGMAS),
+    parser.add_argument("--sigmas", type=sigmas_from, default=SIGMAS,
                         help="lista de sigmas (padrao: os onze, de 0.0 a 1.0)")
     parser.add_argument("--saida", type=Path, default=DEFAULT_ROOT,
                         help="raiz onde tudo e gravado (padrao data)")

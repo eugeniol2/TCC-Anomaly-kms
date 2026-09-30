@@ -71,7 +71,15 @@ GRID_NAMES = (layout.METRICS, layout.TRIVIALITY, layout.COMPARISON, layout.TIMIN
 
 def missing_files(directory: Path, names: tuple[str, ...]) -> list[str]:
     """Os arquivos que faltam numa pasta. Vazio quando o comando ja rodou."""
-    return [name for name in names if not (directory / name).exists()]
+    absent = []
+
+    for name in names:
+        is_missing = not (directory / name).exists()
+
+        if is_missing:
+            absent.append(name)
+
+    return absent
 
 
 def read_all(directory: Path, names: tuple[str, ...]) -> list[pd.DataFrame]:
@@ -83,7 +91,12 @@ def read_all(directory: Path, names: tuple[str, ...]) -> list[pd.DataFrame]:
             f"faltam {', '.join(absent)} em {directory}; rode antes: python -m src.main"
         )
 
-    return [pd.read_csv(directory / name) for name in names]
+    frames = []
+
+    for name in names:
+        frames.append(pd.read_csv(directory / name))
+
+    return frames
 
 
 def read_seed(root: Path, seed: int) -> SeedFiles:
@@ -108,9 +121,12 @@ def figure_paths(root: Path) -> dict[str, Path]:
     """As figuras que o comando desenhou, as que existirem."""
     directory = root / layout.FIGURES
     names = {"f1_sigma": "f1_sigma.png", "roc": "roc.png"}
+    paths = {}
 
-    return {
-        name: directory / file
-        for name, file in names.items()
-        if (directory / file).exists()
-    }
+    for name, file in names.items():
+        path = directory / file
+
+        if path.exists():
+            paths[name] = path
+
+    return paths

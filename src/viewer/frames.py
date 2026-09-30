@@ -349,4 +349,10 @@ QUADROS = (
 
 
 def quadros_da_fase(fase: Fase, execucao: Execucao) -> list[Quadro]:
-    return [QUADROS[numero - 1](execucao) for numero in fase.quadros]
+    quadros = []
+
+    for numero in fase.quadros:
+        montar_quadro = QUADROS[numero - 1]
+        quadros.append(montar_quadro(execucao))
+
+    return quadros

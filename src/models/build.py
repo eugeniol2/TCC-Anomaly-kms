@@ -25,8 +25,21 @@ from src.shared.rng import MODELS, stream
 from src.shared.timing import time_decision
 from src.models.parameters import FOLDS, GRIDS, JOBS, MODEL_NAMES, REPEATS, SEED_CEILING
 
-SCORE_COLUMNS = tuple(f"{name}_score" for name in MODEL_NAMES)
-"""A probabilidade de ataque que cada modelo da a sessao: e dela que sai a curva ROC (D-119)."""
+def score_column(name: str) -> str:
+    """A coluna do escore de um modelo: a probabilidade de ataque, de onde sai a curva ROC (D-119)."""
+    return f"{name}_score"
+
+
+def score_columns() -> tuple[str, ...]:
+    columns = []
+
+    for name in MODEL_NAMES:
+        columns.append(score_column(name))
+
+    return tuple(columns)
+
+
+SCORE_COLUMNS = score_columns()
 
 COLUMNS = IDENTIFIERS + MODEL_NAMES + SCORE_COLUMNS + (LABEL,)
 """As colunas do `predictions_ml.csv`: a decisao e o escore de cada modelo, e a verdade por ultimo."""
@@ -99,7 +112,12 @@ def fitted(name: str, parameters: dict, sessions: pd.DataFrame, random_state: in
 
 def described(parameters: dict) -> str:
     """Uma configuracao numa linha legivel, para o arquivo de resultados da busca."""
-    return "; ".join(f"{name}={value}" for name, value in parameters.items())
+    parts = []
+
+    for name, value in parameters.items():
+        parts.append(f"{name}={value}")
+
+    return "; ".join(parts)
 
 
 def fold_score(name: str, parameters: dict, train: pd.DataFrame, fold, random_state: int) -> float:
@@ -131,7 +149,11 @@ def configuration_scores(seed: int, train: pd.DataFrame) -> Iterator[dict]:
         random_state = getattr(seeds, name)
 
         for position, parameters in enumerate(ParameterGrid(GRIDS[name])):
-            scores = [fold_score(name, parameters, train, fold, random_state) for fold in folds]
+            scores = []
+
+            for fold in folds:
+                score = fold_score(name, parameters, train, fold, random_state)
+                scores.append(score)
 
             yield {
                 "model": name,
@@ -157,10 +179,10 @@ def chosen_configuration(scores: pd.DataFrame) -> pd.DataFrame:
 
     for name, position in zip(best["model"], best["position"]):
         parameters = ParameterGrid(GRIDS[name])[int(position)]
-        rows.extend(
-            {"model": name, "parameter": parameter, "value": str(value)}
-            for parameter, value in sorted(parameters.items())
-        )
+
+        for parameter, value in sorted(parameters.items()):
+            row = {"model": name, "parameter": parameter, "value": str(value)}
+            rows.append(row)
 
     return pd.DataFrame(rows)[list(CONFIGURATION_COLUMNS)]
 
@@ -181,7 +203,10 @@ def parsed(text: str):
 
 def configuration_of(frame: pd.DataFrame) -> dict[str, dict]:
     """O `config.csv` como dicionario: modelo -> parametros."""
-    configuration = {name: {} for name in MODEL_NAMES}
+    configuration = {}
+
+    for name in MODEL_NAMES:
+        configuration[name] = {}
 
     for row in frame.astype(str).itertuples():
         configuration[row.model][row.parameter] = parsed(row.value)
@@ -228,7 +253,7 @@ def build_models(
     for name in MODEL_NAMES:
         model = fitted(name, configuration[name], train, getattr(seeds, name))
         outputs[name] = model.predict(features).astype(int)
-        outputs[f"{name}_score"] = model.predict_proba(features)[:, 1].round(6)
+        outputs[score_column(name)] = model.predict_proba(features)[:, 1].round(6)
         timings.append(time_decision(name, len(holdout), lambda: model.predict(features)))
 
     predictions = holdout[list(IDENTIFIERS)].assign(**outputs, **{LABEL: holdout[LABEL]})

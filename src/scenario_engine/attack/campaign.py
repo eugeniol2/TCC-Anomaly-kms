@@ -30,10 +30,12 @@ def evaluated_days() -> list[date]:
 
     opens = first_day_of(first_week)
     closes = day_after_last_of(last_week)
+    days = []
 
-    return [
-        opens + timedelta(days=offset) for offset in range((closes - opens).days)
-    ]
+    for offset in range((closes - opens).days):
+        days.append(opens + timedelta(days=offset))
+
+    return days
 
 
 def moment_within(rng: Generator, day: date, window: HourWindow) -> datetime:
@@ -83,6 +85,9 @@ def campaign_starts(rng: Generator, quantity: int, stealth: Stealth) -> list[dat
     days = evaluated_days()
     business = business_days_among(days)
 
-    starts = [session_start(rng, days, business, stealth) for _ in range(quantity)]
+    starts = []
+
+    for _ in range(quantity):
+        starts.append(session_start(rng, days, business, stealth))
 
     return sorted(starts)

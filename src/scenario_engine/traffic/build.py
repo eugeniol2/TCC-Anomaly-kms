@@ -50,16 +50,19 @@ def plan_sessions(
 
     for operator in operators:
         regime = REGIMES[operator.regime]
-        scheduled.extend(
-            (start, operator) for start in session_starts(rng, regime, specification)
-        )
+        starts = session_starts(rng, regime, specification)
+
+        for start in starts:
+            scheduled.append((start, operator))
 
     scheduled.sort(key=lambda item: (item[0], item[1].operator_id))
 
-    return [
-        PlannedSession(f"session_{number:05d}", operator, start)
-        for number, (start, operator) in enumerate(scheduled, start=1)
-    ]
+    planned = []
+
+    for number, (start, operator) in enumerate(scheduled, start=1):
+        planned.append(PlannedSession(f"session_{number:05d}", operator, start))
+
+    return planned
 
 
 def request_rows(
@@ -92,7 +95,10 @@ def chronological(frame: pd.DataFrame) -> pd.DataFrame:
 
 def with_event_ids(frame: pd.DataFrame) -> pd.DataFrame:
     """Numera os eventos na ordem cronologica em que o log os registra."""
-    identifiers = [f"event_{number:06d}" for number in range(1, len(frame) + 1)]
+    identifiers = []
+
+    for number in range(1, len(frame) + 1):
+        identifiers.append(f"event_{number:06d}")
 
     numbered = frame.copy()
     numbered.insert(0, "event_id", identifiers)

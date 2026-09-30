@@ -96,8 +96,12 @@ def request_instants(
     """
     gaps = rng.exponential(seconds_between, size=quantity - 1)
     offsets = np.concatenate(([0.0], np.cumsum(gaps)))
+    instants = []
 
-    return [start + timedelta(seconds=float(offset)) for offset in offsets]
+    for offset in offsets:
+        instants.append(start + timedelta(seconds=float(offset)))
+
+    return instants
 
 
 def session_rows(
@@ -123,14 +127,16 @@ def session_rows(
     operations = draw_operations(rng, operator.profile, quantity)
     targets = session_targets(rng, keys, quantity, specification)
 
-    return [
-        {
+    rows = []
+
+    for instant, operation, target in zip(instants, operations, targets):
+        rows.append({
             "session_id": planned.session_id,
             "operator_id": operator.operator_id,
             "timestamp": instant.isoformat(timespec="seconds"),
             "source_ip": source_address,
             "operation": operation,
             "key_id": target,
-        }
-        for instant, operation, target in zip(instants, operations, targets)
-    ]
+        })
+
+    return rows

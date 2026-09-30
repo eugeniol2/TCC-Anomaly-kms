@@ -18,15 +18,25 @@ from src.scenario_engine.traffic.regimes import ArrivalRhythm, Regime, Scheduled
 
 def simulated_days(specification: TrafficSpecification) -> list[date]:
     """Os dias corridos do periodo, do primeiro ao ultimo."""
-    return [
-        specification.first_day + timedelta(days=offset)
-        for offset in range(specification.day_count)
-    ]
+    days = []
+
+    for offset in range(specification.day_count):
+        days.append(specification.first_day + timedelta(days=offset))
+
+    return days
 
 
 def business_days_among(days: list[date]) -> list[date]:
     """So os dias uteis. Fim de semana nao recebe sessao de pessoa."""
-    return [day for day in days if day.weekday() in BUSINESS_WEEKDAYS]
+    business = []
+
+    for day in days:
+        is_business_day = day.weekday() in BUSINESS_WEEKDAYS
+
+        if is_business_day:
+            business.append(day)
+
+    return business
 
 
 def scheduled_starts(

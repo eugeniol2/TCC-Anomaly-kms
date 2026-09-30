@@ -48,7 +48,12 @@ def keys_by_scope(keys: pd.DataFrame) -> dict[str, list[str]]:
     for row in keys.itertuples():
         grouped.setdefault(row.scope, []).append(row.key_id)
 
-    return {scope: sorted(identifiers) for scope, identifiers in grouped.items()}
+    ordered = {}
+
+    for scope, identifiers in grouped.items():
+        ordered[scope] = sorted(identifiers)
+
+    return ordered
 
 
 def reach_of(operator: Operator, by_scope: dict[str, list[str]]) -> tuple[str, ...]:
