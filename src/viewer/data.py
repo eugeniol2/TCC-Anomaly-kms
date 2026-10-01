@@ -147,6 +147,42 @@ def read_grid(root: Path) -> GridFiles:
     )
 
 
+def read_thresholds(root: Path, seeds: tuple[int, ...]) -> pd.DataFrame:
+    """Os limiares das sementes que já rodaram, empilhados, com a coluna `seed`.
+
+    Semente sem `thresholds.csv` fica de fora, e a tabela da página diz quantas
+    entraram.
+    """
+    frames = []
+
+    for seed in seeds:
+        path = layout.seed_directory(root, seed) / layout.THRESHOLDS
+
+        if path.exists():
+            frames.append(pd.read_csv(path).assign(seed=seed))
+
+    has_any = len(frames) > 0
+
+    if not has_any:
+        raise FileNotFoundError(
+            f"falta {layout.THRESHOLDS} em {root}; rode antes: python -m src.main"
+        )
+
+    return pd.concat(frames, ignore_index=True)
+
+
+def read_importance(root: Path) -> pd.DataFrame:
+    """A importancia por permutacao das execucoes, na raiz (D-124)."""
+    path = root / layout.IMPORTANCE
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"falta {layout.IMPORTANCE} em {root}; rode antes: python -m src.main"
+        )
+
+    return pd.read_csv(path)
+
+
 def figure_paths(root: Path) -> dict[str, Path]:
     """As figuras que o comando desenhou, as que existirem."""
     directory = root / layout.FIGURES

@@ -48,11 +48,7 @@ from src.entities.scenario_engine.traffic.parameters import (
 from src.entities.scenario_engine.traffic.regimes import REGIMES
 from src.viewer.behaviors import linhas_do_atacante
 from src.viewer.formatting import com_virgula, porcento, valor_escrito
-from src.viewer.theory import (
-    Teoria,
-    teoria_da_cauda,
-    teoria_da_dirichlet,
-)
+from src.viewer.theory import Teoria, teoria_da_dirichlet
 
 COLUNAS = ("variável", "valor", "o que é")
 
@@ -149,7 +145,6 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
     Mostrados nos dois lugares, eles eram duas explicações do mesmo número, e
     a da página Comportamentos é a completa, com o dado medido ao lado.
     """
-    lote = REGIMES["periodic_batch"]
     # Uma linha por regime: os tres numa celula so ficavam longos demais
     # para ler, e a coluna de valor cortava o ultimo.
     regimes = []
@@ -170,13 +165,9 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
         Variavel("first_day", trafego.first_day,
                  "Primeiro dia simulado. Segunda-feira, fixa.", "D-067"),
         Variavel("LONG_SESSION_CHANCE", trafego.long_session_chance,
-                 "Fração das sessões que se estendem além do típico.", "D-097",
-                 teoria_da_cauda(
-                     lote.requests_range,
-                     trafego.long_session_chance,
-                     trafego.long_session_excess,
-                     AttackSpecification().ostensive_requests_range[0],
-                 )),
+                 "Fração das sessões que se estendem além do típico. A explicação "
+                 "está na página Comportamentos.",
+                 "D-097"),
         Variavel("LONG_SESSION_EXCESS", trafego.long_session_excess,
                  "Requisições a mais na sessão que se estende, média da "
                  "geométrica.", "D-097"),

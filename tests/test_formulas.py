@@ -26,8 +26,6 @@ from src.formulas.distributions import (
     chance_never_drawn,
     geometric_weights,
     negative_binomial_success,
-    share_above,
-    share_above_with_tail,
 )
 from src.formulas.hypothesis_tests import holm, signed_rank_test
 from src.formulas.interpolation import interpolate, interpolate_range
@@ -97,23 +95,6 @@ def test_the_negative_binomial_keeps_the_mean() -> None:
 
     assert dispersion * (1 - success) / success == pytest.approx(mean)
     assert mean / success > mean
-
-
-def test_without_tail_nothing_passes_the_ceiling() -> None:
-    typical = np.arange(8, 26)
-
-    assert share_above(25, typical) == 0.0
-    assert share_above(7, typical) == 1.0
-    assert share_above_with_tail(25, typical, 0.0, 15.0) == 0.0
-
-
-def test_the_tail_keeps_a_chance_above_the_ceiling() -> None:
-    typical = np.arange(8, 26)
-
-    above = share_above_with_tail(25, typical, 0.05, 15.0)
-    further = share_above_with_tail(60, typical, 0.05, 15.0)
-
-    assert 0.0 < further < above < 0.05
 
 
 # Classificacao.

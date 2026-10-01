@@ -39,6 +39,7 @@ src/
     models/                    M11 Random Forest e XGBoost, e a busca de hiperparâmetros
   metrics/                     medir e comparar
     evaluation/                M12 métricas, trivialidade, Wilcoxon com Holm e tempo
+    importance/                M12 importância por permutação, nos três mecanismos
     figures/                   as figuras da monografia
   formulas/                    a matemática, sem domínio e sem número próprio
   pipeline/                    a ordem: os passos de cada ramo e o experimento
@@ -63,7 +64,7 @@ baseline e os modelos o usam para medir o próprio tempo.
 |---|---|---|
 | `interpolation.py` | interpolação linear entre dois extremos | o atacante, em cada sigma |
 | `apportionment.py` | maiores restos | as chaves repartidas entre escopos |
-| `distributions.py` | pesos geométricos, `p` da binomial negativa, cauda da sessão, chance de faltar | a origem de rede, o ritmo do administrador, o viewer |
+| `distributions.py` | pesos geométricos, `p` da binomial negativa, chance de faltar | a origem de rede, o ritmo do administrador, o viewer |
 | `rounding.py` | meio para cima | o tamanho do holdout |
 | `classification.py` | matriz de confusão, F1 e as outras taxas, ponto ROC, AUC, razão entre classes | a avaliação, as figuras, o peso do XGBoost |
 | `hypothesis_tests.py` | Wilcoxon pareado, correção de Holm | a comparação |
@@ -82,6 +83,7 @@ data/
   triviality.csv                  M12, a árvore rasa e as duplicatas
   comparison.csv                  M12, Wilcoxon e Holm por sigma e modelo
   timing.csv                      M12, o tempo de cada mecanismo
+  importance.csv                  M12, quanto o F1 cai ao embaralhar cada atributo
   figures/                        as figuras, em PNG e em PDF
   preparation/
     seed-902/                     a busca de hiperparâmetros: search_results.csv e
@@ -131,7 +133,7 @@ inspeciona parando o comando naquela entidade, com o `--ate`.
 | M9 | Dataset Generator | `partition` | `sessions.csv` (semanas 5 a 8) | `train.csv`, `holdout.csv` |
 | M10 | Policy Engine | `baseline` | `holdout.csv`, `thresholds.csv` | `predictions_rules.csv`, `timing_rules.csv` |
 | M11 | Pipeline de ML | `models` | `train.csv`, `holdout.csv`, `config.csv` da 902 | `predictions_ml.csv`, `timing_ml.csv` |
-| M12 | Avaliação Comparativa | `evaluation` | as 330 execuções | `metrics.csv`, `triviality.csv`, `comparison.csv`, `timing.csv`, `figures/` |
+| M12 | Avaliação Comparativa | `evaluation`, `importance` | as 330 execuções | `metrics.csv`, `triviality.csv`, `comparison.csv`, `timing.csv`, `importance.csv`, `figures/` |
 
 As oito semanas simuladas têm dois papéis. As semanas 1 a 4 constroem a **régua** (o
 perfil histórico de cada operador **e** os limiares do baseline, do mesmo período) e as
@@ -191,9 +193,10 @@ python -m src.main
 ```
 
 Ele roda, nesta ordem, a busca de hiperparâmetros na semente 902 (uns 9 minutos), o
-ensaio na 903, as 330 execuções (uns 12 minutos), a avaliação e as figuras. No fim, os
-resultados estão em `data/comparison.csv`, `metrics.csv`, `triviality.csv` e
-`timing.csv`, e as figuras em `data/figures/`.
+ensaio na 903, as 330 execuções (uns 12 minutos), a avaliação, a importância por
+permutação (uns 11 minutos) e as figuras. No fim, os resultados estão em
+`data/comparison.csv`, `metrics.csv`, `triviality.csv`, `timing.csv` e
+`importance.csv`, e as figuras em `data/figures/`.
 
 Os parâmetros dizem **o que** rodar e **onde** gravar:
 
@@ -219,7 +222,8 @@ decisão que o fixou. O `data/` inteiro, com as preparatórias e as figuras, ocu
 3,5 GB.
 
 Depois de rodar o comando, a tela que mostra o que ele gravou: o pipeline passo a passo,
-os comportamentos dos operadores e os resultados, com as figuras.
+os comportamentos dos operadores, o baseline de regras por dentro e os resultados, com as
+figuras.
 
 ```
 streamlit run src/viewer/app.py
@@ -233,7 +237,7 @@ Ela lê o `data/`, então precisa que o `python -m src.main` tenha rodado antes.
 python -m pytest
 ```
 
-São 1681 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
+São 1691 testes, em cinco a oito minutos. Cobrem determinismo e as invariantes de que os
 módulos seguintes dependem, e rodam nas 30 sementes da grade, não numa só, porque falha
 específica de semente é o que passa despercebido.
 
@@ -246,10 +250,11 @@ específica de semente é o que passa despercebido.
 | `test_dataset.py` | 140 | perfis, sessões e limiares, e o rótulo só no período avaliado |
 | `test_partition.py` | 40 | cada sessão de um lado só, 23 positivas no holdout, a mesma divisão em todo sigma |
 | `test_baseline.py` | 63 | cada regra dispara onde a D-080 diz, qualquer par alerta e nenhuma regra sozinha, o rótulo não decide |
-| `test_viewer.py` | 28 | os treze quadros montam com arquivos gravados, sem painel vazio, e as curvas batem com o gerador |
+| `test_viewer.py` | 34 | os treze quadros montam com arquivos gravados, sem painel vazio, as curvas batem com o gerador, e as páginas Regras e Resultados (matriz de confusão e importância) leem o que foi gravado sem recalcular nada |
 | `test_models.py` | 15 | o rótulo do holdout não decide, a mesma semente treina os mesmos modelos, a busca escolhe pela regra de empate |
 | `test_evaluation.py` | 16 | as taxas gravadas com quatro casas, o recorte dos administradores, a AUC, a árvore rasa, as duplicatas, Holm só sobre as condições mantidas |
-| `test_formulas.py` | 20 | cada fórmula num caso de resposta conhecida, e as dependências num sentido só: `formulas` não importa o projeto, as entidades não importam `metrics` |
+| `test_importance.py` | 6 | os modelos retreinados decidem como os da grade, atributo ignorado custa zero, o sexto fluxo não desloca os outros |
+| `test_formulas.py` | 18 | cada fórmula num caso de resposta conhecida, e as dependências num sentido só: `formulas` não importa o projeto, as entidades não importam `metrics` |
 | `test_pipeline.py` | 11 | o orquestrador grava o mesmo que as entidades chamadas uma a uma, os modelos não rodam sem configuração, e sempre os mesmos bytes |
 | `test_main.py` | 8 | o comando único: os parâmetros, as sementes reservadas recusadas, e o `--ate` parando na entidade certa |
 | `test_experiment.py` | 5 | a grade de sementes e de sigma, e as sementes reservadas fora dela |

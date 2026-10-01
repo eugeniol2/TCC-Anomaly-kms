@@ -35,33 +35,3 @@ def negative_binomial_success(mean: float, dispersion: float) -> float:
     A variancia sai `m / p`, maior que a media: e o que a distingue da Poisson.
     """
     return dispersion / (dispersion + mean)
-
-
-def share_above(n: int, typical: np.ndarray) -> float:
-    """A fracao de uma faixa uniforme de valores que passa de `n`."""
-    return (typical > n).sum() / len(typical)
-
-
-def share_above_with_tail(
-    n: int, typical: np.ndarray, long_chance: float, mean_excess: float
-) -> float:
-    """A chance de passar de `n` quando a faixa uniforme ganha uma cauda (D-097).
-
-    Com chance `long_chance`, o valor tipico recebe um excesso geometrico de media
-    `mean_excess`. Tipico acima de `n` ja passa, com ou sem excesso. Tipico `t`
-    abaixo so passa se o excesso for maior que `n - t`, e a geometrica sobrevive a
-    `n - t` com `(1 - 1 / mean_excess)` elevado a essa diferenca.
-
-    Calculada analiticamente, e nao somando uma densidade truncada: a soma daria
-    zero no ultimo ponto somado, que e o proprio artefato que a cauda veio corrigir.
-    """
-    survives = 1.0 - 1.0 / mean_excess
-    reached = 0.0
-
-    for value in typical:
-        is_below = value <= n
-
-        if is_below:
-            reached += long_chance * survives ** (n - value)
-
-    return share_above(n, typical) + reached / len(typical)

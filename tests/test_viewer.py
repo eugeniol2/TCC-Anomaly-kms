@@ -18,10 +18,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from src.metrics.evaluation.build import MECHANISMS
+from src.metrics.importance.build import read_importance_run, run_importance
 from src.pipeline.build import Specifications, run_seed_branch, run_sigma_branch
 from src.pipeline.experiment import write_evaluation
 from src.pipeline.population import build_population
+from src.entities.dataset_generator.dataset.build import ATTRIBUTES, LABEL
 from src.entities.kms.repository.parameters import KeyRepositorySpecification
+from src.entities.policy_engine.baseline.build import RULE_ATTRIBUTES, RULE_COLUMNS
+from src.entities.policy_engine.baseline.parameters import MINIMUM_RULES_FIRED
+from src.entities.policy_engine.calibration.parameters import THRESHOLD_ATTRIBUTES
 from src.entities.scenario_engine.attack.parameters import AttackSpecification
 from src.entities.scenario_engine.population.profiles import PROFILES
 from src.entities.scenario_engine.traffic.build import build_traffic
@@ -40,13 +46,28 @@ from src.viewer.behaviors import (
     tabela_do_atacante,
     tamanhos_da_sessao,
 )
-from src.viewer.data import read_grid, read_run, read_seed
+from src.viewer.data import read_grid, read_run, read_seed, read_thresholds
+from src.viewer.formatting import valor_escrito
 from src.viewer.frames import FASES, QUADROS, Execucao, quadros_da_fase
-from src.viewer.results import tabela_da_comparacao, tabela_do_tempo
-from src.viewer.theory import (
-    teoria_da_cauda,
-    teoria_da_geometrica,
+from src.viewer.results import (
+    RECORTES,
+    matriz_de_confusao,
+    secao_da_importancia,
+    tabela_da_comparacao,
+    tabela_do_tempo,
 )
+from src.viewer.rules import (
+    frase_do_tempo,
+    secao_ao_longo_de_sigma,
+    secao_do_corte,
+    secao_do_limiar,
+    secao_qual_regra_dispara,
+    secao_regras_por_sessao,
+    tabela_da_matriz,
+    tabela_das_regras,
+    tabela_dos_limiares_nas_sementes,
+)
+from src.viewer.theory import teoria_da_geometrica
 
 REPOSITORY = KeyRepositorySpecification()
 TRAFFIC = TrafficSpecification()
@@ -184,31 +205,6 @@ SEMENTE_DA_AMOSTRA = 20260924
 Fora da faixa das replicas e das preparatorias: estes sorteios nao pertencem
 ao experimento, so conferem a tela.
 """
-
-
-def test_the_tail_chart_matches_the_generator() -> None:
-    """A cumulativa desenhada e a que `draw_request_count` produz (D-097)."""
-    faixa = REGIMES["periodic_batch"].requests_range
-
-    curva = teoria_da_cauda(
-        faixa,
-        TRAFFIC.long_session_chance,
-        TRAFFIC.long_session_excess,
-        ATTACK.ostensive_requests_range[0],
-    ).dados.set_index("eventos na sessão")
-
-    rng = np.random.default_rng(SEMENTE_DA_AMOSTRA)
-    sorteado = np.array([
-        draw_request_count(rng, faixa, TRAFFIC) for _ in range(AMOSTRAS)
-    ])
-
-    for tamanho, esperado in curva["com cauda"].items():
-        medido = (sorteado > tamanho).mean()
-
-        assert abs(medido - esperado) < TOLERANCIA, (
-            f"em {tamanho} eventos a curva diz {esperado:.4f} e o gerador "
-            f"produz {medido:.4f}"
-        )
 
 
 def grafico_de_contagem(pagina: Pagina, regime: str) -> pd.DataFrame:
@@ -466,3 +462,131 @@ def test_the_interval_bars_match_the_generator(regime: str) -> None:
             f"{regime}: na faixa de {inicio} s a barra diz {esperado:.4f} e o "
             f"gerador produz {medido:.4f}"
         )
+
+
+# A pagina Regras: o baseline por dentro, lido dos arquivos gravados.
+
+
+def legitimas_e_do_atacante(predicoes: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    is_do_atacante = predicoes[LABEL] == 1
+
+    return predicoes[~is_do_atacante], predicoes[is_do_atacante]
+
+
+def test_the_rules_table_shows_this_seed_thresholds(data_root: Path) -> None:
+    """Oito linhas, e cada regra de grandeza com o limiar que o M8 gravou para a semente."""
+    arquivos = read_seed(data_root, SEED)
+    tabela = tabela_das_regras(arquivos.thresholds)
+    por_atributo = arquivos.thresholds.set_index("attribute")["threshold"]
+
+    assert len(tabela) == len(RULE_ATTRIBUTES)
+
+    for atributo, quando in zip(RULE_ATTRIBUTES, tabela["acende quando"]):
+        is_de_grandeza = atributo in THRESHOLD_ATTRIBUTES
+
+        if is_de_grandeza:
+            assert quando == f"{atributo} > {valor_escrito(float(por_atributo[atributo]))}"
+        else:
+            assert quando == f"{atributo} = 1"
+
+
+def test_the_threshold_chart_splits_exactly_at_the_threshold(data_root: Path) -> None:
+    """As duas cores somam o aquecimento inteiro, e a de cima e o que a regra pega."""
+    arquivos = read_seed(data_root, SEED)
+    por_atributo = arquivos.thresholds.set_index("attribute")["threshold"]
+
+    for atributo in THRESHOLD_ATTRIBUTES:
+        dados = secao_do_limiar(atributo, arquivos.sessions, arquivos.thresholds).dados
+        valores = arquivos.sessions[atributo]
+        acima = (valores > por_atributo[atributo]).mean()
+
+        assert dados["até o limiar"].sum() + dados["acima do limiar"].sum() == pytest.approx(1.0)
+        assert dados["acima do limiar"].sum() == pytest.approx(acima), atributo
+
+
+def test_the_cut_the_baseline_uses_reproduces_its_decision(data_root: Path) -> None:
+    """No corte de verdade, o grafico da o alarme falso e a revocacao da decisao gravada."""
+    predicoes = read_run(data_root, SEED, SIGMA).predictions_rules
+    legitimas, do_atacante = legitimas_e_do_atacante(predicoes)
+    por_corte = secao_do_corte(predicoes).dados.set_index("corte (regras)")
+
+    no_corte = por_corte.loc[MINIMUM_RULES_FIRED]
+
+    assert no_corte["alarme falso"] == pytest.approx(legitimas["predicted"].mean())
+    assert no_corte["revocação"] == pytest.approx(do_atacante["predicted"].mean())
+    assert por_corte["alarme falso"].is_monotonic_decreasing
+    assert por_corte["revocação"].is_monotonic_decreasing
+
+
+def test_the_rule_charts_match_the_rule_columns(data_root: Path) -> None:
+    """Quantas regras acendem e qual acende saem das colunas do `predictions_rules.csv`."""
+    predicoes = read_run(data_root, SEED, SIGMA).predictions_rules
+    legitimas, do_atacante = legitimas_e_do_atacante(predicoes)
+
+    por_sessao = secao_regras_por_sessao(predicoes).dados
+
+    assert por_sessao["sessões legítimas"].sum() == pytest.approx(1.0)
+    assert por_sessao["sessões do atacante"].sum() == pytest.approx(1.0)
+
+    taxas = secao_qual_regra_dispara(predicoes).dados.set_index("regra")
+
+    for atributo, coluna in zip(RULE_ATTRIBUTES, RULE_COLUMNS):
+        assert taxas.loc[atributo, "sessões legítimas"] == pytest.approx(legitimas[coluna].mean())
+        assert taxas.loc[atributo, "sessões do atacante"] == pytest.approx(do_atacante[coluna].mean())
+
+    matriz = tabela_da_matriz(predicoes).set_index("medida")["valor"]
+    verdadeiros_positivos = int(((predicoes[LABEL] == 1) & (predicoes["predicted"] == 1)).sum())
+
+    assert matriz["verdadeiros positivos"] == str(verdadeiros_positivos)
+
+
+def test_the_rules_page_reads_the_grid_and_skips_missing_seeds(data_root: Path) -> None:
+    """A curva por sigma e o tempo saem da grade; os limiares, so das sementes que rodaram."""
+    grade = read_grid(data_root)
+    curva = secao_ao_longo_de_sigma(grade.metrics).dados
+
+    assert list(curva.columns) == ["σ", "F1", "revocação", "especificidade"]
+    assert not curva.isna().any().any()
+    assert "µs" in frase_do_tempo(grade.timing)
+
+    limiares = tabela_dos_limiares_nas_sementes(read_thresholds(data_root, SAMPLE_SEEDS))
+
+    assert list(limiares["atributo"]) == list(THRESHOLD_ATTRIBUTES)
+    assert set(limiares["sementes"]) == {1}
+
+
+def test_the_importance_section_has_every_attribute_and_mechanism(data_root: Path) -> None:
+    """A secao da pagina Resultados le a importancia gravada, um atributo por linha."""
+    run = read_importance_run(data_root, SEED, SIGMA)
+    importancia = run_importance(run, TEST_CONFIGURATION)
+
+    dados = secao_da_importancia(importancia, SIGMA).dados
+
+    assert list(dados.columns) == ["atributo", "Regras", "Random Forest", "XGBoost"]
+    assert list(dados["atributo"]) == list(ATTRIBUTES)
+    assert not dados.isna().any().any()
+
+
+def test_the_confusion_matrix_adds_up_to_the_metrics(data_root: Path) -> None:
+    """As quatro celulas somam as sessoes do recorte, cada linha soma 100 %, e as contagens
+    sao as do `metrics.csv`."""
+    metricas = read_grid(data_root).metrics
+
+    for recorte in RECORTES.values():
+        for mecanismo in MECHANISMS:
+            celulas = matriz_de_confusao(metricas, SIGMA, recorte, mecanismo).set_index("célula")
+            is_da_linha = (
+                (metricas["sigma"] == SIGMA)
+                & (metricas["scope"] == recorte)
+                & (metricas["mechanism"] == mecanismo)
+            )
+            gravada = metricas[is_da_linha].iloc[0]
+
+            linha_do_ataque = celulas.loc[["verdadeiros positivos", "falsos negativos"]]
+            linha_da_legitima = celulas.loc[["falsos positivos", "verdadeiros negativos"]]
+
+            assert celulas["contagem"].sum() == gravada["sessions"]
+            assert celulas.loc["verdadeiros positivos", "contagem"] == gravada["true_positives"]
+            assert celulas.loc["falsos positivos", "contagem"] == gravada["false_positives"]
+            assert linha_do_ataque["fração da verdade"].sum() == pytest.approx(1.0)
+            assert linha_da_legitima["fração da verdade"].sum() == pytest.approx(1.0)

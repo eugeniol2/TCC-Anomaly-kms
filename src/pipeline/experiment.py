@@ -3,8 +3,8 @@
 A ordem e a que o protocolo exige, e agora o codigo a impoe: a busca de
 hiperparametros na 902 escreve a configuracao que as execucoes leem (D-032); o
 ensaio na 903 e a primeira olhada em acerto, numa semente reservada, **antes** da
-grade (D-107); a grade roda as execucoes pedidas; a avaliacao e as figuras leem o
-que a grade gravou.
+grade (D-107); a grade roda as execucoes pedidas; a avaliacao, a importancia por
+permutacao (D-124) e as figuras leem o que a grade gravou.
 
 Cada passo pertence a uma entidade, e so roda se o `--ate` a alcanca.
 """
@@ -26,6 +26,7 @@ from src.metrics.evaluation.build import (
     run_triviality,
 )
 from src.metrics.figures.build import draw_f1_by_sigma, draw_roc, save_figure
+from src.metrics.importance.build import read_importance_run, run_importance
 from src.entities.models.build import (
     chosen_configuration,
     configuration_of,
@@ -191,6 +192,29 @@ def evaluate(experiment: Experiment) -> None:
         print(f"  {options.root / name}")
 
 
+def write_importance(experiment: Experiment) -> pd.DataFrame:
+    """A importancia por permutacao das execucoes pedidas, na raiz (D-124)."""
+    options = experiment.options
+    configuration = experiment.specifications.models
+    frames = []
+
+    for seed in options.seeds:
+        for sigma in options.sigmas:
+            run = read_importance_run(options.root, seed, sigma)
+            frames.append(run_importance(run, configuration))
+
+    importance = pd.concat(frames, ignore_index=True)
+
+    return emit(importance, options.root, layout.IMPORTANCE)
+
+
+def measure_importance(experiment: Experiment) -> None:
+    started = perf_counter()
+    write_importance(experiment)
+    print(f"importancia: {experiment.options.root / layout.IMPORTANCE}, "
+          f"{perf_counter() - started:.0f}s")
+
+
 def draw_figures(experiment: Experiment) -> None:
     options = experiment.options
     directory = options.root / layout.FIGURES
@@ -214,6 +238,7 @@ EXPERIMENT_STEPS = (
     ("evaluation", rehearse),
     ("scenario_engine", run_grid),
     ("evaluation", evaluate),
+    ("evaluation", measure_importance),
     ("figures", draw_figures),
 )
 """A ordem do protocolo. Diferente dos ramos, aqui a entidade nao cresce passo a

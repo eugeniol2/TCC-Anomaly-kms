@@ -100,6 +100,9 @@ COMPARISON = "comparison.csv"
 TIMING = "timing.csv"
 """Saida do M12: o tempo de decisao de cada mecanismo, resumido (D-106)."""
 
+IMPORTANCE = "importance.csv"
+"""Saida do M12: quanto o F1 de cada mecanismo cai ao embaralhar cada atributo (D-124)."""
+
 PREPARATION = "preparation"
 """A pasta das preparatorias, dentro da raiz de dados."""
 

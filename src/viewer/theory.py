@@ -24,11 +24,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import numpy as np
 import pandas as pd
 
 from src.entities.scenario_engine.traffic.sessions import address_weights
-from src.formulas.distributions import chance_never_drawn, share_above, share_above_with_tail
+from src.formulas.distributions import chance_never_drawn
 from src.viewer.formatting import com_virgula, porcento
 
 # A cor não mora aqui. Os passos da paleta mudam entre o tema claro e o
@@ -65,92 +64,6 @@ class Teoria:
     Com `ExportKeyMaterial` no eixo, o rótulo em pé ocupava quase toda a altura
     do gráfico e as barras ficavam achatadas numa faixa de poucos pixels.
     """
-
-
-def teoria_da_cauda(
-    faixa: tuple[int, int], chance: float, excesso: float, teto_ostensivo: int
-) -> Teoria:
-    """Por que a faixa de comprimento da sessão precisou de cauda (D-097).
-
-    **O eixo comeca perto do teto, e nao no inicio da faixa.** Desenhado de
-    ponta a ponta, o grafico gasta tres quartos da largura com as duas curvas
-    sobrepostas, onde nao ha nada a ver, e espreme no canto direito a unica
-    coisa que importa: que uma delas continua acima de zero e a outra nao.
-    Recortar nao esconde nada: a esquerda do recorte as duas valem o mesmo.
-    """
-    menor, maior = faixa
-
-    # A curva mostrada e a **cumulativa invertida**: "qual a chance de a sessao
-    # passar de N eventos?". A densidade tem um degrau enorme em `maior`, de
-    # 4,7 % para 0,18 % de um evento para o outro, e em escala linear a cauda
-    # depois dele vira uma linha rente ao eixo, que se le como "acaba aqui".
-    # E o contrario do que o grafico existe para mostrar.
-    #
-    # A conta, analitica, esta em `share_above_with_tail`.
-    tipicos = np.arange(menor, maior + 1)
-
-    # Comeca poucos eventos antes do teto, onde as curvas ainda coincidem, para
-    # que o leitor veja as duas juntas e depois se separarem.
-    inicio = maior - 4
-    comprimentos = np.arange(inicio, teto_ostensivo + 30)
-
-    passa_de_fechada = []
-    passa_de_com_cauda = []
-
-    for n in comprimentos:
-        passa_de_fechada.append(share_above(n, tipicos))
-        passa_de_com_cauda.append(share_above_with_tail(n, tipicos, chance, excesso))
-
-    dados = pd.DataFrame({
-        "eventos na sessão": comprimentos,
-        "faixa fechada": passa_de_fechada,
-        "com cauda": passa_de_com_cauda,
-    })
-
-    acima = share_above_with_tail(maior, tipicos, chance, excesso)
-    alcanca = share_above_with_tail(teto_ostensivo, tipicos, chance, excesso)
-
-    return Teoria(
-        titulo="Por que a faixa de comprimento precisou de cauda",
-        texto=(
-            f"A faixa de cada regime (aqui {faixa}) dizia o comprimento da "
-            "sessão por **sorteio uniforme numa faixa fechada**. Isso a tornava "
-            "um **teto rígido**: nenhuma sessão legítima podia ter mais de "
-            f"{maior} eventos, nunca.\n\n"
-            f"O atacante ostensivo sorteia a partir de {teto_ostensivo}. As duas "
-            "classes **não se sobrepunham**, e o percentil 99 do baseline caía "
-            f"exatamente em {maior}. A regra `events` passava a ter **falso "
-            "positivo zero por construção** e separava as classes sozinha, com "
-            "F1 **0,982** em σ 0,0, por aritmética de faixa e não por "
-            "comportamento. A condição σ 0,0 seria excluída da comparação pelo "
-            "critério de trivialidade, e pela razão errada (D-097).\n\n"
-            f"A correção: **uma sessão em {1 / chance:.0f}** se estende por um "
-            f"excesso geométrico de média {excesso:.0f}. Tráfego real de KMS tem "
-            "cauda (migração em lote, reprocessagem, job que repete), e o teto "
-            "era artefato do sorteio, não propriedade do domínio.\n\n"
-            f"Hoje **{porcento(acima)}** das sessões passam do típico, e a mais longa "
-            "chega à faixa do atacante. A amplitude ganhou uma cauda igual, "
-            "sorteada à parte (D-098, D-100)."
-        ),
-        dados=dados,
-        rotulo_x="eventos na sessão",
-        rotulo_y="chance de a sessão passar deste tamanho",
-        forma="linha",
-        leitura=(
-            f"Cada ponto responde: **qual a chance de a sessão passar de N "
-            f"eventos?** O eixo começa em {inicio}, e não no início da faixa, "
-            "porque à esquerda daqui as duas curvas valem quase o mesmo e não "
-            "há o que comparar.\n\n"
-            f"Elas descem juntas até {maior - 1}. Em **{maior}** se separam, e "
-            "é este o gráfico inteiro: a **faixa fechada** cai a zero e fica "
-            "ali, porque à direita do teto não existe sessão legítima nenhuma. "
-            f"A **com cauda** vale **{porcento(alcanca)}** nesse ponto e segue "
-            "descendo devagar, sem nunca tocar o eixo.\n\n"
-            "É pouco, e é o suficiente: enquanto for maior que zero, sessão "
-            "longa é explicação possível para um tamanho grande, e a regra "
-            "precisa medir comportamento em vez de ler a faixa."
-        ),
-    )
 
 
 def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
