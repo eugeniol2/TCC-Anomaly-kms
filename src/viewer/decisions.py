@@ -13,7 +13,6 @@ from src.entities.policy_engine.calibration.parameters import (
     THRESHOLD_PERCENTILE,
 )
 from src.entities.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
-from src.entities.dataset_generator.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
 from src.shared.experiment import SEEDS, SIGMAS
 from src.shared.phases import EVALUATED_WEEKS, RULER_WEEKS
 from src.entities.dataset_generator.historical_profiles.build import HOUR_FORMAT
@@ -233,9 +232,6 @@ def variaveis_do_m7() -> tuple[Variavel, ...]:
         Variavel("IDENTIFIERS", IDENTIFIERS,
                  "Colunas que ficam no arquivo e não entram como atributo.",
                  "D-015, D-088"),
-        Variavel("SHORTEST_MEASURABLE_MINUTES", SHORTEST_MEASURABLE_MINUTES,
-                 "Piso da duração ao calcular a taxa, equivalente a um segundo.",
-                 "D-088"),
         Variavel(LABEL, "só na fase avaliada",
                  "A coluna do rótulo: diz se a sessão é do atacante. Só existe "
                  "no sessions.csv das semanas 5 a 8.", "D-063"),
