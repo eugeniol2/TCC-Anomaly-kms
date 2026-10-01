@@ -199,6 +199,10 @@ def variaveis_do_kms() -> tuple[Variavel, ...]:
                  "Em que ordem o KMS testa cada condição. O primeiro caso que se "
                  "aplica decide.",
                  "D-077"),
+        Variavel("a operação pedida", "não entra na decisão",
+                 "O KMS decide pela chave e pelo escopo do operador: Decrypt, Encrypt, "
+                 "DescribeKey e ExportKeyMaterial seguem a mesma regra.",
+                 "D-013"),
         Variavel("OUTCOMES", OUTCOMES, "Os quatro desfechos possíveis.", "D-064"),
         Variavel("colunas do outcomes.csv", OUTCOME_COLUMNS,
                  "O que o KMS devolve ao Audit Logger.", "D-078"),
