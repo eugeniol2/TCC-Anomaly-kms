@@ -202,28 +202,44 @@ def chosen_configuration(scores: pd.DataFrame) -> pd.DataFrame:
 
 
 def parsed(text: str):
-    """O valor de um parametro, lido de volta do CSV com o tipo certo."""
-    if text == "None":
+    """O valor de um parametro, lido de volta do texto com o tipo certo.
+
+    Tenta nesta ordem: nenhum valor, inteiro, real; se nada servir, o valor e texto
+    mesmo, como "balanced". A ordem importa: "200" tem de voltar 200, e nao 200.0.
+    """
+    is_none = text == "None"
+
+    if is_none:
         return None
 
-    for kind in (int, float):
-        try:
-            return kind(text)
-        except ValueError:
-            pass
+    try:
+        return int(text)
+    except ValueError:
+        pass
+
+    try:
+        return float(text)
+    except ValueError:
+        pass
 
     return text
 
 
 def configuration_of(frame: pd.DataFrame) -> dict[str, dict]:
-    """O `config.csv` como dicionario: modelo -> parametros."""
+    """O `config.csv` como dicionario: modelo -> parametros.
+
+    O quadro chega em texto pelos dois caminhos: a busca grava `str(value)`, e o
+    `read_configuration` le com `dtype=str`. Cada modelo comeca sem parametro, e
+    cada linha acrescenta um ao seu modelo.
+    """
     configuration = {}
 
     for name in MODEL_NAMES:
         configuration[name] = {}
 
-    for row in frame.astype(str).itertuples():
-        configuration[row.model][row.parameter] = parsed(row.value)
+    for row in frame.itertuples():
+        value = parsed(row.value)
+        configuration[row.model][row.parameter] = value
 
     return configuration
 

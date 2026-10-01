@@ -35,7 +35,6 @@ from src.entities.models.build import (
 )
 from src.pipeline.build import (
     Specifications,
-    emit,
     run_seed_branch,
     run_sigma_branch,
     run_sweep,
@@ -48,6 +47,7 @@ from src.shared.experiment import (
     PREPARATION_SIGMA,
     REHEARSAL_SEED,
 )
+from src.shared.tables import write_csv
 
 
 class Options(NamedTuple):
@@ -96,21 +96,26 @@ def run_search(root: Path, specifications: Specifications) -> dict[str, dict]:
         print(f"    {score['model']:<14} {score['position'] + 1:>3}   "
               f"F1 {score['mean_f1']:.4f}   {perf_counter() - started:.0f}s")
 
-    directory = layout.preparation_directory(root, HYPERPARAMETER_SEARCH_SEED)
-    results = emit(pd.DataFrame(scores), directory, layout.SEARCH_RESULTS)
-    chosen = emit(chosen_configuration(results), directory, layout.CONFIGURATION)
+    search_directory = layout.preparation_directory(root, HYPERPARAMETER_SEARCH_SEED)
+
+    results = pd.DataFrame(scores)
+    write_csv(results, search_directory / layout.SEARCH_RESULTS)
+
+    chosen = chosen_configuration(results)
+    write_csv(chosen, search_directory / layout.CONFIGURATION)
 
     return configuration_of(chosen)
 
 
 def configure_models(experiment: Experiment) -> None:
-    """Roda a busca, ou reaproveita o `config.csv` de uma busca anterior."""
+    """Roda a busca, ou reaproveita o `config.csv` de uma busca anterior (--sem-busca)."""
     options = experiment.options
-    directory = layout.preparation_directory(options.root, HYPERPARAMETER_SEARCH_SEED)
 
     if options.reuse_search:
-        configuration = read_configuration(directory / layout.CONFIGURATION)
-        print(f"busca reaproveitada: {directory / layout.CONFIGURATION}")
+        search_directory = layout.preparation_directory(options.root, HYPERPARAMETER_SEARCH_SEED)
+        configuration_path = search_directory / layout.CONFIGURATION
+        configuration = read_configuration(configuration_path)
+        print(f"busca reaproveitada: {configuration_path}")
     else:
         configuration = run_search(options.root, experiment.specifications)
 
@@ -127,14 +132,14 @@ def run_rehearsal(root: Path, specifications: Specifications) -> Evaluation:
     run_sigma_branch(branch, PREPARATION_SIGMA)
 
     run = read_run(preparation, REHEARSAL_SEED, PREPARATION_SIGMA)
-    directory = layout.run_directory(preparation, REHEARSAL_SEED, PREPARATION_SIGMA)
+    rehearsal_directory = layout.run_directory(preparation, REHEARSAL_SEED, PREPARATION_SIGMA)
 
-    return Evaluation(
-        emit(run_metrics(run), directory, layout.METRICS),
-        emit(run_triviality(run), directory, layout.TRIVIALITY),
-        comparison=pd.DataFrame(),
-        timing=run.timing,
-    )
+    metrics = run_metrics(run)
+    triviality = run_triviality(run)
+    write_csv(metrics, rehearsal_directory / layout.METRICS)
+    write_csv(triviality, rehearsal_directory / layout.TRIVIALITY)
+
+    return Evaluation(metrics, triviality, comparison=pd.DataFrame(), timing=run.timing)
 
 
 def rehearse(experiment: Experiment) -> None:
@@ -174,13 +179,12 @@ def write_evaluation(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ..
             runs.append(read_run(root, seed, sigma))
 
     evaluation = build_evaluation(runs)
+    write_csv(evaluation.metrics, root / layout.METRICS)
+    write_csv(evaluation.triviality, root / layout.TRIVIALITY)
+    write_csv(evaluation.comparison, root / layout.COMPARISON)
+    write_csv(evaluation.timing, root / layout.TIMING)
 
-    return Evaluation(
-        emit(evaluation.metrics, root, layout.METRICS),
-        emit(evaluation.triviality, root, layout.TRIVIALITY),
-        emit(evaluation.comparison, root, layout.COMPARISON),
-        emit(evaluation.timing, root, layout.TIMING),
-    )
+    return evaluation
 
 
 def evaluate(experiment: Experiment) -> None:
@@ -204,8 +208,9 @@ def write_importance(experiment: Experiment) -> pd.DataFrame:
             frames.append(run_importance(run, configuration))
 
     importance = pd.concat(frames, ignore_index=True)
+    write_csv(importance, options.root / layout.IMPORTANCE)
 
-    return emit(importance, options.root, layout.IMPORTANCE)
+    return importance
 
 
 def measure_importance(experiment: Experiment) -> None:
@@ -217,7 +222,7 @@ def measure_importance(experiment: Experiment) -> None:
 
 def draw_figures(experiment: Experiment) -> None:
     options = experiment.options
-    directory = options.root / layout.FIGURES
+    figures_directory = options.root / layout.FIGURES
     metrics = pd.read_csv(options.root / layout.METRICS)
     comparison = pd.read_csv(options.root / layout.COMPARISON)
 
@@ -229,7 +234,7 @@ def draw_figures(experiment: Experiment) -> None:
 
     for name, figure in figures.items():
         if figure is not None:
-            for path in save_figure(figure, directory, name):
+            for path in save_figure(figure, figures_directory, name):
                 print(f"  {path}")
 
 

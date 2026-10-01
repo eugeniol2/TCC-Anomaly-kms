@@ -98,54 +98,54 @@ class SigmaBranch:
         return layout.run_directory(self.seed_branch.root, self.seed_branch.seed, self.sigma)
 
 
-def emit(frame: pd.DataFrame, directory: Path, name: str) -> pd.DataFrame:
-    """Grava o arquivo e devolve o quadro, para o passo seguinte receber em memoria."""
-    write_csv(frame, directory / name)
-
-    return frame
-
-
 # Os passos do ramo da semente: semanas 1 a 4, sem atacante.
 
 
 def population(branch: SeedBranch) -> None:
     """Operadores (Scenario Engine) e repositorio de chaves (KMS), do mesmo sorteio."""
     built = build_population(branch.seed, branch.specifications.repository)
-    branch.operators = emit(built.operators, branch.directory, layout.OPERATORS)
-    branch.keys = emit(built.keys, branch.directory, layout.KEYS)
+    write_csv(built.operators, branch.directory / layout.OPERATORS)
+    write_csv(built.keys, branch.directory / layout.KEYS)
+    branch.operators = built.operators
+    branch.keys = built.keys
 
 
 def legitimate_traffic(branch: SeedBranch) -> None:
     requests = build_traffic(
         branch.seed, branch.operators, branch.keys, branch.specifications.traffic
     )
-    branch.requests = emit(requests, branch.directory, layout.REQUESTS)
+    write_csv(requests, branch.directory / layout.REQUESTS)
+    branch.requests = requests
 
 
 def warmup_outcomes(branch: SeedBranch) -> None:
     outcomes = build_outcomes(branch.requests, branch.keys, branch.operators, WARMUP)
-    branch.outcomes = emit(outcomes, branch.directory, layout.OUTCOMES)
+    write_csv(outcomes, branch.directory / layout.OUTCOMES)
+    branch.outcomes = outcomes
 
 
 def warmup_log(branch: SeedBranch) -> None:
     log = build_log(branch.requests, branch.outcomes, WARMUP)
-    branch.log = emit(log, branch.directory, layout.LOG)
+    write_csv(log, branch.directory / layout.LOG)
+    branch.log = log
 
 
 def historical_profiles(branch: SeedBranch) -> None:
     profiles = build_profiles(branch.log)
-    branch.profiles = emit(profiles, branch.directory, layout.HISTORICAL_PROFILES)
+    write_csv(profiles, branch.directory / layout.HISTORICAL_PROFILES)
+    branch.profiles = profiles
 
 
 def warmup_sessions(branch: SeedBranch) -> None:
     sessions = build_dataset(branch.log, branch.profiles, WARMUP)
-    branch.sessions = emit(sessions, branch.directory, layout.SESSIONS)
+    write_csv(sessions, branch.directory / layout.SESSIONS)
+    branch.sessions = sessions
 
 
 def thresholds(branch: SeedBranch) -> None:
-    branch.thresholds = emit(
-        build_thresholds(branch.sessions), branch.directory, layout.THRESHOLDS
-    )
+    calibrated = build_thresholds(branch.sessions)
+    write_csv(calibrated, branch.directory / layout.THRESHOLDS)
+    branch.thresholds = calibrated
 
 
 SEED_STEPS = (
@@ -168,43 +168,48 @@ def attack_campaign(branch: SigmaBranch) -> None:
         seed.seed, branch.sigma, seed.operators, seed.keys, seed.requests,
         seed.specifications.traffic, seed.specifications.attack,
     )
-    branch.requests = emit(campaign.requests, branch.directory, layout.REQUESTS)
-    branch.compromised = emit(
-        campaign.compromised, branch.directory, layout.COMPROMISED_SESSIONS
-    )
-    branch.run = emit(campaign.run, branch.directory, layout.RUN)
+    write_csv(campaign.requests, branch.directory / layout.REQUESTS)
+    write_csv(campaign.compromised, branch.directory / layout.COMPROMISED_SESSIONS)
+    write_csv(campaign.run, branch.directory / layout.RUN)
+    branch.requests = campaign.requests
+    branch.compromised = campaign.compromised
+    branch.run = campaign.run
 
 
 def evaluated_outcomes(branch: SigmaBranch) -> None:
     seed = branch.seed_branch
     outcomes = build_outcomes(branch.requests, seed.keys, seed.operators, EVALUATED)
-    branch.outcomes = emit(outcomes, branch.directory, layout.OUTCOMES)
+    write_csv(outcomes, branch.directory / layout.OUTCOMES)
+    branch.outcomes = outcomes
 
 
 def evaluated_log(branch: SigmaBranch) -> None:
     log = build_log(branch.requests, branch.outcomes, EVALUATED)
-    branch.log = emit(log, branch.directory, layout.LOG)
+    write_csv(log, branch.directory / layout.LOG)
+    branch.log = log
 
 
 def evaluated_sessions(branch: SigmaBranch) -> None:
     sessions = build_dataset(
         branch.log, branch.seed_branch.profiles, EVALUATED, branch.compromised
     )
-    branch.sessions = emit(sessions, branch.directory, layout.SESSIONS)
+    write_csv(sessions, branch.directory / layout.SESSIONS)
+    branch.sessions = sessions
 
 
 def partition(branch: SigmaBranch) -> None:
     sides = build_partition(branch.seed_branch.seed, branch.sessions)
-    branch.train = emit(sides.train, branch.directory, layout.TRAIN)
-    branch.holdout = emit(sides.holdout, branch.directory, layout.HOLDOUT)
+    write_csv(sides.train, branch.directory / layout.TRAIN)
+    write_csv(sides.holdout, branch.directory / layout.HOLDOUT)
+    branch.train = sides.train
+    branch.holdout = sides.holdout
 
 
 def rule_decisions(branch: SigmaBranch) -> None:
     baseline = build_baseline(branch.holdout, branch.seed_branch.thresholds)
-    branch.predictions_rules = emit(
-        baseline.predictions, branch.directory, layout.PREDICTIONS_RULES
-    )
-    emit(baseline.timing, branch.directory, layout.TIMING_RULES)
+    write_csv(baseline.predictions, branch.directory / layout.PREDICTIONS_RULES)
+    write_csv(baseline.timing, branch.directory / layout.TIMING_RULES)
+    branch.predictions_rules = baseline.predictions
 
 
 def model_decisions(branch: SigmaBranch) -> None:
@@ -212,8 +217,9 @@ def model_decisions(branch: SigmaBranch) -> None:
     models = build_models(
         seed.seed, branch.train, branch.holdout, seed.specifications.models
     )
-    branch.predictions_ml = emit(models.predictions, branch.directory, layout.PREDICTIONS_ML)
-    emit(models.timing, branch.directory, layout.TIMING_ML)
+    write_csv(models.predictions, branch.directory / layout.PREDICTIONS_ML)
+    write_csv(models.timing, branch.directory / layout.TIMING_ML)
+    branch.predictions_ml = models.predictions
 
 
 SIGMA_STEPS = (
@@ -284,5 +290,6 @@ def write_runs_index(rows: list[pd.DataFrame], root: Path) -> pd.DataFrame:
     index = pd.concat(rows, ignore_index=True).sort_values(
         ["seed", "sigma"], ignore_index=True
     )
+    write_csv(index, root / layout.RUNS_INDEX)
 
-    return emit(index, root, layout.RUNS_INDEX)
+    return index
