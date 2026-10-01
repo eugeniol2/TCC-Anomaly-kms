@@ -40,9 +40,17 @@ def seeds_from(text: str) -> tuple[int, ...]:
         for seed_text in text.split(","):
             seeds.append(int(seed_text))
 
-    reserved = sorted(set(seeds) & set(RESERVED_SEEDS))
+    reserved = []
 
-    if reserved:
+    for seed in seeds:
+        is_reserved = seed in RESERVED_SEEDS
+
+        if is_reserved:
+            reserved.append(seed)
+
+    has_reserved = len(reserved) > 0
+
+    if has_reserved:
         raise argparse.ArgumentTypeError(
             f"sementes reservadas as preparatorias, fora das replicas: {reserved}"
         )
@@ -64,7 +72,9 @@ def sigmas_from(text: str) -> tuple[float, ...]:
 
         sigmas.append(sigma)
 
-    if outside:
+    has_outside = len(outside) > 0
+
+    if has_outside:
         raise argparse.ArgumentTypeError(f"sigma fora da faixa 0,0 a 1,0: {outside}")
 
     return tuple(sigmas)

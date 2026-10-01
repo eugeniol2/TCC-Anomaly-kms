@@ -85,8 +85,9 @@ def missing_files(directory: Path, names: tuple[str, ...]) -> list[str]:
 def read_all(directory: Path, names: tuple[str, ...]) -> dict[str, pd.DataFrame]:
     """Le os arquivos, cada um pelo nome, com erro claro quando falta algum."""
     absent = missing_files(directory, names)
+    has_absent = len(absent) > 0
 
-    if absent:
+    if has_absent:
         raise FileNotFoundError(
             f"faltam {', '.join(absent)} em {directory}; rode antes: python -m src.main"
         )

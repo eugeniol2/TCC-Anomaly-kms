@@ -209,7 +209,9 @@ def draw_roc(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ...]) -> F
         if was_run:
             chosen.append(sigma)
 
-    if not chosen:
+    has_any = len(chosen) > 0
+
+    if not has_any:
         return None
 
     figure, panels = plt.subplots(1, len(chosen), figsize=(4 * len(chosen), 4),
