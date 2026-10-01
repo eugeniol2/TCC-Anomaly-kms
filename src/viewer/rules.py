@@ -1,11 +1,3 @@
-"""A página Regras: como o baseline decide, com os dados de uma semente e de um σ.
-
-Detalha o que o quadro do Policy Engine, na fase 3 do Pipeline, resume: as oito
-regras, de onde sai cada limiar, quais regras acendem em cada sessão e por que o
-alerta exige duas. Lê os arquivos que o comando gravou e **não recalcula decisão
-nenhuma**: a contagem de regras e a decisão vêm do `predictions_rules.csv`.
-"""
-
 from __future__ import annotations
 
 import numpy as np
@@ -14,7 +6,10 @@ import pandas as pd
 from src.entities.dataset_generator.dataset.build import LABEL
 from src.entities.policy_engine.baseline.build import MECHANISM, RULE_ATTRIBUTES, RULE_COLUMNS
 from src.entities.policy_engine.baseline.parameters import MINIMUM_RULES_FIRED
-from src.entities.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.entities.policy_engine.calibration.parameters import (
+    THRESHOLD_ATTRIBUTES,
+    THRESHOLD_PERCENTILE,
+)
 from src.formulas.classification import confusion, rates
 from src.metrics.evaluation.build import ALL_SESSIONS
 from src.viewer.behaviors import frequencia_medida
@@ -31,10 +26,8 @@ O_QUE_CADA_REGRA_VE = {
     "atypical_hour": "aberta fora da janela habitual",
     "new_source_ip": "origem de rede nunca vista",
 }
-"""Cada regra dita pelo que ela procura, na ordem das regras do baseline."""
 
 FAIXAS_DO_HISTOGRAMA = 30
-# Atributos contínuos viram trinta faixas; contagens, uma barra por valor.
 
 
 def limiar_de(atributo: str, limiares: pd.DataFrame) -> float:
@@ -56,7 +49,7 @@ def resumo_das_regras(seed: int, sigma: float, predicoes: pd.DataFrame) -> str:
 
     return (
         "O baseline **não aprende nada**. São oito regras, uma por atributo da sessão. "
-        f"Seis comparam o atributo contra um **limiar**, o percentil {PERCENTILE} das "
+        f"Seis comparam o atributo contra um **limiar**, o percentil {THRESHOLD_PERCENTILE} das "
         "sessões do aquecimento daquela semente; duas leem o **perfil histórico** do "
         f"operador. A sessão vira **alerta quando {MINIMUM_RULES_FIRED} ou mais regras "
         "acendem**. Os limiares ficam congelados desde o fim do aquecimento, e o rótulo "
@@ -75,7 +68,7 @@ def tabela_das_regras(limiares: pd.DataFrame) -> pd.DataFrame:
 
         if is_de_grandeza:
             limiar = valor_escrito(limiar_de(atributo, limiares))
-            tipo = f"grandeza: percentil {PERCENTILE} do aquecimento"
+            tipo = f"grandeza: percentil {THRESHOLD_PERCENTILE} do aquecimento"
             dispara = f"{atributo} > {limiar}"
         else:
             tipo = "histórico: o perfil do operador"
@@ -124,7 +117,7 @@ def secao_do_limiar(atributo: str, sessoes: pd.DataFrame, limiares: pd.DataFrame
     return Teoria(
         titulo=f"O limiar de `{atributo}`",
         texto=(
-            f"O limiar é o percentil {PERCENTILE} das **{total} sessões** das quatro "
+            f"O limiar é o percentil {THRESHOLD_PERCENTILE} das **{total} sessões** das quatro "
             f"semanas de aquecimento desta semente, todas legítimas: "
             f"**{valor_escrito(limiar)}**. A regra acende quando a sessão passa "
             f"**estritamente** dele, o que acontece em **{porcento(passam, 2)}** do "
@@ -204,9 +197,9 @@ def secao_qual_regra_dispara(predicoes: pd.DataFrame) -> Teoria:
         texto=(
             "Em que fração das sessões de cada classe cada regra acende, neste σ. As seis "
             "de grandeza acendem perto de 1 % das legítimas, que é o que o percentil "
-            f"{PERCENTILE} promete; numa semente só, com algumas centenas de legítimas no "
-            "holdout, a taxa oscila em torno disso. `atypical_hour` acende em mais, "
-            "porque a janela habitual de cada operador é estreita."
+            f"{THRESHOLD_PERCENTILE} promete; numa semente só, com algumas centenas de "
+            "legítimas no holdout, a taxa oscila em torno disso. `atypical_hour` acende em "
+            "mais, porque a janela habitual de cada operador é estreita."
         ),
         dados=pd.DataFrame(linhas),
         rotulo_x="regra",
@@ -334,7 +327,7 @@ def frase_do_tempo(tempo: pd.DataFrame) -> str:
 
 
 def tabela_dos_limiares_nas_sementes(limiares: pd.DataFrame) -> pd.DataFrame:
-    """Mediana, faixa e variação de cada limiar entre as sementes (D-043)."""
+    """Mediana, faixa e variação de cada limiar entre as sementes."""
     linhas = []
 
     for atributo in THRESHOLD_ATTRIBUTES:

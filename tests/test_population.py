@@ -155,7 +155,7 @@ def test_no_scope_is_empty(seed: int) -> None:
     keys_per_scope = population(seed).keys["scope"].value_counts()
 
     assert len(keys_per_scope) == SPECIFICATION.scope_count
-    assert keys_per_scope.min() >= SPECIFICATION.scope_floor
+    assert keys_per_scope.min() >= SPECIFICATION.minimum_keys_per_scope
 
 
 # Armadilhas catalogadas na revisao: atributo que separa as classes sozinho.

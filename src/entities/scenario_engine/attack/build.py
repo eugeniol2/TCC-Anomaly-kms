@@ -1,20 +1,3 @@
-"""Composicao do M3: mescla a campanha as semanas 5 a 8 do trafego legitimo.
-
-O M3 **le o `requests.csv` do M2 e escreve outro**, na pasta de sigma. Nao
-acrescenta linhas ao arquivo do M2, porque cada arquivo tem um unico modulo
-que o escreve (D-049). E o que impede o M3 de mutar a entrada que o M4 do ramo
-da semente vai ler.
-
-Tres coisas saem daqui, e a ordem entre elas importa:
-
-1. O **administrador comprometido**, primeiro sorteio do fluxo de ataque. Vem
-   antes de qualquer coisa que dependa de sigma, e por isso e o mesmo nas onze
-   condicoes da mesma semente (D-011).
-2. O **`requests.csv` mesclado**, renumerado do zero em ordem cronologica.
-3. O **`compromised_sessions.csv`**, com os identificadores das sessoes da
-   campanha: o rotulo, que viaja fora do log (D-063).
-"""
-
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -37,20 +20,11 @@ from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
 ADMINISTRATOR = "administrator"
 
 COMPROMISED_COLUMNS = ("session_id",)
-"""As colunas de `compromised_sessions.csv` (D-084).
-
-Uma so. O arquivo responde a unica pergunta que o M7 lhe faz (esta sessao e
-comprometida?), e quem e o administrador ja esta em `run.csv`. Acrescentar
-`operator_id` aqui repetiria em 58 linhas o que ja esta registrado em uma.
-"""
 
 RUN_COLUMNS = ("seed", "sigma", "compromised_admin")
-"""As colunas de `run.csv`, uma linha por execucao (D-012, D-085)."""
 
 
 class AttackOutput(NamedTuple):
-    """Os tres arquivos que o M3 produz."""
-
     requests: pd.DataFrame
     compromised: pd.DataFrame
     run: pd.DataFrame
@@ -62,11 +36,8 @@ def identifier_of(operator: Operator) -> str:
 
 
 def administrators_of(operators: list[Operator]) -> list[Operator]:
-    """Os oito administradores, em ordem estavel de identificador.
-
-    Ordem fixada antes do sorteio: sem isso, mudar a ordem das linhas de
-    `operators.csv` trocaria o administrador comprometido da mesma semente, e
-    o pareamento da D-011 dependeria da ordenacao de um arquivo.
+    """Os oito administradores, ordenados pelo identificador: o sorteio nao depende da
+    ordem das linhas do `operators.csv`.
     """
     holders = []
 
@@ -80,11 +51,10 @@ def administrators_of(operators: list[Operator]) -> list[Operator]:
 
 
 def draw_compromised_admin(rng: Generator, operators: list[Operator]) -> Operator:
-    """Qual administrador tem a credencial comprometida (D-010).
+    """Qual administrador tem a credencial comprometida.
 
-    **Primeiro sorteio do fluxo de ataque**, antes de qualquer consumo que
-    dependa de sigma. E o que garante que as onze condicoes da mesma semente
-    compartilhem o alvo, isolando o efeito de sigma (D-011).
+    E o primeiro sorteio do fluxo de ataque, antes de qualquer um que dependa de sigma:
+    as onze condicoes da mesma semente comprometem o mesmo administrador.
     """
     holders = administrators_of(operators)
     chosen = int(rng.integers(len(holders)))
@@ -98,9 +68,7 @@ def plan_campaign(
 ) -> tuple[list[CompromisedSession], Stealth]:
     """As sessoes da campanha, situadas no calendario e ainda sem conteudo.
 
-    O identificador aqui e provisorio: ele vale so para casar linha com
-    sessao ate a renumeracao final, que e quem decide o identificador que vai
-    para o disco.
+    O identificador e provisorio: a renumeracao final decide o que vai para o disco.
     """
     regime = REGIMES[admin.regime]
     stealth = stealth_of(sigma, regime, traffic, attack)
@@ -127,29 +95,17 @@ def known_addresses_of(operators: list[Operator]) -> frozenset[str]:
 
 
 def legitimate_of_evaluated(requests: pd.DataFrame) -> pd.DataFrame:
-    """As semanas 5 a 8 do trafego legitimo, que e onde a campanha entra.
-
-    O arquivo do M2 tem as oito semanas; as quatro primeiras ficam no ramo da
-    semente e nao podem aparecer aqui, porque o aquecimento e anterior ao
-    ataque (D-048).
-    """
+    """As semanas 5 a 8 do trafego legitimo, que e onde a campanha entra."""
     of_phase = requests[belongs_to(EVALUATED, requests["timestamp"])]
 
     return of_phase.drop(columns=["event_id"]).reset_index(drop=True)
 
 
 def renumbered(merged: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, str]]:
-    """Numera sessoes e eventos do zero, em ordem cronologica (D-083).
+    """Numera sessoes e eventos do zero, em ordem cronologica.
 
-    Devolve tambem de-para do identificador provisorio para o definitivo, que
-    e como o `compromised_sessions.csv` descobre os numeros que as sessoes da
-    campanha receberam depois de embaralhadas com as legitimas.
-
-    Renumerar tudo e obrigatorio, nao arrumacao. Mantidos os identificadores
-    do M2 e dados numeros novos so as sessoes do atacante, elas ficariam todas
-    no fim da faixa, e o identificador de sessao (que a D-015 mantem fora dos
-    atributos justamente para nao carregar sinal) passaria a **anunciar o
-    rotulo** para quem abrisse o arquivo.
+    Devolve tambem o de-para do identificador provisorio para o definitivo, de onde o
+    `compromised_sessions.csv` tira os numeros das sessoes da campanha.
     """
     ordered = chronological(merged)
 
@@ -174,9 +130,7 @@ def build_attack(
 ) -> AttackOutput:
     """Do trafego legitimo das semanas 5 a 8 ao arquivo com a campanha dentro.
 
-    Emite tentativas, nunca desfechos (D-013), e nao marca as linhas do
-    atacante de forma nenhuma: quem sabe quais sao e o
-    `compromised_sessions.csv`, que o M7 consulta so na fase avaliada.
+    Emite tentativas, sem desfecho, e as linhas do atacante nao levam marca nenhuma.
     """
     rng = stream(seed, ATTACK)
 

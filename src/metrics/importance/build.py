@@ -1,28 +1,3 @@
-"""M12, a importancia por permutacao: de que atributo cada mecanismo depende (D-124).
-
-Em cada execucao, embaralha um atributo do holdout por vez, deixando os outros como
-estao, e mede quanto o F1 cai. Atributo de que o mecanismo nao depende pode ser
-embaralhado sem custo; atributo de que ele depende derruba o F1. Vale igual para as
-regras e para os modelos, e e isso que permite pôr os tres lado a lado.
-
-**Nao e SHAP** (D-059). Nao explica decisao individual: diz, para a execucao inteira,
-o quanto cada mecanismo se apoia em cada atributo. Ocupa o lugar da remedicao que a
-D-114 tirou, e responde a pergunta que ela deixou para Ameacas a validade: se a
-vantagem dos modelos depende do `distinct_keys`.
-
-**Os modelos sao retreinados**, com a configuracao da 902 e a semente de treino da
-replica (D-104, D-115). O treino e deterministico, e o modelo e o mesmo que decidiu
-na grade: o teste confere a decisao contra o `predictions_ml.csv` gravado.
-
-**Mede o quanto o atributo e indispensavel, e nao o quanto e usado.** Embaralhar um
-atributo deixa os outros carregando o que eles tem em comum com ele, e a queda sai
-menor do que o uso real. Em sigma 0,0 o atacante se denuncia por varios atributos ao
-mesmo tempo, e o Random Forest nao perde nada com nenhum deles embaralhado sozinho.
-Pela mesma razao, atributos correlacionados dividem a importancia: `events`,
-`duration_minutes` e `requests_per_minute` andam juntos, e no atacante
-`distinct_keys` anda com as falhas.
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,22 +13,14 @@ from src.entities.policy_engine.baseline.build import MECHANISM as RULES
 from src.entities.policy_engine.baseline.build import decide, magnitude_cutoffs
 from src.formulas.classification import confusion, rates
 from src.metrics.evaluation.build import read_table
-from src.metrics.importance.parameters import REPEATS
+from src.metrics.importance.parameters import PERMUTATION_REPEATS
 from src.shared import layout
 from src.shared.rng import IMPORTANCE, stream
 
 COLUMNS = ("seed", "sigma", "mechanism", "attribute", "f1_drop")
-"""As colunas do `importance.csv`: uma linha por execucao, mecanismo e atributo.
-
-`f1_drop` e o F1 da execucao menos a media do F1 com o atributo embaralhado. Pode
-sair levemente negativo: embaralhar um atributo de que o mecanismo nao depende as
-vezes acerta uma sessao a mais, por acaso.
-"""
 
 
 class ImportanceRun(NamedTuple):
-    """O que a importancia le de uma execucao (semente, sigma)."""
-
     seed: int
     sigma: float
     train: pd.DataFrame
@@ -62,15 +29,11 @@ class ImportanceRun(NamedTuple):
 
 
 class Holdout(NamedTuple):
-    """O holdout separado no que o mecanismo ve e na verdade, que so a medida usa."""
-
     features: pd.DataFrame
     truth: pd.Series
 
 
 class RulesDecision(NamedTuple):
-    """O baseline com a mesma forma dos modelos: um `predict` sobre os oito atributos."""
-
     cutoffs: np.ndarray
 
     def predict(self, features: pd.DataFrame) -> np.ndarray:
@@ -103,10 +66,10 @@ def mechanisms_of(run: ImportanceRun, configuration: dict[str, dict]) -> dict[st
 
 
 def permutation_orders(seed: int, rows: int) -> dict[str, list[np.ndarray]]:
-    """As permutacoes de cada atributo, sorteadas uma vez e usadas pelos tres mecanismos.
+    """As permutacoes de cada atributo, sorteadas uma vez e usadas pelos tres
+    mecanismos.
 
-    Saem do fluxo `IMPORTANCE`, que depende so da semente: o mesmo embaralhamento
-    serve as regras e aos dois modelos, e a comparacao entre eles fica pareada.
+    Saem do fluxo `IMPORTANCE`, que depende so da semente.
     """
     rng = stream(seed, IMPORTANCE)
     orders = {}
@@ -114,7 +77,7 @@ def permutation_orders(seed: int, rows: int) -> dict[str, list[np.ndarray]]:
     for attribute in ATTRIBUTES:
         draws = []
 
-        for _ in range(REPEATS):
+        for _ in range(PERMUTATION_REPEATS):
             draws.append(rng.permutation(rows))
 
         orders[attribute] = draws

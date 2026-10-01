@@ -1,25 +1,3 @@
-"""A teoria por trás das variáveis que são distribuições, com gráfico.
-
-Algumas variáveis do gerador não são um número escolhido: são a **forma de uma
-distribuição**. `PRIMARY_ADDRESS_SHARE = 0.80` não diz só quanto pesa a
-principal: diz que os endereços decaem geometricamente, e é o decaimento que
-faz o mais raro faltar no aquecimento.
-
-Isso não cabe numa célula de tabela, e não se demonstra em prosa. Cada função
-aqui devolve o texto **e os dados de um gráfico**, calculados na hora a partir
-da mesma distribuição que o gerador usa.
-
-**Só as distribuições globais moram aqui**: as que valem para o tráfego
-inteiro, qualquer que seja o regime. As de um regime só (a Poisson do
-`routine`, a Pascal do `occasional_custody`, o passo exponencial de cada um)
-estão na página Comportamentos, em `behaviors.py`, com a frequência medida ao
-lado da curva.
-
-Os gráficos são do Streamlit e não do matplotlib, de propósito: eles herdam o
-tema claro ou escuro da página e trazem tooltip ao passar o mouse, que numa
-tela de apresentação vale mais que controle fino sobre a marca.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -30,22 +8,9 @@ from src.entities.scenario_engine.traffic.sessions import address_weights
 from src.formulas.distributions import chance_never_drawn
 from src.viewer.formatting import com_virgula, porcento
 
-# A cor não mora aqui. Os passos da paleta mudam entre o tema claro e o
-# escuro (a versão clara reprovou na verificação contra fundo escuro), e
-# quem sabe o tema é o app. Aqui só se declara quantas séries existem; o app
-# toma os primeiros N slots, na ordem fixa que é o mecanismo de segurança
-# para daltonismo.
-
 
 @dataclass(frozen=True)
 class Teoria:
-    """A explicação de uma distribuição, com o gráfico que a sustenta.
-
-    O gráfico é opcional porque a aba de comportamentos usa o mesmo formato
-    para seções que se explicam só em texto. Nas variáveis de decisão ele está
-    sempre presente.
-    """
-
     titulo: str
     texto: str
     dados: pd.DataFrame | None = None
@@ -53,31 +18,17 @@ class Teoria:
     rotulo_y: str = ""
 
     forma: str = "barras"
-    """`barras` para domínio discreto, `linha` para contínuo."""
 
     leitura: str = ""
-    """O que se deve enxergar no gráfico. Sem isto, ele é decoração."""
 
     horizontal: bool = False
-    """Barras deitadas, para quando o eixo tem nomes longos.
-
-    Com `ExportKeyMaterial` no eixo, o rótulo em pé ocupava quase toda a altura
-    do gráfico e as barras ficavam achatadas numa faixa de poucos pixels.
-    """
 
 
 def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
     """Como a origem de rede é escolhida, e por que alguma precisa faltar.
 
-    **Os pesos vêm de `address_weights`, a função que o M2 de fato usa.** Esta
-    teoria reimplementava a fórmula, e a duplicação era um risco silencioso:
-    mudada a forma do decaimento no gerador, o gráfico seguiria desenhando a
-    antiga, plausível e errada, numa apresentação. É a mesma regra que o
-    `steps.py` declara para si: o observador se adapta ao código, nunca o
-    contrário.
-
-    Só o `principal` continua chegando por parâmetro, porque ele é a variável
-    de decisão que a tabela mostra ao lado do gráfico.
+    Os pesos vêm de `address_weights`, a função que o gerador usa. Só o `principal`
+    chega por parâmetro.
     """
     pesos = address_weights(maximo_de_enderecos)
     enderecos = []
@@ -91,8 +42,7 @@ def teoria_da_geometrica(principal: float, maximo_de_enderecos: int) -> Teoria:
     })
 
     quarto = pesos[-1]
-    # Sessoes na regua, mediana nas 30 sementes. E o expoente que decide se o
-    # endereco raro falta: regua mais longa o derruba, e foi o custo da D-096.
+    # Sessoes na regua: a mediana nas 30 sementes.
     SESSOES_NA_REGUA = 32
     ausencia = chance_never_drawn(quarto, SESSOES_NA_REGUA)
 

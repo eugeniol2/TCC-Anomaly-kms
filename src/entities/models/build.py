@@ -1,13 +1,3 @@
-"""M11: Random Forest e XGBoost, treinados no treino e decidindo sobre o holdout.
-
-Cada modelo treina **uma vez** (D-114), com a configuracao que a busca da
-preparatoria 902 escolheu (D-032, D-103, D-105) e a semente de treino da replica
-(D-104). Como no baseline, o rotulo do holdout vai junto na saida, mas nao e
-consultado (D-113).
-
-A busca tambem mora aqui: ela roda so no treino da 902, nunca no holdout (D-045).
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,14 +11,22 @@ from sklearn.model_selection import ParameterGrid, RepeatedStratifiedKFold
 from xgboost import XGBClassifier
 
 from src.entities.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL, require_label
-from src.entities.models.parameters import FOLDS, GRIDS, JOBS, MODEL_NAMES, REPEATS, SEED_CEILING
+from src.entities.models.parameters import (
+    CPU_CORES,
+    CROSS_VALIDATION_FOLDS,
+    CROSS_VALIDATION_REPEATS,
+    GRIDS,
+    MODEL_NAMES,
+    SEED_CEILING,
+)
 from src.formulas.classification import negatives_per_positive
 from src.shared.rng import MODELS, stream
 from src.shared.timing import time_decision
 
 
 def score_column(name: str) -> str:
-    """A coluna do escore de um modelo: a probabilidade de ataque, de onde sai a curva ROC (D-119)."""
+    """A coluna do escore de um modelo: a probabilidade de ataque, que a curva ROC usa.
+    """
     return f"{name}_score"
 
 
@@ -44,31 +42,26 @@ def score_columns() -> tuple[str, ...]:
 SCORE_COLUMNS = score_columns()
 
 COLUMNS = IDENTIFIERS + MODEL_NAMES + SCORE_COLUMNS + (LABEL,)
-"""As colunas do `predictions_ml.csv`: a decisao e o escore de cada modelo, e a verdade por ultimo."""
 
 CONFIGURATION_COLUMNS = ("model", "parameter", "value")
 
 
 class TrainingSeeds(NamedTuple):
-    """As sementes que o M11 usa numa replica, todas do fluxo `MODELS`."""
-
     random_forest: int
     xgboost: int
     folds: int
 
 
 class Models(NamedTuple):
-    """O que o M11 produz: as decisoes e o tempo que elas levaram."""
-
     predictions: pd.DataFrame
     timing: pd.DataFrame
 
 
 def training_seeds(seed: int) -> TrainingSeeds:
-    """As sementes da replica, sorteadas sempre na mesma ordem (D-104, D-115).
+    """As sementes de treino da replica, sorteadas sempre na mesma ordem.
 
-    Dependem so da semente: o mesmo modelo treina com a mesma semente nos onze
-    sigmas. A das dobras so e usada na busca.
+    Dependem so da semente: o mesmo modelo treina com a mesma semente nos onze sigmas. A
+    das dobras so e usada na busca.
     """
     rng = stream(seed, MODELS)
     forest, boosting, folds = rng.integers(0, SEED_CEILING, size=3)
@@ -77,17 +70,19 @@ def training_seeds(seed: int) -> TrainingSeeds:
 
 
 def random_forest(parameters: dict, labels: pd.Series, random_state: int):
-    return RandomForestClassifier(**parameters, random_state=random_state, n_jobs=JOBS)
+    return RandomForestClassifier(**parameters, random_state=random_state, n_jobs=CPU_CORES)
 
 
 def xgboost(parameters: dict, labels: pd.Series, random_state: int):
-    """O `class_weight` "balanced" vira o peso da classe rara do treino em uso (D-105)."""
+    """O XGBoost daquela configuracao: `class_weight` "balanced" vira
+    `scale_pos_weight`, as negativas por positiva do treino.
+    """
     settings = dict(parameters)
     is_weighted = settings.pop("class_weight") == "balanced"
     weight = negatives_per_positive(labels) if is_weighted else 1.0
 
     return XGBClassifier(
-        **settings, scale_pos_weight=weight, random_state=random_state, n_jobs=JOBS
+        **settings, scale_pos_weight=weight, random_state=random_state, n_jobs=CPU_CORES
     )
 
 
@@ -121,9 +116,6 @@ def fitted(name: str, parameters: dict, sessions: pd.DataFrame, random_state: in
     return model.fit(sessions[list(ATTRIBUTES)], labels)
 
 
-# A busca, so na preparatoria 902.
-
-
 def described(parameters: dict) -> str:
     """Uma configuracao numa linha legivel, para o arquivo de resultados da busca."""
     parts = []
@@ -148,14 +140,16 @@ def fold_score(name: str, parameters: dict, train: pd.DataFrame, fold, random_st
 
 
 def configuration_scores(seed: int, train: pd.DataFrame) -> Iterator[dict]:
-    """A nota de cada configuracao da grade: media e desvio dos 15 F1 (D-103).
+    """A nota de cada configuracao da grade: media e desvio dos 15 F1.
 
     Devolve uma configuracao por vez, para quem chama poder mostrar o progresso.
     """
     require_label(train)
     seeds = training_seeds(seed)
     splitter = RepeatedStratifiedKFold(
-        n_splits=FOLDS, n_repeats=REPEATS, random_state=seeds.folds
+        n_splits=CROSS_VALIDATION_FOLDS,
+        n_repeats=CROSS_VALIDATION_REPEATS,
+        random_state=seeds.folds,
     )
     folds = list(splitter.split(train, train[LABEL]))
 
@@ -179,7 +173,7 @@ def configuration_scores(seed: int, train: pd.DataFrame) -> Iterator[dict]:
 
 
 def chosen_configuration(scores: pd.DataFrame) -> pd.DataFrame:
-    """A melhor configuracao de cada modelo: maior F1 medio; no empate, menor desvio (D-103).
+    """A melhor configuracao de cada modelo: maior F1 medio; no empate, menor desvio.
 
     Persistindo o empate, vence a que vem primeiro na grade.
     """
@@ -228,9 +222,7 @@ def parsed(text: str):
 def configuration_of(frame: pd.DataFrame) -> dict[str, dict]:
     """O `config.csv` como dicionario: modelo -> parametros.
 
-    O quadro chega em texto pelos dois caminhos: a busca grava `str(value)`, e o
-    `read_configuration` le com `dtype=str`. Cada modelo comeca sem parametro, e
-    cada linha acrescenta um ao seu modelo.
+    O quadro chega em texto, e cada valor volta ao seu tipo pelo `parsed`.
     """
     configuration = {}
 
@@ -260,16 +252,13 @@ def read_configuration(path: Path) -> dict[str, dict]:
     return configuration_of(frame)
 
 
-# O treino e a decisao, nas 330 execucoes.
-
-
 def build_models(
     seed: int, train: pd.DataFrame, holdout: pd.DataFrame, configuration: dict[str, dict]
 ) -> Models:
-    """Treina os dois modelos e decide sobre o holdout, cronometrando so a decisao (D-106).
+    """Treina os dois modelos e decide sobre o holdout, cronometrando so a decisao.
 
-    Grava tambem o escore, a probabilidade de ataque, que a curva ROC usa (D-119). A
-    decisao continua sendo a do `predict`, que corta em 0,5.
+    Devolve tambem o escore, a probabilidade de ataque. A decisao e a do `predict`, que
+    corta em 0,5.
     """
     require_label(train)
     require_label(holdout)

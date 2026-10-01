@@ -1,13 +1,3 @@
-"""As figuras da monografia, desenhadas a partir das tabelas do M12 e das predicoes.
-
-Duas figuras:
-
-- `f1_sigma`: o F1 de cada mecanismo ao longo de sigma, mediana e intervalo
-  interquartilico das 30 sementes, no holdout inteiro e so entre administradores.
-- `roc`: a curva ROC dos dois modelos em sigma 0,7, 0,8 e 0,9, com o baseline como
-  um ponto, porque ele so decide e nao tem escore (proposta, Tabela 9).
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -35,8 +25,8 @@ from src.metrics.figures.parameters import (
     LINE_WIDTH,
     MARKER_SIZE,
     MECHANISM_STYLE,
-    ROC_FALSE_POSITIVE_LIMIT,
-    RESOLUTION,
+    ROC_FALSE_POSITIVE_AXIS_LIMIT,
+    PNG_DPI,
     ROC_SIGMAS,
     SURFACE,
     TEXT_PRIMARY,
@@ -79,9 +69,6 @@ def styled_axes(axes) -> None:
         axes.spines[side].set_color(TEXT_SECONDARY)
 
     axes.tick_params(colors=TEXT_SECONDARY, labelcolor=TEXT_PRIMARY)
-
-
-# O F1 ao longo de sigma.
 
 
 def f1_summary(metrics: pd.DataFrame) -> pd.DataFrame:
@@ -145,9 +132,6 @@ def draw_f1_by_sigma(metrics: pd.DataFrame, comparison: pd.DataFrame) -> Figure:
     return figure
 
 
-# A curva ROC.
-
-
 def pooled_predictions(
     root: Path, seeds: tuple[int, ...], sigma: float
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -189,7 +173,7 @@ def draw_roc_panel(axes, predictions: tuple[pd.DataFrame, pd.DataFrame], sigma: 
 
     styled_axes(axes)
     axes.set_title(f"σ {comma(sigma, 1)}", fontsize=10.5, color=TEXT_PRIMARY, loc="left")
-    axes.set_xlim(0, ROC_FALSE_POSITIVE_LIMIT)
+    axes.set_xlim(0, ROC_FALSE_POSITIVE_AXIS_LIMIT)
     axes.set_ylim(0, 1.02)
     axes.xaxis.set_major_formatter(WITH_COMMA_FINE)
     axes.yaxis.set_major_formatter(WITH_COMMA)
@@ -220,8 +204,10 @@ def draw_roc(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ...]) -> F
 
     for axes, sigma in zip(panels[0], chosen):
         draw_roc_panel(axes, pooled_predictions(root, seeds, sigma), sigma)
-        axes.set_xlabel(f"taxa de falsos positivos (eixo até {comma(ROC_FALSE_POSITIVE_LIMIT)})",
-                        color=TEXT_PRIMARY)
+        axes.set_xlabel(
+            f"taxa de falsos positivos (eixo até {comma(ROC_FALSE_POSITIVE_AXIS_LIMIT)})",
+            color=TEXT_PRIMARY,
+        )
 
     panels[0][0].set_ylabel("taxa de verdadeiros positivos", color=TEXT_PRIMARY)
     figure.tight_layout()
@@ -236,7 +222,7 @@ def save_figure(figure: Figure, directory: Path, name: str) -> list[Path]:
 
     for suffix in ("png", "pdf"):
         path = directory / f"{name}.{suffix}"
-        figure.savefig(path, dpi=RESOLUTION, facecolor=figure.get_facecolor())
+        figure.savefig(path, dpi=PNG_DPI, facecolor=figure.get_facecolor())
         paths.append(path)
 
     plt.close(figure)

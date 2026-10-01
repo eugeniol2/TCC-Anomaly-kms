@@ -117,7 +117,7 @@ def test_sigma_zero_reproduces_the_ostensive_parameters_exactly() -> None:
 
     assert (
         ostensive.seconds_between_requests
-        == ATTACK_SPECIFICATION.ostensive_request_interval
+        == ATTACK_SPECIFICATION.ostensive_seconds_between_requests
     )
     assert ostensive.requests_range == ATTACK_SPECIFICATION.ostensive_requests_range
     assert ostensive.atypical_hour_chance == 1.0

@@ -1,9 +1,3 @@
-"""A pagina Resultados: a comparacao por sigma, o tempo, a importancia e as figuras.
-
-Le as tabelas que o M12 gravou na raiz de dados e as deixa no formato do
-trabalho, com virgula decimal. Nao calcula nada: o calculo e do M12.
-"""
-
 from __future__ import annotations
 
 import pandas as pd
@@ -22,7 +16,7 @@ def numero(valor: float, casas: int = 3) -> str:
 
 
 def situacao(linha: pd.Series) -> str:
-    """Excluida pela arvore rasa, significativa ou nao (D-028, D-116)."""
+    """Excluida pela arvore rasa, significativa ou nao."""
     if linha["excluded"]:
         return "excluída (árvore rasa ≥ 0,95)"
 
@@ -80,7 +74,6 @@ def tabela_da_comparacao(comparison: pd.DataFrame) -> pd.DataFrame:
 
 
 MENOR_QUEDA_LEGIVEL = 0.01
-# Abaixo de um centesimo de F1 a queda e ruido das permutacoes, e nao dependencia.
 
 
 def mais_importante(dados: pd.DataFrame, mecanismo: str) -> str:
@@ -99,7 +92,7 @@ def mais_importante(dados: pd.DataFrame, mecanismo: str) -> str:
 
 
 def secao_da_importancia(importancia: pd.DataFrame, sigma: float) -> Teoria:
-    """Quanto o F1 de cada mecanismo cai ao embaralhar cada atributo, neste sigma (D-124)."""
+    """Quanto o F1 de cada mecanismo cai ao embaralhar cada atributo, neste sigma."""
     deste_sigma = importancia[importancia["sigma"] == sigma]
     medianas = deste_sigma.groupby(["attribute", "mechanism"])["f1_drop"].median()
     por_atributo = medianas.unstack("mechanism").reindex(list(ATTRIBUTES))
@@ -143,7 +136,6 @@ CELULAS_DA_MATRIZ = (
     ("legítima", "alerta", "false_positives", "falsos positivos"),
     ("legítima", "sem alerta", "true_negatives", "verdadeiros negativos"),
 )
-"""As quatro células: a verdade, a decisão, a coluna do `metrics.csv` e o nome."""
 
 RECORTES = {"holdout inteiro": ALL_SESSIONS, "só administradores": ADMINISTRATORS}
 
@@ -153,9 +145,8 @@ def matriz_de_confusao(
 ) -> pd.DataFrame:
     """As quatro células de um mecanismo num σ, somadas nas sementes.
 
-    A fração é sobre a linha, a verdade: na linha do ataque ela é a revocação, na da
-    legítima é o alarme falso e a especificidade. Colorir pela contagem deixaria só
-    os verdadeiros negativos acesos, porque há dezenas de legítimas por ataque.
+    A fração é sobre a linha, a verdade: na linha do ataque é a revocação, na da
+    legítima o alarme falso e a especificidade.
     """
     is_do_sigma = metricas["sigma"] == sigma
     is_do_recorte = metricas["scope"] == recorte

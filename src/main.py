@@ -1,17 +1,4 @@
-"""O comando unico do experimento: roda tudo, de ponta a ponta (D-121).
-
-    python -m src.main                                   # tudo, na ordem do protocolo
-    python -m src.main --sem-busca                       # reaproveita a busca anterior
-    python -m src.main --sementes 1 --sigmas 0.5 --ate kms
-    python -m src.main --saida C:\\tcc-data
-
-Sem parametro, roda a busca de hiperparametros na 902, o ensaio na 903, as 330
-execucoes, a avaliacao, a importancia por permutacao e as figuras. Os parametros so
-dizem **o que** rodar e
-**onde** gravar. Os numeros do experimento moram no `parameters.py` de cada
-entidade, cada um com a decisao que o fixou: se mudassem pela linha de comando,
-um resultado poderia sair de valores que nenhuma decisao registra.
-"""
+"""O comando unico do experimento: roda tudo, de ponta a ponta."""
 
 from __future__ import annotations
 

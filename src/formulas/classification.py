@@ -1,9 +1,3 @@
-"""As contas de um classificador binario: a matriz de confusao e o que sai dela.
-
-A classe positiva e a sessao comprometida. Os valores saem exatos; quem grava
-decide com quantas casas (o M12 grava com quatro).
-"""
-
 from __future__ import annotations
 
 import numpy as np
@@ -27,8 +21,7 @@ def confusion(truth, decided) -> dict[str, int]:
 def rates(counts: dict[str, int]) -> dict[str, float]:
     """F1, precisao, revocacao, acuracia e especificidade de uma matriz.
 
-    Sem alerta nenhum, a precisao nao tem denominador e vale zero (D-116). O F1
-    so fica indefinido sem positiva nenhuma, e o holdout sempre tem positivas.
+    Sem alerta nenhum, a precisao vale zero.
     """
     tp = counts["true_positives"]
     fp = counts["false_positives"]

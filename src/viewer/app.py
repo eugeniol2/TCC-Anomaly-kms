@@ -1,21 +1,8 @@
-"""Visualizador do pipeline: um passo por vez, com os arquivos de verdade.
-
-    streamlit run src/viewer/app.py
-
-Le o que o comando unico gravou em `data/` (D-121). Quatro paginas: **Pipeline**,
-os treze passos com o que entra e o que sai de cada entidade; **Comportamentos**,
-os tres regimes em detalhe e o atacante em cada sigma; **Regras**, o baseline por
-dentro, de onde sai cada limiar e por que o alerta exige duas regras; e
-**Resultados**, a comparacao por sigma, o tempo e as figuras.
-"""
-
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-# O streamlit poe a pasta do script no sys.path, nao a raiz do projeto, entao
-# `import src...` falharia. Aqui a raiz entra a mao, antes dos imports do projeto.
 RAIZ_DO_PROJETO = Path(__file__).resolve().parents[2]
 
 if str(RAIZ_DO_PROJETO) not in sys.path:
@@ -78,27 +65,17 @@ from src.viewer.rules import (
 )
 from src.viewer.theory import Teoria
 
-# ATENCAO: nada de docstring de constante neste arquivo. O streamlit tem
-# "magic": uma string solta no nivel do modulo e renderizada na pagina.
-
 RAIZ_DOS_DADOS = RAIZ_DO_PROJETO / layout.DEFAULT_ROOT
 
-# Alturas em pixels: das tabelas, das variaveis de decisao e dos graficos.
 ALTURA_DA_TABELA = 320
 ALTURA_DAS_VARIAVEIS = 420
 ALTURA_DO_GRAFICO = 260
 
-# A importancia: um painel por mecanismo, todos no mesmo eixo. A queda de F1 vai no
-# maximo a 1; o pouco abaixo de zero e ruido das permutacoes.
 DOMINIO_DA_QUEDA = [-0.05, 1.0]
 ESPESSURA_DA_BARRA = 14
 COR_DA_LINHA_DE_BASE = "#8a8f98"
 ROTULO_COM_VIRGULA = "replace(format(datum.value, '.1f'), '.', ',')"
 
-# A matriz de confusao: a cor vai da celula vazia a cor do mecanismo, pela fracao da
-# linha. A cor cheia e a do mecanismo misturada com o fundo da pagina, mais clara no
-# tema claro e mais escura no escuro, para que um texto so, por tema, seja legivel em
-# qualquer celula: o branco puro sobre o verde e o laranja cheios nao dava contraste.
 ALTURA_DA_MATRIZ = 200
 FUNDO_DA_PAGINA_CLARO = "#ffffff"
 FUNDO_DA_PAGINA_ESCURO = "#0e1117"
@@ -112,12 +89,9 @@ PESO_DO_FUNDO_ESCURO = 0.35
 TODOS = "todos"
 EXEMPLO_DE_FILTRO = 'outcome != "success"'
 
-# Os tres primeiros tons da paleta de referencia, um conjunto por tema, validados
-# juntos para daltonismo. A ordem nao se embaralha.
 SLOTS_CLARO = ("#2a78d6", "#eb6834", "#1baf7a")
 SLOTS_ESCURO = ("#3987e5", "#d95926", "#199e70")
 
-# Chaves dos controles. `persist_state` guarda o valor ao trocar de pagina.
 FASE_ESCOLHIDA = "fase_escolhida"
 SEMENTE_ESCOLHIDA = "semente_escolhida"
 SIGMA_ESCOLHIDO = "sigma_escolhido"
@@ -130,9 +104,6 @@ SIGMA_DA_MATRIZ = "sigma_da_matriz"
 RECORTE_DA_MATRIZ = "recorte_da_matriz"
 PERSISTE = "session"
 SIGMA_PADRAO = 0.5
-
-
-# Os dados, lidos do disco uma vez e guardados.
 
 
 @st.cache_data(show_spinner="lendo o ramo da semente...")
@@ -193,9 +164,6 @@ def exigir_dados(seed: int) -> None:
         st.error(f"Não há dados da semente {seed} em {RAIZ_DOS_DADOS}. "
                  "Rode antes: `python -m src.main`")
         st.stop()
-
-
-# Os paineis: uma tabela, com filtro, ou um valor.
 
 
 def controles_do_filtro(quadro: pd.DataFrame, chave: str) -> tuple[str, str]:
@@ -259,9 +227,6 @@ def mostrar_lado(titulo: str, paineis: tuple[Painel, ...], chave: str) -> None:
         mostrar_painel(painel, f"{chave}_{posicao}")
 
 
-# As teorias: o grafico de uma distribuicao, com o texto.
-
-
 def is_tema_escuro() -> bool:
     return st.context.theme.get("type") == "dark"
 
@@ -304,9 +269,6 @@ def mostrar_secao(teoria: Teoria) -> None:
 
 def grafico_de_importancia(dados: pd.DataFrame, mecanismo: str, cor: str) -> alt.LayerChart:
     """As oito barras de um mecanismo, no eixo comum aos tres e na ordem dos atributos.
-
-    O eixo fica fixo de proposito: com escala propria, as barras das regras, que nao
-    passam de 0,2, ficariam do tamanho das dos modelos, que chegam a 0,9.
     """
     ordem = list(dados["atributo"])
     tabela = pd.DataFrame({
@@ -444,9 +406,6 @@ def mostrar_quadro(quadro: Quadro, titular: bool) -> None:
     mostrar_lado("Output", quadro.saidas, f"sai{quadro.numero}")
 
 
-# A barra lateral e a navegacao.
-
-
 def escolher_fase() -> Fase:
     st.sidebar.title("Fase")
     rotulos = []
@@ -520,9 +479,6 @@ def navegacao(quadros: list[Quadro]) -> tuple[int, bool]:
                                    persist_state=PERSISTE)
 
     return atual, empilhar
-
-
-# As tres paginas.
 
 
 def pagina_do_pipeline() -> None:
@@ -688,7 +644,7 @@ def escolher_sigma_da_secao(chave: str) -> float:
 
 
 def escolher_recorte_da_matriz() -> str:
-    """O holdout inteiro ou so os administradores, o desfecho secundario (D-119)."""
+    """O holdout inteiro ou so os administradores."""
     nomes = list(RECORTES)
     st.session_state.setdefault(RECORTE_DA_MATRIZ, nomes[0])
     escolhido = st.radio("Recorte", nomes, key=RECORTE_DA_MATRIZ, horizontal=True,
@@ -759,6 +715,5 @@ def main() -> None:
     st.navigation(paginas, position="top").run()
 
 
-# O streamlit roda o arquivo como `__main__`; importado, ele nao abre a navegacao.
 if __name__ == "__main__":
     main()

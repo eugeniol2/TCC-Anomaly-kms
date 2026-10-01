@@ -1,5 +1,3 @@
-"""Construcao de `operators.csv`: a populacao de operadores legitimos."""
-
 from __future__ import annotations
 
 import pandas as pd
@@ -12,11 +10,7 @@ DEFAULT_COVERAGE_ATTEMPTS = 20
 
 
 def holders_by_scope(operators: pd.DataFrame) -> dict[str, list[str]]:
-    """Indice inverso da tabela: de cada escopo para os operadores que o detem.
-
-    A atribuicao de escopos acontece em `draw_scopes`. Aqui a tabela ja vem
-    pronta e so e lida.
-    """
+    """Indice inverso da tabela: de cada escopo para os operadores que o detem."""
     holders: dict[str, list[str]] = {}
 
     for row in operators.itertuples():
@@ -27,11 +21,7 @@ def holders_by_scope(operators: pd.DataFrame) -> dict[str, list[str]]:
 
 
 def draw_usual_ips(rng: Generator, quantity: int) -> list[str]:
-    """Enderecos habituais distintos, todos na mesma faixa privada.
-
-    Faixa unica de proposito: se o endereco codificasse o perfil, viraria
-    separador por construcao, que e a armadilha da D-009.
-    """
+    """Enderecos habituais distintos, todos na mesma faixa privada."""
     seen: set[str] = set()
     addresses: list[str] = []
 
@@ -49,12 +39,8 @@ def draw_usual_ips(rng: Generator, quantity: int) -> list[str]:
 
 
 def take_addresses(addresses: list[str], start: int, quantity: int) -> str:
-    """Os `quantity` enderecos a partir da posicao `start`, ja unidos. O primeiro e o principal.
-
-    A ordem importa para o M2: o principal responde pela maior parte das
-    sessoes e os demais aparecem cada vez mais raramente, de modo que um
-    endereco pouco usado possa nao ocorrer no aquecimento e produzir origem de
-    rede nova em sessao legitima do periodo avaliado (D-040).
+    """Os `quantity` enderecos a partir da posicao `start`, ja unidos. O primeiro e o
+    principal.
     """
     taken = addresses[start:start + quantity]
 
@@ -62,12 +48,8 @@ def take_addresses(addresses: list[str], start: int, quantity: int) -> str:
 
 
 def draw_address_counts(rng: Generator) -> list[int]:
-    """Quantos enderecos habituais cada operador tem, na ordem da tabela.
-
-    Sorteado por operador, dentro da faixa do perfil, e nao fixo por perfil:
-    quantidade fixa daria a todos os operadores de um mesmo perfil a mesma taxa
-    base de origem de rede nova, e o baseline poderia usar um limiar global em
-    vez de comparar contra o historico daquele operador (D-041).
+    """Quantos enderecos habituais cada operador tem, sorteados na faixa do perfil, na
+    ordem da tabela.
 
     O `high` do numpy e exclusivo, por isso o `+ 1`.
     """
@@ -137,11 +119,7 @@ def build_operators(rng: Generator, pool: list[str]) -> pd.DataFrame:
 def build_operators_covering_pool(
     rng: Generator, pool: list[str], attempts: int = DEFAULT_COVERAGE_ATTEMPTS
 ) -> pd.DataFrame:
-    """Sorteia ate que todo escopo de chaves tenha ao menos um usuário detentor.
-
-    Escopo sem usuário detentor deixaria suas chaves fora do alcance de qualquer
-    credencial legitima, o que não corresponde a nenhum cenario modelado.
-    """
+    """Sorteia ate que todo escopo de chaves tenha ao menos um operador detentor."""
     for _ in range(attempts):
         operators = build_operators(rng, pool)
 

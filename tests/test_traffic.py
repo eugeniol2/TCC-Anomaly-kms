@@ -35,7 +35,7 @@ from src.entities.scenario_engine.traffic.operations import OPERATIONS
 from src.entities.scenario_engine.attack.parameters import AttackSpecification
 from src.entities.scenario_engine.traffic.parameters import (
     BUSINESS_WEEKDAYS,
-    IDENTIFIER_DIGITS,
+    IDENTIFIER_HEX_DIGITS,
     IDENTIFIER_PREFIX,
     LONG_SESSION_CHANCE,
     TrafficSpecification,
@@ -390,7 +390,7 @@ def test_absent_identifier_matches_the_repository_format(seed: int) -> None:
     existing = set(population(seed).keys["key_id"])
 
     forged = {key for key in requests["key_id"] if key not in existing}
-    width = len(IDENTIFIER_PREFIX) + IDENTIFIER_DIGITS
+    width = len(IDENTIFIER_PREFIX) + IDENTIFIER_HEX_DIGITS
 
     assert forged
     assert all(key.startswith(IDENTIFIER_PREFIX) for key in forged)
@@ -460,8 +460,8 @@ def test_people_open_sessions_inside_their_working_window(seed: int) -> None:
         rhythm = REGIMES[name].rhythm
         hours = opening[regime == name]["moment"].dt.hour
 
-        assert hours.min() >= rhythm.opens_at
-        assert hours.max() < rhythm.closes_at
+        assert hours.min() >= rhythm.opens_at_hour
+        assert hours.max() < rhythm.closes_at_hour
 
 
 @pytest.mark.parametrize("seed", SEEDS)

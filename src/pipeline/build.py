@@ -1,18 +1,3 @@
-"""Os dois ramos de uma execucao, como listas de passos (D-091, D-121).
-
-A ordem de execucao e codigo, e mora aqui: `SEED_STEPS` e `SIGMA_STEPS` sao as
-duas listas. Cada passo e um par, a entidade a que pertence e a funcao que roda.
-
-**Dois ramos, porque o atacante so age nas semanas 5 a 8** (D-049). O ramo da
-semente produz tudo que e anterior ao ataque e roda uma vez por semente; o ramo
-de sigma produz o periodo avaliado e roda uma vez por condicao, recebendo o ramo
-da semente pronto. Recomputar o aquecimento em cada condicao arriscaria perfis
-diferentes entre condicoes da mesma semente, e o pareamento da D-002 quebraria.
-
-**Cada passo grava o seu arquivo**, e passa o quadro adiante em memoria. O
-arquivo e o que deixa cada entidade inspecionavel.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -42,23 +27,14 @@ from src.shared.tables import write_csv
 
 
 class Specifications(NamedTuple):
-    """Os parametros das entidades, reunidos para viajar por parametro.
-
-    O teste troca um valor sem editar arquivo nenhum, e a funcao recebe o que
-    precisa em vez de ler modulo global.
-    """
-
     repository: KeyRepositorySpecification = KeyRepositorySpecification()
     traffic: TrafficSpecification = TrafficSpecification()
     attack: AttackSpecification = AttackSpecification()
     models: dict[str, dict] | None = None
-    """A configuracao que a busca da 902 escolheu. Sem ela os modelos nao rodam."""
 
 
 @dataclass
 class SeedBranch:
-    """O ramo da semente, preenchido passo a passo."""
-
     seed: int
     root: Path
     specifications: Specifications
@@ -78,8 +54,6 @@ class SeedBranch:
 
 @dataclass
 class SigmaBranch:
-    """Uma condicao (semente, sigma), preenchida passo a passo."""
-
     sigma: float
     seed_branch: SeedBranch
     requests: pd.DataFrame | None = None
@@ -96,9 +70,6 @@ class SigmaBranch:
     @property
     def directory(self) -> Path:
         return layout.run_directory(self.seed_branch.root, self.seed_branch.seed, self.sigma)
-
-
-# Os passos do ramo da semente: semanas 1 a 4, sem atacante.
 
 
 def population(branch: SeedBranch) -> None:
@@ -157,9 +128,6 @@ SEED_STEPS = (
     ("dataset_generator", warmup_sessions),
     ("policy_engine", thresholds),
 )
-
-
-# Os passos do ramo de sigma: semanas 5 a 8, com a campanha.
 
 
 def attack_campaign(branch: SigmaBranch) -> None:
@@ -233,9 +201,6 @@ SIGMA_STEPS = (
 )
 
 
-# Os dois ramos, e a varredura de uma semente.
-
-
 def run_seed_branch(
     seed: int, root: Path, specifications: Specifications, until: str = LAST_STAGE
 ) -> SeedBranch:
@@ -248,9 +213,8 @@ def run_seed_branch(
 def run_sigma_branch(branch: SeedBranch, sigma: float, until: str = LAST_STAGE) -> SigmaBranch:
     """As semanas 5 a 8 de uma condicao, ate a entidade `until`.
 
-    Recebe o ramo da semente pronto: e o que garante que as onze condicoes
-    compartilhem exatamente o mesmo aquecimento. Recusa rodar os modelos sem a
-    configuracao da busca, antes de gravar qualquer arquivo.
+    Recebe o ramo da semente pronto. Recusa rodar os modelos sem a configuracao da
+    busca, antes de gravar qualquer arquivo.
     """
     is_unconfigured = reaches(until, "models") and branch.specifications.models is None
 
@@ -282,11 +246,7 @@ def run_sweep(
 
 
 def write_runs_index(rows: list[pd.DataFrame], root: Path) -> pd.DataFrame:
-    """Junta os `run.csv` das execucoes no indice da D-085.
-
-    Quem o escreve e quem percorre a grade, e por isso ele nasce completo ou nao
-    nasce: reexecutar uma condicao isolada nao duplica linha.
-    """
+    """Junta os `run.csv` das execucoes no indice, grava na raiz e o devolve."""
     index = pd.concat(rows, ignore_index=True).sort_values(
         ["seed", "sigma"], ignore_index=True
     )

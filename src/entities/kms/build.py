@@ -1,9 +1,3 @@
-"""Composicao do M4: das requisicoes de uma fase aos desfechos.
-
-Mora separado da linha de comando para que o teste exercite exatamente o que
-a execucao real exercita, e nao uma copia da sequencia de chamadas.
-"""
-
 from __future__ import annotations
 
 import pandas as pd
@@ -13,13 +7,7 @@ from src.entities.kms.policy import COLUMNS, outcome_of, read_repository
 
 
 def requests_of_phase(requests: pd.DataFrame, phase: str) -> pd.DataFrame:
-    """As requisicoes que caem na fase indicada.
-
-    O `requests.csv` do ramo da semente traz as oito semanas, entao o
-    aquecimento precisa recortar as quatro primeiras. O do ramo de sigma ja vem
-    so com as semanas 5 a 8, e ali o filtro nao remove nada: aplicar nos dois
-    casos custa pouco e evita que o modulo dependa de qual arquivo recebeu.
-    """
+    """As requisicoes que caem na fase indicada."""
     return requests[belongs_to(phase, requests["timestamp"])].reset_index(drop=True)
 
 
@@ -29,12 +17,7 @@ def build_outcomes(
     operators: pd.DataFrame,
     phase: str,
 ) -> pd.DataFrame:
-    """O desfecho de cada tentativa da fase, uma linha por evento.
-
-    Nao sorteia nada: o KMS e deterministico por construcao. Duas execucoes
-    sobre a mesma entrada dao a mesma saida sem depender de semente, e por
-    isso este modulo nao recebe nenhuma.
-    """
+    """O desfecho de cada tentativa da fase, uma linha por evento. Nao sorteia nada."""
     of_phase = requests_of_phase(requests, phase)
     repository = read_repository(keys, operators)
 

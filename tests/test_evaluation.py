@@ -32,7 +32,7 @@ from src.metrics.evaluation.build import (
     stump,
     timing_summary,
 )
-from src.metrics.evaluation.parameters import EXCLUSION_F1
+from src.metrics.evaluation.parameters import STUMP_MEDIAN_F1_CUTOFF
 from src.entities.models.parameters import MODEL_NAMES
 from src.formulas.classification import confusion
 
@@ -235,8 +235,8 @@ def test_holm_runs_only_over_the_kept_conditions() -> None:
 def test_the_exclusion_uses_the_median_of_the_stump() -> None:
     """D-028: F1 mediano da arvore rasa >= 0,95 exclui."""
     metrics = comparison_metrics({0.2: 0.1})
-    just_above = stump_rows({0.2: EXCLUSION_F1})
-    just_below = stump_rows({0.2: EXCLUSION_F1 - 0.01})
+    just_above = stump_rows({0.2: STUMP_MEDIAN_F1_CUTOFF})
+    just_below = stump_rows({0.2: STUMP_MEDIAN_F1_CUTOFF - 0.01})
 
     assert comparison(metrics, just_above)["excluded"].all()
     assert not comparison(metrics, just_below)["excluded"].any()

@@ -1,11 +1,3 @@
-"""Como os números aparecem na tela: a convenção do texto do trabalho.
-
-Vírgula decimal e espaço antes do símbolo de porcentagem, como no relatório e
-na monografia. Moram aqui, e não em cada página, porque até 28/09 a tabela de
-variáveis mostrava `0.05` e `0.5%` pelo `str()` do Python, enquanto a página
-Comportamentos já escrevia `0,05` e `0,5 %`: a mesma tela com duas convenções.
-"""
-
 from __future__ import annotations
 
 from typing import Any

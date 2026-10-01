@@ -1,5 +1,3 @@
-"""Construcao de `keys.csv`: o repositorio de chaves com estado."""
-
 from __future__ import annotations
 
 import numpy as np
@@ -14,13 +12,10 @@ from src.shared.tables import shuffle_rows
 def split_keys_by_scope(
     rng: Generator, pool: list[str], specification: KeyRepositorySpecification
 ) -> dict[str, int]:
-    """Reparte as chaves entre escopos de forma deliberadamente desigual.
-
-    Escopos de tamanho uniforme fariam o total de chaves distintas acessadas
-    variar pouco entre operadores legitimos, e o atacante ficaria destacavel por
-    esse atributo isolado. O piso garante que nenhum escopo fique vazio.
+    """Reparte as chaves entre escopos de forma desigual, com um piso que impede escopo
+    vazio.
     """
-    floor = specification.scope_floor
+    floor = specification.minimum_keys_per_scope
     total = specification.total_keys
     reserved = floor * len(pool)
 
@@ -29,7 +24,7 @@ def split_keys_by_scope(
     if floor_exceeds_total:
         raise ValueError(f"piso de {floor} por escopo nao cabe em {total} chaves")
 
-    weights = rng.dirichlet(np.full(len(pool), specification.concentration)) # gera uma distribuicao de Dirichlet para determinar a proporcao de chaves por escopo
+    weights = rng.dirichlet(np.full(len(pool), specification.dirichlet_concentration)) # gera uma distribuicao de Dirichlet para determinar a proporcao de chaves por escopo
     extra = largest_remainder(weights, total - reserved)
 
     sizes = {}
@@ -41,11 +36,7 @@ def split_keys_by_scope(
 
 
 def draw_key_ids(rng: Generator, quantity: int) -> list[str]:
-    """Identificadores aleatorios de 48 bits, nunca sequenciais (D-009).
-
-    Com identificador sequencial, a enumeracao do atacante produz progressao
-    aritmetica e qualquer atributo de distancia separa as classes sozinho.
-    """
+    """Identificadores aleatorios de 48 bits, nunca sequenciais."""
     seen: set[str] = set()
     identifiers: list[str] = []
 
@@ -63,13 +54,7 @@ def draw_key_ids(rng: Generator, quantity: int) -> list[str]:
 
 
 def build_keys(rng: Generator, sizes: dict[str, int]) -> pd.DataFrame:
-    """Repositorio de chaves, todas ativas, agrupadas por escopo.
-
-    **A chave nao tem dono** (D-099). Quem alcanca uma chave e quem detem o
-    escopo dela, e o escopo e detido por varios operadores, entao propriedade
-    nao decide acesso, nem aqui nem no M4. A tabela teve uma coluna `owner` ate
-    24/09; ela nunca foi consumida por modulo nenhum.
-    """
+    """Repositorio de chaves, todas ativas, agrupadas por escopo."""
     identifiers = draw_key_ids(rng, sum(sizes.values()))
 
     rows = []
@@ -101,7 +86,7 @@ def build_key_repository(
     rng: Generator, pool: list[str], specification: KeyRepositorySpecification
 ) -> pd.DataFrame:
     """O repositorio inteiro: quantas chaves por escopo, os identificadores, as
-    desabilitadas, e as linhas embaralhadas para nao ficarem agrupadas por escopo.
+    desabilitadas e as linhas embaralhadas.
 
     A ordem dos sorteios faz parte do resultado.
     """

@@ -1,10 +1,3 @@
-"""A populacao: os operadores do Scenario Engine e o repositorio de chaves do KMS.
-
-As duas tabelas pertencem a entidades diferentes, mas saem do **mesmo fluxo de
-sorteio**, nesta ordem: primeiro os operadores, depois as chaves. Por isso a
-montagem mora no orquestrador, e nao em nenhuma das duas entidades (D-121).
-"""
-
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -19,8 +12,6 @@ from src.shared.rng import POPULATION, stream
 
 
 class Population(NamedTuple):
-    """Os operadores e as chaves de uma semente."""
-
     operators: pd.DataFrame
     keys: pd.DataFrame
 

@@ -36,7 +36,10 @@ from src.entities.policy_engine.baseline.build import (
     RULE_COLUMNS,
     build_baseline,
 )
-from src.entities.policy_engine.baseline.parameters import HISTORY_RULE_FIRES, MINIMUM_RULES_FIRED
+from src.entities.policy_engine.baseline.parameters import (
+    HISTORY_RULE_FIRES_AT,
+    MINIMUM_RULES_FIRED,
+)
 from src.entities.policy_engine.calibration.build import build_thresholds
 from src.entities.policy_engine.calibration.parameters import THRESHOLD_ATTRIBUTES
 from src.entities.dataset_generator.dataset.build import ATTRIBUTES, LABEL, build_dataset
@@ -99,7 +102,7 @@ def firing(attribute: str) -> float:
     """O valor que faz a regra daquele atributo disparar."""
     is_history = attribute in HISTORY_ATTRIBUTES
 
-    return HISTORY_RULE_FIRES if is_history else ABOVE
+    return HISTORY_RULE_FIRES_AT if is_history else ABOVE
 
 
 def sessions_firing(rule_sets: list[tuple[str, ...]]) -> pd.DataFrame:

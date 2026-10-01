@@ -165,7 +165,7 @@ Do geral para o detalhe, na ordem em que o dado anda:
 3. `src/pipeline/build.py`: `SEED_STEPS` e `SIGMA_STEPS`, o pipeline inteiro em duas
    listas. Cada passo chama o `build_...` de uma entidade e grava o arquivo dela.
 4. As entidades, na ordem das duas listas. Em cada uma, primeiro o `parameters.py` (os
-   números e a decisão que fixou cada um), depois o `build.py`.
+   números), depois o `build.py`.
 
 Em cada arquivo, as funções auxiliares vêm antes de quem as chama: a principal fica no
 fim. O `src/formulas/` se consulta quando uma chamada a ele aparece, e o teste de cada
@@ -217,9 +217,9 @@ python -m src.main --saida C:\tcc-data                  # fora do OneDrive
 Antes do `models`, o `--ate` não roda a busca: ela só existe para os modelos.
 
 Os números do experimento (58 sessões de ataque, 44 operadores, percentil 99...) **não**
-são parâmetros do comando: moram no `parameters.py` de cada entidade, cada um com a
-decisão que o fixou. O `data/` inteiro, com as preparatórias e as figuras, ocupa cerca de
-3,5 GB.
+são parâmetros do comando: moram no `parameters.py` de cada entidade, e a página
+Pipeline do viewer mostra as decisões por trás deles. O `data/` inteiro, com as
+preparatórias e as figuras, ocupa cerca de 3,5 GB.
 
 Depois de rodar o comando, a tela que mostra o que ele gravou: o pipeline passo a passo,
 os comportamentos dos operadores, o baseline de regras por dentro e os resultados, com as

@@ -30,7 +30,10 @@ from src.entities.scenario_engine.attack.parameters import AttackSpecification
 from src.entities.audit_logger.build import build_log
 from src.entities.policy_engine.calibration.build import COLUMNS as THRESHOLD_COLUMNS
 from src.entities.policy_engine.calibration.build import build_thresholds, ruler_period
-from src.entities.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.entities.policy_engine.calibration.parameters import (
+    THRESHOLD_ATTRIBUTES,
+    THRESHOLD_PERCENTILE,
+)
 from src.entities.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL, build_dataset
 from src.shared.experiment import SEEDS
 from src.shared.phases import (
@@ -298,7 +301,7 @@ def test_thresholds_cover_the_six_magnitude_rules(seed: int) -> None:
 
     assert tuple(produced.columns) == THRESHOLD_COLUMNS
     assert tuple(produced["attribute"]) == THRESHOLD_ATTRIBUTES
-    assert (produced["percentile"] == PERCENTILE).all()
+    assert (produced["percentile"] == THRESHOLD_PERCENTILE).all()
     assert (produced["threshold"] > 0).all()
 
 

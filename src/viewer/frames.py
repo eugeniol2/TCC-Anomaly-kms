@@ -1,12 +1,3 @@
-"""Os quadros do pipeline: o que entra, a entidade que processa, o que sai.
-
-Um quadro por passo, com os arquivos que o comando unico gravou. Sao treze,
-em tres fases: a preparacao dos dados, o aquecimento com a calibracao, e o
-periodo avaliado, do ataque a avaliacao. O KMS e o Audit Logger sao quadros
-separados no aquecimento, para nao confundir quem decide o desfecho com quem o
-registra; e as regras e os modelos tambem, porque sao os dois lados da comparacao.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,7 +9,10 @@ from src.entities.dataset_generator.dataset.build import ATTRIBUTES, LABEL
 from src.entities.dataset_generator.partition.parameters import HOLDOUT_SHARE
 from src.entities.kms.repository.parameters import KeyRepositorySpecification
 from src.entities.policy_engine.baseline.build import MECHANISM as RULES
-from src.entities.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.entities.policy_engine.calibration.parameters import (
+    THRESHOLD_ATTRIBUTES,
+    THRESHOLD_PERCENTILE,
+)
 from src.entities.scenario_engine.attack.parameters import AttackSpecification
 from src.entities.scenario_engine.traffic.parameters import TrafficSpecification
 from src.shared.phases import EVALUATED, WARMUP, belongs_to
@@ -44,8 +38,6 @@ from src.viewer.formatting import com_virgula, porcento
 
 @dataclass(frozen=True)
 class Fase:
-    """Uma das tres fases, com os quadros que ela mostra."""
-
     nome: str
     quadros: tuple[int, ...]
 
@@ -59,8 +51,6 @@ FASES = (
 
 @dataclass(frozen=True)
 class Painel:
-    """Um arquivo ou parametro que entra ou sai de uma entidade."""
-
     nome: str
     dado: Any
     legenda: str = ""
@@ -73,8 +63,6 @@ class Painel:
 
 @dataclass(frozen=True)
 class Quadro:
-    """Um passo: o que entrou, a entidade que processou, o que saiu."""
-
     numero: int
     entidade: str
     modulos: str
@@ -87,8 +75,6 @@ class Quadro:
 
 @dataclass(frozen=True)
 class Execucao:
-    """O que os quadros de uma execucao leem: a semente, o sigma e os arquivos."""
-
     seed: int
     sigma: float
     semente: SeedFiles
@@ -104,7 +90,7 @@ def recorte(inteiro: pd.DataFrame, parte: pd.DataFrame, periodo: str) -> str:
 
 
 def lado(parte: pd.DataFrame) -> str:
-    """Tamanho e proporcao de anomalias de um lado da particao, contados (D-023)."""
+    """Tamanho e proporcao de anomalias de um lado da particao, contados."""
     positivas = int(parte[LABEL].sum())
 
     return (f"semanas 5 a 8, {len(parte)} sessões, {positivas} positivas "
@@ -116,9 +102,6 @@ def do_mecanismo(tempo: pd.DataFrame, mecanismos: list[str]) -> pd.DataFrame:
     linhas = tempo["mechanism"].isin(mecanismos)
 
     return tempo[linhas].reset_index(drop=True)
-
-
-# Fase 1: a preparacao dos dados.
 
 
 def populacao(execucao: Execucao) -> Quadro:
@@ -147,9 +130,6 @@ def trafego_legitimo(execucao: Execucao) -> Quadro:
         (Painel("requests.csv", semente.requests, "oito semanas, só legítimo, sem desfecho"),),
         variaveis_do_m2(TrafficSpecification()),
     )
-
-
-# Fase 2: o aquecimento e a calibracao.
 
 
 def pedidos_do_aquecimento(semente: SeedFiles) -> Painel:
@@ -220,15 +200,12 @@ def calibracao(execucao: Execucao) -> Quadro:
 
     return Quadro(
         7, "Policy Engine · calibração", "M8",
-        f"Percentil {PERCENTILE} de cada grandeza, sobre **todas** as sessões do "
+        f"Percentil {THRESHOLD_PERCENTILE} de cada grandeza, sobre **todas** as sessões do "
         f"aquecimento: {len(THRESHOLD_ATTRIBUTES)} limiares, congelados daqui em diante.",
         (Painel("sessions.csv", semente.sessions, "semanas 1 a 4, inteiras"),),
         (Painel("thresholds.csv", semente.thresholds, "um conjunto por semente"),),
         variaveis_do_m8(),
     )
-
-
-# Fase 3: o ataque e a comparacao.
 
 
 def campanha(execucao: Execucao) -> Quadro:
@@ -356,7 +333,6 @@ QUADROS = (
     kms, audit_logger, perfis_historicos, sessoes_do_aquecimento, calibracao,
     campanha, periodo_avaliado, particao, regras, modelos, avaliacao,
 )
-"""Os treze quadros, na ordem de execucao. O numero de cada um e a posicao aqui."""
 
 
 def quadros_da_fase(fase: Fase, execucao: Execucao) -> list[Quadro]:

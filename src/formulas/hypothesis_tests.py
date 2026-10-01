@@ -1,5 +1,3 @@
-"""O teste pareado e a correcao para comparacoes multiplas (D-027, D-111)."""
-
 from __future__ import annotations
 
 import numpy as np

@@ -1,21 +1,3 @@
-"""O que acontece dentro de uma sessao comprometida.
-
-Este arquivo chama **as mesmas funcoes que o M2 chama**, com os valores que
-sigma produziu. Nao ha um gerador de sessao legitima e outro de sessao
-maliciosa: ha um so, parametrizado.
-
-Isso nao e economia de codigo, e a garantia central do desenho. Em sigma 1
-todos os parametros interpolados valem o que o M2 usaria, entao a sessao
-comprometida sai literalmente da mesma distribuicao que uma legitima daquele
-administrador. Com dois geradores separados, a indistinguibilidade dependeria
-de duas implementacoes concordarem, e bastaria calibrar uma delas para o piso
-da varredura deixar de ser piso sem que nada acusasse.
-
-A mistura de operacoes vem do perfil do administrador personificado (D-055) e
-**nao** e dimensao de sigma: perfil de operacoes proprio carregaria sinal fora
-do controle de sigma e sobreviveria em 1,0.
-"""
-
 from __future__ import annotations
 
 from dataclasses import replace
@@ -40,20 +22,13 @@ ADDRESS_PREFIX = "10."
 
 
 class CompromisedSession(NamedTuple):
-    """Uma sessao da campanha ja situada no calendario, antes do conteudo."""
-
     session_id: str
     operator: Operator
     start: datetime
 
 
 def draw_novel_address(rng: Generator, known: frozenset[str]) -> str:
-    """Endereco na mesma faixa privada que nenhum operador usa.
-
-    Mesma faixa de proposito, pela razao da D-009: endereco com formato
-    proprio separaria as classes sozinho, e o sinal tem de vir de o endereco
-    ser inedito **para aquele operador**, nao de ele parecer estrangeiro.
-    """
+    """Endereco na mesma faixa privada que nenhum operador usa."""
     while True:
         octets = rng.integers([0, 0, 1], [256, 256, 255])
         candidate = f"{ADDRESS_PREFIX}{octets[0]}.{octets[1]}.{octets[2]}"
@@ -69,11 +44,8 @@ def choose_address(
 ) -> str:
     """De onde a sessao comprometida parte.
 
-    Com chance `novel_address_chance` e um endereco nunca visto; caso
-    contrario e um dos habituais do operador, sorteado com a **mesma
-    geometrica** que o M2 usa. Sortear uniformemente entre os habituais
-    pareceria furtivo e nao seria: o operador real usa o principal em 80 % das
-    sessoes, e distribuicao diferente deixaria rastro em sigma 1.
+    Com chance `novel_address_chance` e um endereco nunca visto; senao, um dos habituais
+    do operador, sorteado com a mesma geometrica do trafego legitimo.
     """
     is_novel = rng.random() < stealth.novel_address_chance
 
@@ -86,11 +58,10 @@ def choose_address(
 def targeting_specification(
     traffic: TrafficSpecification, stealth: Stealth
 ) -> TrafficSpecification:
-    """A especificacao do M2 com as tres grandezas que sigma move.
+    """A especificacao do trafego legitimo com as tres grandezas que sigma move.
 
-    Substituir campos em vez de escrever outro seletor de alvo mantem uma
-    implementacao so. Em sigma 1 os tres valores substituidos sao iguais aos
-    originais, e o objeto devolvido e igual ao recebido.
+    Em sigma 1 os tres valores sao os originais, e o objeto devolvido e igual ao
+    recebido.
     """
     return replace(
         traffic,
@@ -110,13 +81,8 @@ def compromised_rows(
 ) -> list[dict[str, str]]:
     """As requisicoes de uma sessao comprometida, sem desfecho e sem rotulo.
 
-    Sem rotulo aqui de proposito (D-063): a marca de comprometimento viaja em
-    `compromised_sessions.csv` e so encontra estas linhas no M7. Sem desfecho
-    pela D-013: quem decide se a requisicao passa e o M4.
-
-    A ordem dos sorteios e a mesma de `traffic.sessions.session_rows`, e
-    precisa continuar sendo: e ela que faz sigma 1 consumir o fluxo do mesmo
-    jeito que o trafego legitimo consumiria.
+    Sorteia na mesma ordem que o `session_rows` do trafego legitimo, e precisa continuar
+    assim: e essa ordem que iguala os dois em sigma 1.
     """
     operator = session.operator
 

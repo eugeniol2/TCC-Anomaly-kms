@@ -1,23 +1,3 @@
-"""As variáveis de decisão que regem cada entidade do pipeline.
-
-Este módulo responde a pergunta que a tela precisa responder antes de mostrar
-qualquer tabela: **que números fazem este dado ser o que é?**
-
-Cada variável traz o nome como ele aparece no código, o valor em vigor e uma
-linha dizendo o que ele é. O *porquê* não mora aqui: ele está na caixa "Por
-que é assim" de cada quadro, e na entrada do registro. Misturar os dois faria a
-tabela virar texto corrido, e tabela com parágrafo dentro não se lê.
-
-O campo `decisao` guarda a entrada do registro que fixou o valor. Ele **não
-aparece na tela**: `D-040` não significa nada para quem está vendo a
-apresentação. Fica no código porque ali ele é útil, já que diz de onde o número veio
-para quem for mexer neste arquivo.
-
-**Os valores são lidos dos próprios objetos de parâmetro**, nunca copiados. Um
-número escrito à mão aqui ficaria desatualizado na primeira recalibração, e a
-tela passaria a explicar um gerador que não existe mais.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -28,7 +8,10 @@ import pandas as pd
 from src.entities.scenario_engine.attack.parameters import AttackSpecification
 from src.entities.scenario_engine.attack.stealth import stealth_of
 from src.entities.audit_logger.build import COLUMNS as LOG_COLUMNS
-from src.entities.policy_engine.calibration.parameters import PERCENTILE, THRESHOLD_ATTRIBUTES
+from src.entities.policy_engine.calibration.parameters import (
+    THRESHOLD_ATTRIBUTES,
+    THRESHOLD_PERCENTILE,
+)
 from src.entities.dataset_generator.dataset.build import ATTRIBUTES, IDENTIFIERS, LABEL
 from src.entities.dataset_generator.dataset.parameters import SHORTEST_MEASURABLE_MINUTES
 from src.shared.experiment import SEEDS, SIGMAS
@@ -40,7 +23,7 @@ from src.entities.dataset_generator.partition.parameters import HOLDOUT_SHARE
 from src.entities.kms.repository.parameters import KeyRepositorySpecification
 from src.entities.scenario_engine.population.profiles import PROFILES
 from src.entities.scenario_engine.traffic.parameters import (
-    IDENTIFIER_DIGITS,
+    IDENTIFIER_HEX_DIGITS,
     IDENTIFIER_PREFIX,
     PRIMARY_ADDRESS_SHARE,
     TrafficSpecification,
@@ -53,8 +36,6 @@ from src.viewer.theory import Teoria, teoria_da_dirichlet
 COLUNAS = ("variável", "valor", "o que é")
 
 MODELOS = ("Random Forest", "XGBoost")
-"""Os dois modelos supervisionados (D-051). A contagem de comparacoes da tela sai
-daqui, e nao de um 22 escrito a mao."""
 
 REGRAS_DE_GRANDEZA = len(THRESHOLD_ATTRIBUTES)
 REGRAS_DE_PERFIL = len(ATTRIBUTES) - REGRAS_DE_GRANDEZA
@@ -62,18 +43,11 @@ REGRAS_DE_PERFIL = len(ATTRIBUTES) - REGRAS_DE_GRANDEZA
 
 @dataclass(frozen=True)
 class Variavel:
-    """Um número, ou uma lista, que poderia ter sido outro."""
-
     nome: str
     valor: Any
     significado: str
     decisao: str
     teoria: Teoria | None = None
-    """A distribuicao por tras do valor, quando ha uma.
-
-    So algumas variaveis tem: as que nao sao um numero escolhido, e sim a
-    forma de uma distribuicao. O app mostra cada uma num expansor abaixo
-    da tabela, com o grafico."""
 
 
 def como_tabela(variaveis: tuple[Variavel, ...]) -> pd.DataFrame:
@@ -118,35 +92,27 @@ def variaveis_do_m1(
                  "Chaves no repositório.", "D-035"),
         Variavel("scope_count", repositorio.scope_count,
                  "Escopos entre os quais as chaves se dividem.", "D-035"),
-        Variavel("concentration", repositorio.concentration,
+        Variavel("dirichlet_concentration", repositorio.dirichlet_concentration,
                  "Concentração da Dirichlet que reparte as chaves entre escopos; "
                  "quanto menor, mais desigual.",
                  "D-037",
-                 teoria_da_dirichlet(chaves, repositorio.concentration)
+                 teoria_da_dirichlet(chaves, repositorio.dirichlet_concentration)
                  if chaves is not None else None),
-        Variavel("scope_floor", repositorio.scope_floor,
+        Variavel("minimum_keys_per_scope", repositorio.minimum_keys_per_scope,
                  "Mínimo de chaves por escopo.", "D-037"),
         Variavel("disabled_rate", porcento(repositorio.disabled_rate, 0),
                  "Fração das chaves que nasce desabilitada, sorteada por chave.",
                  "D-038"),
         Variavel("formato do key_id",
-                 f"{IDENTIFIER_PREFIX} + {IDENTIFIER_DIGITS} hexadecimais, aleatório",
+                 f"{IDENTIFIER_PREFIX} + {IDENTIFIER_HEX_DIGITS} hexadecimais, aleatório",
                  "Como o identificador de chave é gerado. Nunca sequencial.",
                  "D-009"),
     )
 
 
 def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
-    """O que vale para o tráfego inteiro, qualquer que seja o regime.
-
-    **O que é de um regime só não mora aqui**, e sim na página Comportamentos
-    (`behaviors.py`): horas do lote, média e lei da contagem diária, janela,
-    faixa de requisições, passo entre requisições e mistura de operações.
-    Mostrados nos dois lugares, eles eram duas explicações do mesmo número, e
-    a da página Comportamentos é a completa, com o dado medido ao lado.
-    """
-    # Uma linha por regime: os tres numa celula so ficavam longos demais
-    # para ler, e a coluna de valor cortava o ultimo.
+    """O que vale para o tráfego inteiro, qualquer que seja o regime."""
+    # Uma linha por regime.
     regimes = []
 
     for perfil in PROFILES:
@@ -168,7 +134,7 @@ def variaveis_do_m2(trafego: TrafficSpecification) -> tuple[Variavel, ...]:
                  "Fração das sessões que se estendem além do típico. A explicação "
                  "está na página Comportamentos.",
                  "D-097"),
-        Variavel("LONG_SESSION_EXCESS", trafego.long_session_excess,
+        Variavel("LONG_SESSION_MEAN_EXCESS", trafego.long_session_mean_excess,
                  "Requisições a mais na sessão que se estende, média da "
                  "geométrica.", "D-097"),
         Variavel("DEFAULT_DISTINCT_KEYS_RANGE", trafego.distinct_keys_range,
@@ -283,7 +249,7 @@ def variaveis_do_m8() -> tuple[Variavel, ...]:
                  "De onde sai o percentil. O mesmo período do perfil: a régua "
                  "é uma só.",
                  "D-096"),
-        Variavel("PERCENTILE", PERCENTILE,
+        Variavel("THRESHOLD_PERCENTILE", THRESHOLD_PERCENTILE,
                  "Percentil de cada grandeza que vira limiar.", "D-031, D-043"),
         Variavel("THRESHOLD_ATTRIBUTES", ", ".join(THRESHOLD_ATTRIBUTES),
                  f"As {REGRAS_DE_GRANDEZA} regras de grandeza. As outras "
@@ -303,12 +269,8 @@ def variaveis_do_m8() -> tuple[Variavel, ...]:
 def dimensoes_do_atacante(
     sigma: float, ataque: AttackSpecification, trafego: TrafficSpecification
 ) -> tuple[Variavel, ...]:
-    """As dimensões de σ, dos dois extremos e deste σ.
-
-    Os nomes e os valores saem de `linhas_do_atacante`, a mesma função da
-    tabela do atacante na página Comportamentos. Até 28/09 esta tabela tinha
-    nomes próprios ("taxa, intervalo", "falhas de autorização") e não tinha a
-    linha da chave inexistente.
+    """As dimensões de σ, dos dois extremos e deste σ, com os nomes e os valores de
+    `linhas_do_atacante`.
     """
     regime = REGIMES["occasional_custody"]
     ostensivo = linhas_do_atacante(stealth_of(0.0, regime, trafego, ataque))

@@ -1,9 +1,3 @@
-"""Reparticao de um total inteiro em partes proporcionais.
-
-E como as chaves se dividem entre os escopos (D-037): a proporcao sai de uma
-Dirichlet, e o total precisa fechar exato.
-"""
-
 from __future__ import annotations
 
 import numpy as np

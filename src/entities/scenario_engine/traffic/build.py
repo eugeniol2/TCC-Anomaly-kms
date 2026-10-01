@@ -1,9 +1,3 @@
-"""Composicao do M2: das duas tabelas estaticas ao trafego das oito semanas.
-
-Mora separado da linha de comando para que o teste exercite exatamente o que a
-execucao real exercita, e nao uma copia da sequencia de chamadas.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -28,13 +22,6 @@ COLUMNS = (
     "operation",
     "key_id",
 )
-"""As colunas de `requests.csv`.
-
-Sao as oito do `log.csv` (D-064) menos `outcome`, que so existe depois do M4.
-O M5 junta as duas coisas e o log fecha, sem renomear nada, e por isso o
-identificador ja nasce `event_id` aqui, e nao `request_id`: e a mesma linha em
-estagios diferentes, e dois nomes para um conceito so seria ruido.
-"""
 
 
 def start_then_operator(scheduled: tuple[datetime, Operator]) -> tuple[datetime, str]:
@@ -47,12 +34,7 @@ def start_then_operator(scheduled: tuple[datetime, Operator]) -> tuple[datetime,
 def plan_sessions(
     rng: Generator, operators: list[Operator], specification: TrafficSpecification
 ) -> list[PlannedSession]:
-    """Todas as sessoes de todos os operadores, numeradas em ordem cronologica.
-
-    O identificador sai da posicao no tempo, e nao do operador, para nao
-    carregar perfil nem agrupamento. Ele fica preservado no conjunto mas nao e
-    exposto como atributo do modelo (D-015).
-    """
+    """Todas as sessoes de todos os operadores, numeradas em ordem cronologica."""
     scheduled: list[tuple[datetime, Operator]] = []
 
     for operator in operators:
@@ -89,11 +71,10 @@ def request_rows(
 
 
 def chronological(frame: pd.DataFrame) -> pd.DataFrame:
-    """Ordena o arquivo no tempo, que e como um log de auditoria se le.
+    """Ordena o arquivo no tempo.
 
-    O instante e ISO com segundos, entao a ordem alfabetica coincide com a
-    cronologica. A ordenacao e estavel: requisicoes que caem no mesmo segundo
-    mantem a ordem em que a sessao as emitiu.
+    O instante e ISO com segundos, entao a ordem alfabetica e a cronologica. A ordenacao
+    e estavel: requisicoes no mesmo segundo mantem a ordem em que a sessao as emitiu.
     """
     ordered = frame.sort_values(["timestamp", "session_id"], kind="stable")
 
@@ -119,11 +100,8 @@ def build_traffic(
     keys_table: pd.DataFrame,
     specification: TrafficSpecification,
 ) -> pd.DataFrame:
-    """Das duas tabelas do M1 as requisicoes legitimas das oito semanas.
-
-    Emite tentativas, nunca desfechos (D-013). Nenhuma coluna diz se a
-    requisicao vai ser autorizada: isso e do M4, e e o que faz o rotulo ser
-    derivado da politica em vez de inventado aqui.
+    """Da tabela de operadores e da de chaves as requisicoes legitimas das oito semanas,
+    sem desfecho.
     """
     rng = stream(seed, TRAFFIC)
 

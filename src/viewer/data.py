@@ -1,11 +1,3 @@
-"""De onde o viewer tira os dados: os arquivos que o comando unico gravou.
-
-O viewer nao roda o pipeline. Ele le o que o `python -m src.main` gravou em
-`data/`, e por isso mostra exatamente o resultado real, sem uma segunda copia da
-ordem de execucao (D-121). Nada aqui depende do Streamlit: o app guarda em cache,
-e os testes chamam direto.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,8 +10,6 @@ from src.shared import layout
 
 @dataclass(frozen=True)
 class SeedFiles:
-    """O ramo da semente: semanas 1 a 4, sem atacante."""
-
     operators: pd.DataFrame
     keys: pd.DataFrame
     requests: pd.DataFrame
@@ -32,8 +22,6 @@ class SeedFiles:
 
 @dataclass(frozen=True)
 class RunFiles:
-    """Uma execucao (semente, sigma): semanas 5 a 8, com a campanha e as decisoes."""
-
     requests: pd.DataFrame
     compromised: pd.DataFrame
     run: pd.DataFrame
@@ -49,8 +37,6 @@ class RunFiles:
 
 @dataclass(frozen=True)
 class GridFiles:
-    """As quatro tabelas da avaliacao, na raiz."""
-
     metrics: pd.DataFrame
     triviality: pd.DataFrame
     comparison: pd.DataFrame
@@ -173,7 +159,7 @@ def read_thresholds(root: Path, seeds: tuple[int, ...]) -> pd.DataFrame:
 
 
 def read_importance(root: Path) -> pd.DataFrame:
-    """A importancia por permutacao das execucoes, na raiz (D-124)."""
+    """A importancia por permutacao das execucoes, lida da raiz."""
     path = root / layout.IMPORTANCE
 
     if not path.exists():

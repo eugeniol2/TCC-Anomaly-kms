@@ -1,22 +1,10 @@
-"""Que chave cada requisicao endereca, e os dois desvios que produzem falha.
-
-O alvo normal e uma chave dos escopos do operador, que o M4 autoriza. Os dois
-desvios da D-056 existem porque, sem eles, nenhuma requisicao legitima poderia
-falhar por politica ou por identificador inexistente, e cada um desses
-desfechos passaria a significar atacante, virando separador trivial.
-
-Os desvios sao emitidos como tentativa comum, **sem marca nenhuma**. Quem os
-distingue e o M4, ao avaliar a politica. Aqui eles sao apenas requisicoes que
-apontam para o lugar errado, como uma referencia velha aponta.
-"""
-
 from __future__ import annotations
 
 from numpy.random import Generator
 
 from src.entities.scenario_engine.traffic.repository import OperatorKeys
 from src.entities.scenario_engine.traffic.parameters import (
-    IDENTIFIER_DIGITS,
+    IDENTIFIER_HEX_DIGITS,
     IDENTIFIER_PREFIX,
     IDENTIFIER_SPACE,
     TrafficSpecification,
@@ -24,14 +12,10 @@ from src.entities.scenario_engine.traffic.parameters import (
 
 
 def draw_absent_identifier(rng: Generator, existing: frozenset[str]) -> str:
-    """Identificador no formato do repositorio que nao existe nele.
-
-    Precisa ser indistinguivel de um real ate o M4 procura-lo e nao achar. Se
-    tivesse formato proprio, o atributo de formato separaria as classes sozinho.
-    """
+    """Identificador no formato do repositorio que nao existe nele."""
     while True:
         drawn = int(rng.integers(0, IDENTIFIER_SPACE))
-        candidate = f"{IDENTIFIER_PREFIX}{drawn:0{IDENTIFIER_DIGITS}x}"
+        candidate = f"{IDENTIFIER_PREFIX}{drawn:0{IDENTIFIER_HEX_DIGITS}x}"
 
         is_present = candidate in existing
 
@@ -42,22 +26,10 @@ def draw_absent_identifier(rng: Generator, existing: frozenset[str]) -> str:
 def distinct_key_count(
     rng: Generator, ceiling: int, specification: TrafficSpecification
 ) -> int:
-    """Quantas chaves distintas a sessao toca, limitado pelo que cabe nela.
+    """Quantas chaves distintas a sessao toca: um valor da faixa e, com chance
+    `long_session_chance`, um excesso geometrico sorteado a parte do de comprimento.
 
-    O teto e o menor entre o alcance do operador e o tamanho da sessao: nao da
-    para tocar oito chaves distintas em seis requisicoes, nem para alcancar
-    doze quando o escopo tem quatro.
-
-    **A faixa e a amplitude tipica, nao um teto** (D-098). Uma sessao em vinte
-    passa dela, com a mesma chance e o mesmo excesso da cauda de comprimento da
-    D-097. Sem isso nenhuma sessao legitima passava de 12, e o `distinct_keys`
-    separava as classes sozinho ate sigma 0,5, com F1 0,879.
-
-    **Esta cauda e sorteada a parte da de comprimento** (D-100). A D-098 dizia
-    que a sessao que se estende tambem se alarga, e nao e o que este codigo faz:
-    medido em 10 sementes, so 7 % das sessoes longas passam de 12 chaves, e 94 %
-    das largas tem comprimento tipico. O `ceiling` limita o alargamento; quem o
-    produz e o sorteio `runs_broad` abaixo.
+    O resultado fica entre 1 e `ceiling`, o que cabe na sessao e no alcance do operador.
     """
     lowest, highest = specification.distinct_keys_range
     drawn = int(rng.integers(lowest, highest + 1))
@@ -65,7 +37,7 @@ def distinct_key_count(
     runs_broad = rng.random() < specification.long_session_chance
 
     if runs_broad:
-        drawn += int(rng.geometric(1.0 / specification.long_session_excess))
+        drawn += int(rng.geometric(1.0 / specification.long_session_mean_excess))
 
     return max(1, min(drawn, ceiling))
 
@@ -75,10 +47,9 @@ def spread_over_requests(
 ) -> list[str]:
     """Distribui as chaves escolhidas pelas requisicoes da sessao.
 
-    Cada chave aparece ao menos uma vez (e por isso que a contagem de
-    distintas e exatamente a sorteada) e as requisicoes restantes repetem
-    alguma delas. A permutacao final evita que as primeiras requisicoes sejam
-    sempre as de chave inedita.
+    Cada chave aparece ao menos uma vez, e as requisicoes restantes repetem alguma
+    delas. A permutacao final evita que as primeiras requisicoes sejam sempre as de
+    chave inedita.
     """
     surplus = request_count - len(session_keys)
     repeated = rng.integers(0, len(session_keys), size=surplus)
@@ -103,7 +74,9 @@ def apply_deviations(
     keys: OperatorKeys,
     specification: TrafficSpecification,
 ) -> list[str]:
-    """Substitui algumas requisicoes pelos dois desvios da D-056."""
+    """Substitui algumas requisicoes pelos dois desvios: escopo obsoleto e identificador
+    inexistente.
+    """
     deviation_ceiling = specification.stale_scope_rate + specification.absent_identifier_rate
     has_unreachable = len(keys.out_of_reach) > 0
     draws = rng.random(len(targets))

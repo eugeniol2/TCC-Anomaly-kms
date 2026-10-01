@@ -1,12 +1,3 @@
-"""Leitura de `keys.csv`: o que o M2 precisa saber sobre as chaves.
-
-Montado uma vez por execucao e consultado em toda sessao. A atividade legitima
-e dirigida por **escopo**, e nao ha o que a dirija de outro jeito: a chave nao
-tem dono (D-099). A tabela teve uma coluna `owner` ate 24/09, e a D-042 ja a
-declarava nao consumida: a coluna so descrevia um mecanismo que o pipeline
-nunca usou.
-"""
-
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -17,31 +8,16 @@ from src.entities.scenario_engine.traffic.operators import Operator
 
 
 class OperatorKeys(NamedTuple):
-    """As tres visoes do repositorio, do ponto de vista de um operador."""
-
     in_reach: tuple[str, ...]
-    """Chaves dos escopos que ele detem. Alvo normal das requisicoes."""
 
     out_of_reach: tuple[str, ...]
-    """Chaves que existem e estao fora dos escopos dele.
-
-    Alvo da referencia a escopo obsoleto, que o M4 nega por politica (D-056).
-    """
 
     existing: frozenset[str]
-    """Todo identificador do repositorio.
-
-    Serve para forjar identificador inexistente sem colidir com chave real.
-    Compartilhado entre todos os operadores; e o repositorio inteiro.
-    """
 
 
 def keys_by_scope(keys: pd.DataFrame) -> dict[str, list[str]]:
-    """Indice inverso da tabela: de cada escopo para as chaves que ele contem.
-
-    Ordenado para nao herdar o embaralhamento de linhas do M1. O alcance de um
-    operador passa a depender so de quais chaves estao no escopo, e nao da
-    ordem em que foram gravadas.
+    """Indice inverso da tabela: de cada escopo para as chaves que ele contem,
+    ordenadas.
     """
     grouped: dict[str, list[str]] = {}
 

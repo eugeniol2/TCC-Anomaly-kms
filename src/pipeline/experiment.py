@@ -1,14 +1,3 @@
-"""O experimento de ponta a ponta: busca, ensaio, grade, avaliacao e figuras (D-121).
-
-A ordem e a que o protocolo exige, e agora o codigo a impoe: a busca de
-hiperparametros na 902 escreve a configuracao que as execucoes leem (D-032); o
-ensaio na 903 e a primeira olhada em acerto, numa semente reservada, **antes** da
-grade (D-107); a grade roda as execucoes pedidas; a avaliacao, a importancia por
-permutacao (D-124) e as figuras leem o que a grade gravou.
-
-Cada passo pertence a uma entidade, e so roda se o `--ate` a alcanca.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -51,8 +40,6 @@ from src.shared.tables import write_csv
 
 
 class Options(NamedTuple):
-    """O que rodar e onde gravar. Os numeros do experimento nao passam por aqui."""
-
     seeds: tuple[int, ...]
     sigmas: tuple[float, ...]
     root: Path
@@ -62,19 +49,13 @@ class Options(NamedTuple):
 
 @dataclass
 class Experiment:
-    """O estado do experimento enquanto os passos rodam."""
-
     options: Options
     specifications: Specifications = field(default_factory=Specifications)
 
 
-# A busca de hiperparametros, na 902.
-
-
 def search_training_set(root: Path, specifications: Specifications) -> pd.DataFrame:
-    """A 902 ate a particao, em sigma 0,5: o treino sobre o qual a busca roda.
-
-    O holdout da 902 nao e consultado em momento nenhum (D-045).
+    """A 902 ate a particao, em sigma 0,5: o treino sobre o qual a busca roda. O holdout
+    dela nao e consultado.
     """
     preparation = root / layout.PREPARATION
     branch = run_seed_branch(HYPERPARAMETER_SEARCH_SEED, preparation, specifications)
@@ -122,11 +103,8 @@ def configure_models(experiment: Experiment) -> None:
     experiment.specifications = experiment.specifications._replace(models=configuration)
 
 
-# O ensaio, na 903.
-
-
 def run_rehearsal(root: Path, specifications: Specifications) -> Evaluation:
-    """O pipeline inteiro na 903, em sigma 0,5, e as metricas e a arvore rasa dela (D-107)."""
+    """O pipeline inteiro na 903, em sigma 0,5, e as metricas e a arvore rasa dela."""
     preparation = root / layout.PREPARATION
     branch = run_seed_branch(REHEARSAL_SEED, preparation, specifications)
     run_sigma_branch(branch, PREPARATION_SIGMA)
@@ -150,9 +128,6 @@ def rehearse(experiment: Experiment) -> None:
     print(summary.to_string(index=False))
 
 
-# A grade, a avaliacao e as figuras.
-
-
 def run_grid(experiment: Experiment) -> None:
     """As execucoes pedidas, semente a semente, e o indice agregado."""
     options = experiment.options
@@ -171,7 +146,7 @@ def run_grid(experiment: Experiment) -> None:
 
 
 def write_evaluation(root: Path, seeds: tuple[int, ...], sigmas: tuple[float, ...]) -> Evaluation:
-    """O M12 sobre as execucoes pedidas, lidas do disco: as quatro tabelas na raiz."""
+    """A avaliacao das execucoes pedidas, lidas do disco: grava as quatro tabelas na raiz."""
     runs = []
 
     for seed in seeds:
@@ -197,7 +172,7 @@ def evaluate(experiment: Experiment) -> None:
 
 
 def write_importance(experiment: Experiment) -> pd.DataFrame:
-    """A importancia por permutacao das execucoes pedidas, na raiz (D-124)."""
+    """A importancia por permutacao das execucoes pedidas, gravada na raiz."""
     options = experiment.options
     configuration = experiment.specifications.models
     frames = []
@@ -246,8 +221,6 @@ EXPERIMENT_STEPS = (
     ("evaluation", measure_importance),
     ("figures", draw_figures),
 )
-"""A ordem do protocolo. Diferente dos ramos, aqui a entidade nao cresce passo a
-passo: cada passo roda se o `--ate` o alcanca, e os outros sao pulados."""
 
 
 def run_experiment(options: Options) -> None:

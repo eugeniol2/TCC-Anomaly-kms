@@ -1,17 +1,3 @@
-"""O cronometro do tempo de inferencia, o mesmo para regras e modelos (D-106).
-
-Mora aqui, e nao no `parameters.py` de um modulo, porque o baseline (M10) e os
-modelos (M11) precisam medir **do mesmo jeito**, e importar do vizinho quebraria
-a fronteira entre modulos. E a mesma razao que pos o calendario em
-`shared/phases.py` (D-079). E nao em `src/metrics`: as duas entidades que o usam
-passariam a depender da avaliacao, que ja depende delas (D-123).
-
-**E a unica medicao nao deterministica do pipeline.** O arquivo que ela produz
-(`timing_rules.csv`, e depois o dos modelos) muda a cada execucao, e por isso
-fica fora da conferencia byte a byte. As predicoes, nao: elas continuam
-reproduziveis.
-"""
-
 from __future__ import annotations
 
 from statistics import median
@@ -21,19 +7,8 @@ from typing import Callable
 import pandas as pd
 
 DISCARDED_ROUNDS = 1
-"""Rodadas de aquecimento, cronometradas e jogadas fora (D-106).
-
-A primeira chamada paga o que as seguintes nao pagam: cache frio, alocacao,
-importacao preguicosa dentro da biblioteca. Contar essa rodada mediria a
-primeira chamada, e nao a decisao.
-"""
 
 TIMED_ROUNDS = 10
-"""Rodadas que entram na mediana (D-106).
-
-Mediana, e nao media: uma interrupcao do sistema operacional numa rodada so
-puxaria a media inteira, e a mediana a ignora.
-"""
 
 NANOSECONDS_PER_MICROSECOND = 1_000
 NANOSECONDS_PER_SECOND = 1_000_000_000
@@ -46,19 +21,11 @@ COLUMNS = (
     "microseconds_per_session",
     "sessions_per_second",
 )
-"""As colunas do arquivo de tempo, uma linha por mecanismo.
-
-Microssegundos por sessao e a unidade da tabela do trabalho, e a vazao vai ao
-lado porque e o numero que um operador de sistema entende (D-106).
-"""
 
 
 def median_nanoseconds(decide: Callable[[], object]) -> int:
     """A mediana das rodadas cronometradas, depois de descartar o aquecimento.
-
-    Cronometra so a chamada. O que ela recebe ja esta pronto antes do relogio
-    comecar, e o que ela devolve nao e escrito em lugar nenhum durante a
-    medicao.
+    Cronometra so a chamada.
     """
     for _ in range(DISCARDED_ROUNDS):
         decide()

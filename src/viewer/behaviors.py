@@ -1,21 +1,3 @@
-"""A aba de comportamentos: os três regimes, um de cada vez, com o dado real.
-
-Nas fases do pipeline os regimes aparecem aos pedaços, espalhados pelas
-variáveis de decisão de cada quadro. Aqui eles são o assunto: quando cada um
-abre sessão, quanto a sessão dura, o que ela pede e de onde vem, e por que cada
-escolha é a que é.
-
-**Cada número desta aba é lido do código ou medido no tráfego da semente.**
-Nenhum está escrito na prosa: os parâmetros vêm de `REGIMES`, da
-`TrafficSpecification` e da `AttackSpecification`, e as medições vêm do
-`requests.csv` que o M2 produz para a semente escolhida. Mudado um parâmetro, a
-aba muda junto, e é a mesma regra que o resto do viewer segue.
-
-As curvas teóricas usam a mesma parametrização do gerador (`p = n / (n + m)`
-para a Pascal, por exemplo), e ao lado delas vai sempre a frequência medida,
-que é o que confirma que o gerador faz o que o texto diz.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -39,16 +21,8 @@ from src.viewer.formatting import com_virgula, porcento
 from src.viewer.theory import Teoria, teoria_da_geometrica
 
 ORDEM = ("routine", "periodic_batch", "occasional_custody")
-"""A ordem das abas e das séries dos gráficos.
-
-O `routine` vem primeiro porque é a referência contra a qual o
-`occasional_custody` se lê como irregular. A ordem das séries decide a cor, e
-não se embaralha entre gráficos: o mesmo regime tem a mesma cor em todos.
-"""
 
 DIAS_DA_SEMANA = ("1 seg", "2 ter", "3 qua", "4 qui", "5 sex", "6 sáb", "7 dom")
-# O número na frente mantém a ordem: o eixo de texto do Streamlit é ordenado
-# alfabeticamente, e sem ele domingo apareceria antes de quarta.
 
 RESUMOS = {
     "routine": (
@@ -81,8 +55,6 @@ RESUMOS = {
 
 @dataclass(frozen=True)
 class Comportamento:
-    """Um regime inteiro, na ordem em que a aba o apresenta."""
-
     regime: str
     perfil: str
     operadores: int
@@ -90,40 +62,25 @@ class Comportamento:
     secoes: tuple[Teoria, ...]
 
     personificado: bool = False
-    """Se é o regime que o atacante imita. Só ele ganha o slider de σ."""
 
 
 @dataclass(frozen=True)
 class Pagina:
-    """Tudo que a aba mostra para uma semente."""
-
     quadro: pd.DataFrame
     gerais: tuple[Teoria, ...]
     comportamentos: tuple[Comportamento, ...]
 
 
-# ── Escrita dos números ─────────────────────────────────────────────────
-
-
 def hora_escrita(horas: float) -> str:
-    """Hora fracionária do dia como `hh:mm`, truncada no minuto.
-
-    Truncada, e não arredondada: 17h59min50s arredondado vira 18:00, que é a
-    hora em que a janela fecha e em que nenhuma sessão abre.
-    """
+    """Hora fracionária do dia como `hh:mm`, truncada no minuto, e não arredondada."""
     minutos_no_dia = int(horas * 60)
 
     return f"{minutos_no_dia // 60:02d}:{minutos_no_dia % 60:02d}"
 
 
-# ── Medições sobre o tráfego ────────────────────────────────────────────
-
-
 def sessoes_do_trafego(requests: pd.DataFrame, operators: pd.DataFrame) -> pd.DataFrame:
-    """Uma linha por sessão: de quem, de que regime, quando abriu, quanto durou.
-
-    A abertura é o instante do primeiro evento, que é o mesmo recorte que o M6
-    usa para a janela horária habitual.
+    """Uma linha por sessão: de quem, de que regime, quando abriu, quanto durou. A
+    abertura é o instante do primeiro evento.
     """
     eventos = requests.assign(momento=pd.to_datetime(requests["timestamp"]))
 
@@ -148,11 +105,7 @@ def sessoes_do_trafego(requests: pd.DataFrame, operators: pd.DataFrame) -> pd.Da
 def contagens_por_dia_util(
     sessoes: pd.DataFrame, operadores: pd.Series, dias_uteis: list
 ) -> pd.Series:
-    """Sessões de cada operador em cada dia útil, **com os dias vazios**.
-
-    Os dias sem sessão precisam entrar como zero. Sem eles a média sobe, a
-    variância cai, e a contagem deixa de ser comparável com a Poisson ou a
-    Pascal, que têm o zero no domínio.
+    """Sessões de cada operador em cada dia útil, com os dias vazios contados como zero.
     """
     dias = sessoes["abertura"].dt.date
     por_dia = sessoes.groupby([sessoes["operator_id"], dias]).size()
@@ -193,7 +146,7 @@ def descrever_ritmo(ritmo: ScheduledRhythm | ArrivalRhythm) -> tuple[str, str, s
 
     return (
         "úteis",
-        f"{ritmo.opens_at:02d}h às {ritmo.closes_at:02d}h",
+        f"{ritmo.opens_at_hour:02d}h às {ritmo.closes_at_hour:02d}h",
         f"{lei}, média {media} por dia",
     )
 
@@ -304,15 +257,13 @@ def secao_do_dia_da_semana(sessoes: pd.DataFrame) -> Teoria:
 
 
 def secao_do_excesso(trafego: TrafficSpecification) -> Teoria:
-    """Quantas requisições a mais a sessão ganha quando se estende (D-097).
+    """Quantas requisições a mais a sessão ganha quando se estende.
 
-    É a geométrica que `draw_request_count` sorteia, na mesma parametrização
-    do numpy: `p = 1 / média`, com suporte a partir de 1. A curva é analítica,
-    então descreve o gerador em vez de chamá-lo; o teste do viewer a compara
-    com o sorteador de verdade.
+    A curva é analítica: a geométrica de `draw_request_count`, com `p = 1 / média` e
+    suporte a partir de 1.
     """
     chance = trafego.long_session_chance
-    media = trafego.long_session_excess
+    media = trafego.long_session_mean_excess
     parada = 1.0 / media
 
     eixo = np.arange(1, int(4 * media) + 1)
@@ -341,9 +292,6 @@ def secao_do_excesso(trafego: TrafficSpecification) -> Teoria:
             f"ganha até **{mediana}** a mais."
         ),
     )
-
-
-# ── Quando a sessão abre ────────────────────────────────────────────────
 
 
 def eixo_de_contagem(contagens: pd.Series) -> np.ndarray:
@@ -424,11 +372,7 @@ def secao_contagem_pascal(ritmo: ArrivalRhythm, contagens: pd.Series) -> Teoria:
 
 
 def descrever_janela(nome: str, ritmo: ScheduledRhythm | ArrivalRhythm) -> str:
-    """A janela deste regime, numa frase.
-
-    O texto usa o nome da entidade (Perfis históricos) e não o número do
-    módulo: quem assiste a apresentação não sabe o que é M6.
-    """
+    """A janela deste regime, numa frase."""
     is_lote = isinstance(ritmo, ScheduledRhythm)
 
     if is_lote:
@@ -441,8 +385,8 @@ def descrever_janela(nome: str, ritmo: ScheduledRhythm | ArrivalRhythm) -> str:
         )
 
     return (
-        f"No `{nome}` a abertura cai uniforme entre {ritmo.opens_at:02d}h e "
-        f"{ritmo.closes_at:02d}h, e a janela estreita é o que dá aos **Perfis "
+        f"No `{nome}` a abertura cai uniforme entre {ritmo.opens_at_hour:02d}h e "
+        f"{ritmo.closes_at_hour:02d}h, e a janela estreita é o que dá aos **Perfis "
         "históricos** uma faixa habitual para extrair."
     )
 
@@ -466,13 +410,10 @@ def secao_processo_de_poisson(ritmo: ArrivalRhythm) -> Teoria:
     )
 
 
-# ── Dentro da sessão ────────────────────────────────────────────────────
-
-
 def secao_tamanho(
     regime: Regime, sessoes: pd.DataFrame, trafego: TrafficSpecification
 ) -> Teoria:
-    """Quantas requisições: a faixa típica e a cauda (D-097), em gancho."""
+    """Quantas requisições: a faixa típica e a cauda, em gancho."""
     menor, maior = regime.requests_range
     eventos = sessoes["eventos"]
 
@@ -483,7 +424,7 @@ def secao_tamanho(
     })
 
     chance = trafego.long_session_chance
-    excesso = trafego.long_session_excess
+    excesso = trafego.long_session_mean_excess
 
     return Teoria(
         titulo="Quantas requisições por sessão",
@@ -503,9 +444,6 @@ def secao_tamanho(
 
 LARGURAS_DE_FAIXA = (1, 2, 5, 10, 20, 30, 60)
 FAIXAS_NO_GRAFICO = 20
-# O grafico do intervalo cobre ate quatro medias em cerca de vinte barras, e a
-# largura da faixa e a mais redonda perto disso: 10 s no routine, 20 s no
-# occasional_custody, 1 s no periodic_batch.
 
 
 def largura_de_faixa(media: float) -> int:
@@ -525,8 +463,8 @@ def largura_de_faixa(media: float) -> int:
 def barras_da_exponencial(media: float) -> pd.DataFrame:
     """A chance de o intervalo cair em cada faixa de segundos.
 
-    Analítica: a exponencial de média `m` põe `exp(-a/m) - exp(-b/m)` na faixa
-    de `a` a `b`. O teste do viewer confere contra `request_instants`.
+    Analítica: a exponencial de média `m` põe `exp(-a/m) - exp(-b/m)` na faixa de `a` a
+    `b`.
     """
     largura = largura_de_faixa(media)
     inicios = np.arange(0, 4 * media, largura)
@@ -537,13 +475,7 @@ def barras_da_exponencial(media: float) -> pd.DataFrame:
 
 
 def secao_intervalo(regime: Regime, sessoes: pd.DataFrame) -> Teoria:
-    """O passo dentro da sessão, em barras, como o gráfico da geométrica.
-
-    Até 28/09 era uma curva acumulada ("chance de o intervalo passar disto"),
-    medida e teórica lado a lado, e não havia gráfico nenhum no
-    `periodic_batch`, porque o log grava segundos inteiros. A barra por faixa
-    se lê de uma vez e serve aos três regimes.
-    """
+    """O passo dentro da sessão, em barras, como o gráfico da geométrica."""
     media = regime.seconds_between_requests
     largura = largura_de_faixa(media)
     mediana = media * np.log(2)
@@ -614,7 +546,7 @@ def secao_mistura(perfil: str, eventos: pd.DataFrame) -> Teoria:
 
 def hora_da_janela(janela: HourWindow) -> str:
     """Uma janela de horas como `09h às 19h`."""
-    return f"{janela.opens_at:02d}h às {janela.closes_at:02d}h"
+    return f"{janela.opens_at_hour:02d}h às {janela.closes_at_hour:02d}h"
 
 
 def faixa_escrita(faixa: tuple[int, int]) -> str:
@@ -628,8 +560,7 @@ def linhas_do_atacante(stealth: Stealth) -> list[tuple[str, str]]:
 
     return [
         ("intervalo entre requisições", f"{com_virgula(stealth.seconds_between_requests)} s"),
-        # "(típico)" porque as duas faixas tem cauda (D-097, D-098): lidas sem
-        # o rotulo, 8 a 25 e 3 a 12 pareciam teto.
+        # "(típico)": a faixa tem cauda, nao e teto.
         ("requisições por sessão (típico)", faixa_escrita(stealth.requests_range)),
         ("chaves distintas (típico)", faixa_escrita(stealth.distinct_keys_range)),
         (f"chance de abrir fora do expediente ({madrugada}, qualquer dia)",
@@ -643,11 +574,8 @@ def linhas_do_atacante(stealth: Stealth) -> list[tuple[str, str]]:
 def tabela_do_atacante(
     sigma: float, regime: Regime, trafego: TrafficSpecification, ataque: AttackSpecification
 ) -> pd.DataFrame:
-    """As dimensões em σ 0,0, no σ escolhido e em σ 1,0, lado a lado.
-
-    Os três vêm de `stealth_of`, a função que a campanha de ataque usa para
-    resolver σ: a coluna do meio é o que o atacante faz de fato naquela
-    condição, e não uma interpolação refeita aqui.
+    """As dimensões em σ 0,0, no σ escolhido e em σ 1,0, lado a lado, resolvidas por
+    `stealth_of`, a mesma função da campanha de ataque.
     """
     colunas = {
         "σ 0,0 (ostensivo)": 0.0,
@@ -675,12 +603,8 @@ def tabela_do_atacante(
 
 
 AMOSTRAS_DO_GRAFICO = 20_000
-# Sessoes sorteadas de cada lado para o grafico de tamanho. Vinte mil bastam
-# para a forma ficar lisa, e custam uma fracao de segundo.
 
 SEMENTE_DO_GRAFICO = 20260927
-# Fixa para o grafico nao tremer a cada interacao. Fora das replicas: estes
-# sorteios nao pertencem ao experimento, so ilustram a tela.
 
 
 def sortear_tamanhos(
@@ -698,12 +622,10 @@ def sortear_tamanhos(
 def tamanhos_da_sessao(
     sigma: float, regime: Regime, trafego: TrafficSpecification, ataque: AttackSpecification
 ) -> pd.DataFrame:
-    """Quantas requisições tem a sessão do atacante neste σ, e a legítima.
+    """Quantas requisições tem a sessão do atacante neste σ, e a legítima, as duas
+    sorteadas por `draw_request_count`.
 
-    As duas saem de `draw_request_count`, a função que a campanha e o tráfego
-    legítimo usam de fato; o atacante com a faixa que `stealth_of` resolve
-    para este σ, o legítimo com a do regime. Em σ 1,0 as duas faixas são a
-    mesma, e as barras se sobrepõem.
+    Em σ 1,0 as duas faixas são a mesma, e as barras se sobrepõem.
     """
     rng = np.random.default_rng(SEMENTE_DO_GRAFICO)
     faixa_do_atacante = stealth_of(sigma, regime, trafego, ataque).requests_range
@@ -728,14 +650,7 @@ def secao_atacante(
     trafego: TrafficSpecification,
     ataque: AttackSpecification,
 ) -> Teoria:
-    """As dimensões de σ, do ostensivo até este regime.
-
-    Os valores vêm de `stealth_of`, a função que o M3 usa para resolver σ, e
-    não de uma releitura dos parâmetros. Reescrever aqui quais são as
-    dimensões e que forma cada uma tem foi o erro da primeira versão desta
-    seção: ela mostrava o horário como faixa interpolada, quando ele é uma
-    chance, e deixava a origem inédita de fora.
-    """
+    """As dimensões de σ, do ostensivo até este regime, resolvidas por `stealth_of`."""
     furtivo = stealth_of(1.0, regime, trafego, ataque)
 
     no_periodo = sessoes[belongs_to(EVALUATED, sessoes["abertura"])]
@@ -771,12 +686,7 @@ def secao_atacante(
     )
 
 
-# ── Os métodos de sorteio de cada regime ────────────────────────────────
-
-
 class Metodo(NamedTuple):
-    """Um sorteio do gerador: o que decide, com que lei, e onde."""
-
     etapa: str
     metodo: str
     parametro: str
@@ -798,7 +708,7 @@ def metodos_do_lote(ritmo: ScheduledRhythm) -> list[Metodo]:
 def metodo_do_instante(ritmo: ArrivalRhythm) -> Metodo:
     """Em que instante do dia a pessoa abre sessão."""
     return Metodo("em que instante", "**uniforme** contínua na janela",
-                  f"{ritmo.opens_at:02d}h às {ritmo.closes_at:02d}h", "arrival_starts")
+                  f"{ritmo.opens_at_hour:02d}h às {ritmo.closes_at_hour:02d}h", "arrival_starts")
 
 
 def metodos_da_rotina(ritmo: ArrivalRhythm) -> list[Metodo]:
@@ -854,14 +764,10 @@ def metodos_da_sessao_do_regime(regime: Regime, perfil: str) -> list[Metodo]:
 
 
 def metodos_comuns(trafego: TrafficSpecification) -> list[Metodo]:
-    """Os sorteios iguais nos três regimes, com os mesmos valores.
-
-    Todos leem da `TrafficSpecification` ou de parâmetro global, e nada do
-    regime: por isso não mudam de uma aba para outra, e ficam na visão geral.
-    """
+    """Os sorteios iguais nos três regimes, com os mesmos valores."""
     chaves_menor, chaves_maior = trafego.distinct_keys_range
     chance = porcento(trafego.long_session_chance, 0)
-    excesso = com_virgula(trafego.long_session_excess, 0)
+    excesso = com_virgula(trafego.long_session_mean_excess, 0)
     obsoleto = porcento(trafego.stale_scope_rate)
     inexistente = porcento(trafego.absent_identifier_rate)
 
@@ -900,12 +806,7 @@ def tabela_de_metodos(metodos: list[Metodo], coluna_do_valor: str) -> str:
 
 
 def secao_metodos(regime: Regime, perfil: str) -> Teoria:
-    """Os sorteios que mudam de um regime para outro, numa tabela.
-
-    Até 27/09 a tabela trazia os dez sorteios, e cinco deles eram idênticos
-    nas três abas. Os idênticos foram para a visão geral
-    (`secao_metodos_comuns`), e aqui fica só o que distingue o regime.
-    """
+    """Os sorteios que mudam de um regime para outro, numa tabela."""
     metodos = metodos_do_calendario(regime.rhythm) + metodos_da_sessao_do_regime(regime, perfil)
 
     return Teoria(
@@ -931,9 +832,6 @@ def secao_metodos_comuns(trafego: TrafficSpecification) -> Teoria:
     )
 
 
-# ── Montagem ────────────────────────────────────────────────────────────
-
-
 def secoes_do_ritmo(
     nome: str, regime: Regime, sessoes: pd.DataFrame, operadores: pd.Series,
     trafego: TrafficSpecification,
@@ -944,9 +842,7 @@ def secoes_do_ritmo(
 
     is_lote = isinstance(ritmo, ScheduledRhythm)
 
-    # O lote nao ganha secao de calendario: horas e desvio ja estao na tabela
-    # de metodos, e o grafico do desvio, plano de ponta a ponta, so repetia
-    # o que o numero diz.
+    # O lote so ganha a secao da janela, sem a de calendario.
     if is_lote:
         return [secao_janela(nome, ritmo)]
 
@@ -1013,8 +909,6 @@ def montar_pagina(
             montar_comportamento(nome, requests, operators, sessoes, (trafego, ataque))
         )
 
-    # A origem de rede fecha a visao geral, e nao cada aba de regime: os tres
-    # escolhem o endereco pela mesma geometrica, so muda quantos ele tem.
     mais_enderecos = 0
 
     for perfil in PROFILES:

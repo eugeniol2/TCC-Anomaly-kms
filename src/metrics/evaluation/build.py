@@ -1,20 +1,3 @@
-"""M12: a avaliacao das 330 execucoes.
-
-Quatro tabelas, e cada uma responde uma pergunta:
-
-- `metrics.csv`: quanto cada mecanismo acertou em cada execucao, com a matriz de
-  confusao inteira ao lado do F1 (D-021, D-022). Duas vezes: sobre o holdout
-  inteiro, e so sobre as sessoes de administradores, o desfecho secundario da
-  proposta (D-119). Para os modelos, tambem a ROC AUC.
-- `triviality.csv`: quantas positivas ha em cada lado da particao (D-023); um
-  atributo sozinho ja separa as classes? Ha sessao repetida entre treino e
-  holdout? (D-028, D-029)
-- `comparison.csv`: em cada sigma, cada modelo difere do baseline? Wilcoxon
-  pareado por semente, com a correcao de Holm so sobre as condicoes mantidas
-  (D-027, D-111, D-116).
-- `timing.csv`: quanto cada mecanismo leva para decidir (D-025, D-106).
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,12 +15,12 @@ from src.entities.scenario_engine.attack.build import ADMINISTRATOR
 from src.formulas.classification import confusion, rates, roc_auc
 from src.formulas.hypothesis_tests import holm, signed_rank_test
 from src.metrics.evaluation.parameters import (
-    ALTERNATIVE,
-    EXCLUSION_F1,
-    SIGNIFICANCE,
+    SIGNIFICANCE_LEVEL,
     STUMP_DEPTH,
+    STUMP_MEDIAN_F1_CUTOFF,
     STUMP_RANDOM_STATE,
-    ZERO_METHOD,
+    WILCOXON_ALTERNATIVE,
+    WILCOXON_ZERO_METHOD,
 )
 from src.shared import layout
 
@@ -46,9 +29,6 @@ MECHANISMS = (RULES,) + MODEL_NAMES
 ALL_SESSIONS = "all"
 ADMINISTRATORS = "administrators"
 SCOPES = (ALL_SESSIONS, ADMINISTRATORS)
-"""Sobre o que a metrica e calculada: o holdout inteiro (desfecho primario) ou so as
-sessoes de administradores, o perfil que o atacante personifica (desfecho secundario,
-proposta, Subsecao 5.4). No segundo, o atalho de reconhecer o papel some (D-118)."""
 
 METRIC_COLUMNS = (
     "seed", "sigma", "mechanism", "scope", "sessions", "positives",
@@ -77,8 +57,6 @@ TIMING_COLUMNS = (
 
 
 class Run(NamedTuple):
-    """Tudo que o M12 le de uma execucao (semente, sigma)."""
-
     seed: int
     sigma: float
     train: pd.DataFrame
@@ -87,7 +65,6 @@ class Run(NamedTuple):
     predictions_ml: pd.DataFrame
     timing: pd.DataFrame
     administrators: frozenset[str]
-    """Os operadores de perfil administrador daquela semente, para o desfecho secundario."""
 
 
 class Evaluation(NamedTuple):
@@ -97,11 +74,8 @@ class Evaluation(NamedTuple):
     timing: pd.DataFrame
 
 
-# As metricas de uma execucao.
-
-
 def rounded_rates(counts: dict[str, int]) -> dict[str, float]:
-    """As taxas da matriz, com as quatro casas com que o M12 as grava."""
+    """As taxas da matriz, arredondadas em quatro casas."""
     rounded = {}
 
     for name, value in rates(counts).items():
@@ -111,11 +85,7 @@ def rounded_rates(counts: dict[str, int]) -> dict[str, float]:
 
 
 def area_under_curve(truth: pd.Series, score: pd.Series | None) -> float:
-    """A ROC AUC de um escore continuo (D-119).
-
-    O baseline nao tem escore, so decisao, e fica sem AUC: nao e falha, e o que ele
-    e (proposta, Tabela 9).
-    """
+    """A ROC AUC de um escore continuo; sem escore, como o do baseline, devolve NaN."""
     has_score = score is not None
 
     if not has_score:
@@ -166,14 +136,11 @@ def run_metrics(run: Run) -> pd.DataFrame:
     return pd.DataFrame(rows)[list(METRIC_COLUMNS)]
 
 
-# A verificacao de trivialidade de uma execucao.
-
-
 def stump(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, object]:
-    """A arvore de profundidade 1: treina no treino, mede no holdout (D-028, D-114).
+    """A arvore de profundidade 1: treina no treino, mede no holdout.
 
-    Diz qual atributo ela escolheu e onde cortou. Quando nenhum corte melhora a
-    arvore, ela fica sem atributo e responde "legitima" para tudo.
+    Diz qual atributo ela escolheu e onde cortou. Quando nenhum corte melhora a arvore,
+    ela fica sem atributo e responde "legitima" para tudo.
     """
     tree = DecisionTreeClassifier(max_depth=STUMP_DEPTH, random_state=STUMP_RANDOM_STATE)
     tree.fit(train[list(ATTRIBUTES)], train[LABEL])
@@ -190,10 +157,8 @@ def stump(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, object]:
 
 
 def duplicates(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, int]:
-    """Sessoes em comum e sessoes do holdout com atributos identicos a alguma do treino (D-029).
-
-    A primeira tem de ser zero: a sessao e uma linha so, e a particao nao a corta.
-    A segunda pode nao ser: duas sessoes diferentes podem ter os mesmos oito numeros.
+    """Sessoes em comum entre treino e holdout, e sessoes do holdout com atributos
+    identicos a alguma do treino.
     """
     shared = set(train["session_id"]) & set(holdout["session_id"])
     seen = set()
@@ -213,7 +178,7 @@ def duplicates(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, int]:
 
 
 def partition_counts(train: pd.DataFrame, holdout: pd.DataFrame) -> dict[str, int]:
-    """Sessoes e positivas de cada lado: a proporcao de anomalias, contada (D-023)."""
+    """Sessoes e positivas de cada lado da particao."""
     return {
         "train_sessions": len(train), "train_positives": int(train[LABEL].sum()),
         "holdout_sessions": len(holdout), "holdout_positives": int(holdout[LABEL].sum()),
@@ -227,9 +192,6 @@ def run_triviality(run: Run) -> pd.DataFrame:
     row.update(duplicates(run.train, run.holdout))
 
     return pd.DataFrame([row])[list(TRIVIALITY_COLUMNS)]
-
-
-# A comparacao, sobre a grade inteira.
 
 
 def of_condition(metrics: pd.DataFrame, sigma: float, scope: str) -> pd.DataFrame:
@@ -251,13 +213,14 @@ def paired_differences(metrics: pd.DataFrame, sigma: float, model: str) -> pd.Se
 
 
 def comparison_row(metrics: pd.DataFrame, stumps: pd.Series, sigma: float, model: str) -> dict:
-    """O teste e feito so no desfecho primario; os administradores vao ao lado, descritivos.
+    """O teste e feito so no desfecho primario; os administradores vao ao lado,
+    descritivos.
 
-    Wilcoxon pareado por semente, bilateral (D-116). Com uma semente so, a execucao
-    e parcial e o teste fica indefinido.
+    Wilcoxon pareado por semente, bilateral. Com uma semente so, o teste fica
+    indefinido.
     """
     differences = paired_differences(metrics, sigma, model)
-    statistic, p_value = signed_rank_test(differences, ZERO_METHOD, ALTERNATIVE)
+    statistic, p_value = signed_rank_test(differences, WILCOXON_ZERO_METHOD, WILCOXON_ALTERNATIVE)
     stump_median = float(stumps[sigma])
 
     return {
@@ -272,14 +235,14 @@ def comparison_row(metrics: pd.DataFrame, stumps: pd.Series, sigma: float, model
         "statistic": statistic,
         "p_value": round(p_value, 6),
         "stump_median_f1": round(stump_median, 4),
-        "excluded": stump_median >= EXCLUSION_F1,
+        "excluded": stump_median >= STUMP_MEDIAN_F1_CUTOFF,
         "median_f1_model_administrators": median_f1(metrics, sigma, ADMINISTRATORS, model),
         "median_f1_rules_administrators": median_f1(metrics, sigma, ADMINISTRATORS, RULES),
     }
 
 
 def with_holm(rows: pd.DataFrame) -> pd.DataFrame:
-    """Holm so sobre as condicoes mantidas (D-111); as excluidas ficam sem teste corrigido."""
+    """Holm so sobre as condicoes mantidas; as excluidas ficam sem teste corrigido."""
     kept = ~rows["excluded"] & rows["p_value"].notna()
     corrected = pd.Series(np.nan, index=rows.index)
 
@@ -288,7 +251,7 @@ def with_holm(rows: pd.DataFrame) -> pd.DataFrame:
 
     return rows.assign(
         p_holm=corrected.round(6),
-        significant=kept & (corrected < SIGNIFICANCE),
+        significant=kept & (corrected < SIGNIFICANCE_LEVEL),
     )
 
 
@@ -341,9 +304,6 @@ def build_evaluation(runs: list[Run]) -> Evaluation:
     return Evaluation(
         metrics, triviality, comparison(metrics, triviality), timing_summary(timings)
     )
-
-
-# A leitura de uma execucao do disco.
 
 
 def read_administrators(root: Path, seed: int) -> frozenset[str]:

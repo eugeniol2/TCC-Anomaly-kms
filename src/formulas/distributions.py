@@ -1,9 +1,3 @@
-"""As contas das distribuicoes que o gerador sorteia.
-
-O sorteio mora na entidade; aqui mora so a conta que ele usa, e a que o viewer
-usa para desenhar a mesma distribuicao sem reescrever a formula.
-"""
-
 from __future__ import annotations
 
 import numpy as np
@@ -12,9 +6,8 @@ import numpy as np
 def geometric_weights(quantity: int, first_share: float) -> np.ndarray:
     """Pesos de `quantity` posicoes decaindo geometricamente, somando 1.
 
-    A primeira leva `first_share` e cada seguinte leva `1 - first_share` da
-    anterior, e o conjunto e renormalizado, porque a geometrica e truncada em
-    `quantity` posicoes. E como a sessao escolhe a origem de rede (D-040).
+    A primeira leva `first_share` e cada seguinte leva `1 - first_share` da anterior; o
+    conjunto e renormalizado, porque a geometrica e truncada em `quantity` posicoes.
     """
     positions = np.arange(quantity)
     weights = first_share * (1 - first_share) ** positions

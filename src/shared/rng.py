@@ -1,48 +1,18 @@
-"""Derivacao dos fluxos de aleatoriedade do experimento (D-003, D-102).
-
-Fluxos independentes saem da mesma semente, um por subsistema. Fluxo unico
-compartilhado faria o numero de sorteios de um subsistema deslocar os sorteios
-dos outros, desfazendo o pareamento entre condicoes de sigma sem emitir erro nem
-aviso.
-
-**Acrescentar um fluxo nao altera os existentes.** O `SeedSequence.spawn` deriva
-cada filho do indice dele, e nao de quantos filhos sao pedidos: os tres
-primeiros de `spawn(4)` sao identicos aos de `spawn(3)`. Foi assim que a
-particao ganhou o quarto fluxo, os modelos o quinto e a importancia por permutacao
-o sexto, sem mudar dado nenhum ja gerado (D-102, D-104, D-124).
-"""
-
 from __future__ import annotations
 
 from numpy.random import PCG64, Generator, SeedSequence
 
 POPULATION = 0
-"""Populacao de operadores e repositorio de chaves (M1)."""
 
 TRAFFIC = 1
-"""Trafego legitimo (M2)."""
 
 ATTACK = 2
-"""Campanha de ataque (M3)."""
 
 PARTITION = 3
-"""Particao em treino e holdout (M9, D-102).
-
-Derivado so da semente, e nao de sigma: a particao e a mesma nas onze condicoes
-de uma semente, pela mesma logica da D-011.
-"""
 
 MODELS = 4
-"""Sementes de treino dos modelos e dobras da busca (M11, D-104, D-115).
-
-Tambem so da semente: o modelo treina com a mesma semente nas onze condicoes.
-"""
 
 IMPORTANCE = 5
-"""As permutacoes da importancia por atributo (M12, D-124).
-
-So da semente: as mesmas permutacoes servem aos tres mecanismos de uma execucao.
-"""
 
 STREAM_COUNT = 6
 
